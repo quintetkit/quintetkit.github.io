@@ -168,6 +168,28 @@
 
 <section>
   <div class="wrap">
+    <h2>What this setup built</h2>
+    <p class="sub">EVIDENCE</p>
+    <p>A record you can check beats a description. These four personas built one
+      small CLI, and the whole process is public.</p>
+    <p><a href="https://github.com/quintetkit/mdlinkcheck"><strong>mdlinkcheck</strong></a>
+      — a CLI that finds broken relative links in Markdown. 87 tests, two CI workflows passing.</p>
+    <ul class="symptoms">
+      <li><strong>Issues</strong> — each one carries scope, dependencies and acceptance criteria, written before any code</li>
+      <li><strong>Pull requests</strong> — each maps to exactly one Issue and stays inside its declared scope</li>
+      <li><strong>The parallel run</strong> — three Issues implemented concurrently in separate worktrees, merged one at a time</li>
+    </ul>
+    <p class="note">The history is not cleaned up. <strong>What went wrong is still in it.</strong>
+      Two Issues declared a scope that did not exist; a Coder stopped and reported a
+      missing dependency instead of editing a file outside its scope; and the tool
+      itself caught 17 broken links in its own README.
+      A history with no rejections only proves that review was not doing anything.</p>
+    <a class="btn" href="https://github.com/quintetkit/mdlinkcheck">Read the history</a>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
     <h2>Two configurations</h2>
     <p class="sub">PACKAGES</p>
     <div class="plans">
