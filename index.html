@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quartet / Quintet — Claude Code 並列開発ワークフロー</title>
+<meta name="description" content="Claude Code に設計者・実装者・レビュアー・コンフリクト解消担当を分担させ、GitHub Issue とブランチを軸に並列開発を回すための設定一式。">
+<style>
+  :root{
+    --bg:#FBFAF7; --panel:#FFFEFB; --ink:#1C1E26; --muted:#62656E;
+    --rule:#E2DFD8; --anchor:#A8431F; --anchor-soft:#F5E7E0; --code-bg:#F3F1EC;
+    --sans:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,"Roboto Mono",monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#16171B; --panel:#1D1F24; --ink:#E7E4DD; --muted:#9A9CA4;
+      --rule:#2E3037; --anchor:#E8825A; --anchor-soft:#33221B; --code-bg:#212329;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#16171B; --panel:#1D1F24; --ink:#E7E4DD; --muted:#9A9CA4;
+    --rule:#2E3037; --anchor:#E8825A; --anchor-soft:#33221B; --code-bg:#212329;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+       line-height:1.75;-webkit-font-smoothing:antialiased;font-size:16px}
+  .wrap{max-width:760px;margin:0 auto;padding:0 24px}
+
+  /* 見出しは左寄せ。中央揃えのヒーローは使わない */
+  header{border-bottom:1px solid var(--rule);padding:56px 0 32px}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;
+           text-transform:uppercase;color:var(--anchor);margin:0 0 14px}
+  h1{font-size:clamp(28px,5vw,40px);line-height:1.25;margin:0 0 16px;letter-spacing:-.02em}
+  .lede{font-size:18px;color:var(--muted);margin:0;max-width:56ch}
+
+  section{padding:44px 0;border-bottom:1px solid var(--rule)}
+  h2{font-size:20px;margin:0 0 6px;letter-spacing:-.01em}
+  h2 + .sub{font-family:var(--mono);font-size:12px;color:var(--muted);margin:0 0 22px}
+  h3{font-size:16px;margin:28px 0 8px}
+  p{margin:0 0 14px;max-width:64ch}
+
+  ul.symptoms{list-style:none;padding:0;margin:0}
+  ul.symptoms li{padding:11px 0 11px 26px;border-bottom:1px dashed var(--rule);
+                 position:relative;color:var(--ink)}
+  ul.symptoms li:last-child{border-bottom:0}
+  ul.symptoms li::before{content:"—";position:absolute;left:0;color:var(--anchor);
+                         font-family:var(--mono)}
+
+  .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+  th{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+     color:var(--muted);font-weight:500}
+  td.no{color:var(--muted)}
+  td strong{font-weight:600}
+
+  pre{background:var(--code-bg);border:1px solid var(--rule);border-radius:4px;
+      padding:16px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;
+      line-height:1.65;margin:0 0 14px}
+  code{font-family:var(--mono);font-size:.92em;background:var(--code-bg);
+       padding:1px 5px;border-radius:3px}
+  pre code{background:none;padding:0}
+
+  .plans{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);
+         border-radius:4px;overflow:hidden;margin-top:8px}
+  @media (min-width:680px){ .plans{grid-template-columns:1fr 1fr} }
+  .plan{background:var(--panel);padding:22px}
+  .plan h3{margin:0 0 2px;font-size:17px}
+  .plan .price{font-family:var(--mono);font-size:13px;color:var(--anchor);margin:0 0 14px}
+  .plan ul{margin:0;padding-left:18px;font-size:14px;color:var(--muted)}
+  .plan li{margin:0 0 6px}
+
+  a{color:var(--anchor);text-decoration:none;border-bottom:1px solid transparent;
+    transition:border-color .12s ease,color .12s ease}
+  a:hover{border-bottom-color:var(--anchor)}
+  a:focus-visible{outline:2px solid var(--anchor);outline-offset:3px;border-radius:2px}
+
+  .btn{display:inline-block;font-family:var(--mono);font-size:13px;
+       padding:11px 20px;border:1px solid var(--anchor);color:var(--anchor);
+       border-radius:3px;background:transparent;margin:16px 10px 0 0;
+       transition:background-color .12s ease,color .12s ease,opacity .12s ease}
+  .btn:hover{background:var(--anchor-soft);border-bottom-color:var(--anchor)}
+  .btn:active{transform:translateY(1px)}
+  .btn:focus-visible{outline:2px solid var(--anchor);outline-offset:3px}
+  .btn[aria-disabled="true"]{opacity:.45;pointer-events:none;border-style:dashed}
+
+  .note{font-size:13.5px;color:var(--muted);border-left:2px solid var(--anchor);
+        padding:2px 0 2px 14px;margin:18px 0 0}
+  footer{padding:32px 0 56px;font-size:13px;color:var(--muted)}
+  footer a{color:var(--muted)}
+  footer a:hover{color:var(--anchor);border-bottom-color:var(--anchor)}
+
+  .langbar{display:flex;justify-content:flex-end;gap:14px;padding:18px 0 0;
+           font-family:var(--mono);font-size:12px}
+  .langbar span{color:var(--muted)}
+  .langbar a{color:var(--muted)}
+  .langbar a:hover{color:var(--anchor);border-bottom-color:var(--anchor)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="langbar"><span>日本語</span><a href="index.en.html">English</a></div>
+    <p class="eyebrow">Claude Code / GitHub Issue-based workflow</p>
+    <h1>設計と実装とレビューを、<br>同じ人格にやらせない。</h1>
+    <p class="lede">Claude Code に責務の違う人格を分担させ、GitHub Issue とブランチを軸に
+      並列開発を回すための設定一式です。</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>心当たりがあるなら</h2>
+    <p class="sub">SYMPTOMS</p>
+    <ul class="symptoms">
+      <li>認証まわりを頼んだのに、ついでにエラーハンドリングの共通化まで入っている</li>
+      <li>差分が 40 ファイルあり、全部読む気力が湧かないので雰囲気で承認する</li>
+      <li>3 日後、なぜこの実装になっているのか自分でも説明できない</li>
+      <li>並列で走らせたいが、競合が怖くて結局 1 本ずつ回している</li>
+      <li>作らせた画面が、毎回どこかで見た形になる</li>
+    </ul>
+    <p class="note">これは能力の問題ではありません。1 つの人格に、設計も実装もレビューも
+      マージもやらせているからです。自分で決めた設計を自分で実装し、自分でレビューして
+      自分でマージする。人間のチームなら、この構成は誰も許可しません。</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>やることは、権限を落とすこと</h2>
+    <p class="sub">PERMISSIONS</p>
+    <p>5 つの人格は、どれも同じモデルです。賢さに差はありません。
+      違うのは<strong>何をしてよいか</strong>だけです。</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>人格</th><th>できること</th><th>できないこと</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Architect</strong></td><td>Issue の作成・分割</td><td class="no">コードを書く</td></tr>
+          <tr><td><strong>UI Designer</strong></td><td>UI 仕様書を書く</td><td class="no">コードを書く</td></tr>
+          <tr><td><strong>Coder</strong></td><td>担当 Issue の scope 内だけ変更</td><td class="no">scope 外を触る／マージする／造形を決める</td></tr>
+          <tr><td><strong>Reviewer</strong></td><td>レビューとマージ</td><td class="no">実装する／コンフリクトを解消する</td></tr>
+          <tr><td><strong>Conflict Resolver</strong></td><td>コンフリクト解消</td><td class="no">マージする／呼ばれる前に動く</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:18px">AI は与えられた文脈の中で、もっともらしい次の手を選びます。
+      「ログイン機能を作って」なら、関係しそうなことを全部やるのがもっともらしい。
+      「<code>src/auth/**</code> の中だけを変更して、この 3 つの受け入れ条件を満たせ」なら、
+      もっともらしい次の手はまったく別のものになります。</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>流れ</h2>
+    <p class="sub">FLOW</p>
+<pre><code>依頼 → [Architect] Issue に分割（scope が重ならない組を作る）
+         │
+         ├─ [Coder] issue/12-xxx ─┐
+         ├─ [Coder] issue/13-yyy ─┤ 並列
+         └─ [Coder] issue/14-zzz ─┘
+                                   │ PR ごとに1件ずつ
+                                   ▼
+                            [Reviewer] 受け入れ条件と scope を確認 → マージ
+                                   │
+                                   └─ コンフリクト → [Conflict Resolver] → Reviewer</code></pre>
+    <p><strong>実装は並列、マージは直列。</strong> 3 つ同時にマージすると、それぞれ単体では
+      正しくても組み合わせで壊れたときに切り分けができません。結局 3 つとも調べ直すことになり、
+      直列より遅くなります。</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>2 つの構成</h2>
+    <p class="sub">PACKAGES</p>
+    <div class="plans">
+      <div class="plan">
+        <h3>Quartet</h3>
+        <p class="price">無料 · MIT</p>
+        <ul>
+          <li>4 人格（Architect / Coder / Reviewer / Conflict Resolver）</li>
+          <li><code>CLAUDE.md</code> — 全体ルール</li>
+          <li>Issue テンプレート</li>
+          <li><code>setup.sh</code> — ラベル作成</li>
+        </ul>
+      </div>
+      <div class="plan">
+        <h3>Quintet</h3>
+        <p class="price">¥4,980 · 買い切り</p>
+        <ul>
+          <li>Quartet の全内容</li>
+          <li><strong>UI Designer 人格</strong> — 既定形を名指しで禁止し、8 状態を設計させる</li>
+          <li>UI 設計 Issue テンプレート</li>
+          <li>Reviewer の判定基準</li>
+          <li>Issue 単位の並列実行スクリプト</li>
+          <li>ラベル自動化（GitHub Actions）</li>
+          <li>実践ガイド 10 章</li>
+          <li>1 年間の更新</li>
+        </ul>
+      </div>
+    </div>
+    <a class="btn" href="https://github.com/quintetkit/quartet">Quartet を GitHub で見る</a>
+    <a class="btn" href="#" aria-disabled="true">Quintet を購入（準備中）</a>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>UI が毎回同じ形になる理由</h2>
+    <p class="sub">WHY YOUR SCREENS LOOK GENERATED</p>
+    <p>全画面中央揃えのヒーロー。アイコン付き 3 カラムの等幅カード。紫のグラデーション。
+      純黒の文字に純白の背景。見た瞬間に分かりますし、分かると信用されません。</p>
+    <p>原因は、Coder に造形を判断させていることです。色も書体も余白も指定されていない状態で
+      判断を求められたら、学習データの中でもっとも頻度の高い形が出ます。
+      <strong>AI の美的センスの問題ではなく、入力の欠落の問題です。</strong></p>
+    <p>Quintet は、実装より先に UI Designer が仕様書を書きます。構造 → トークン → 状態 →
+      モーション → コピー の順に確定させ、Coder は仕様書を唯一の入力として実装します。
+      書かれていない造形が必要になったら、実装を止めて差し戻します。</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>向かないとき</h2>
+    <p class="sub">WHEN NOT TO USE THIS</p>
+    <p>これはオーバーヘッドです。1 タスクあたりの手数は確実に増えます。</p>
+    <ul class="symptoms">
+      <li>探索・プロトタイプ（受け入れ条件を書けない段階）</li>
+      <li>1 ファイルで完結する変更（タイポ修正に PR を通す意味はない）</li>
+      <li>依存が本質的に一直線の作業（分割しても並列にならない）</li>
+      <li>30 分で終わる作業</li>
+    </ul>
+    <p class="note">限界もあります。Reviewer は Coder と同じモデルなので、モデルが体系的に
+      持っている誤りは見抜けません。あるライブラリの API を一貫して間違えて覚えていれば、
+      Coder が間違え、Reviewer も正しいと判定します。対処は、受け入れ条件に実行可能な検証を
+      入れることです。</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>サブエージェント定義の書式は
+      <a href="https://github.com/VoltAgent/awesome-claude-code-subagents">VoltAgent/awesome-claude-code-subagents</a>
+      を参考にしています。</p>
+    <p>Quartet は MIT ライセンスで公開しています。</p>
+  </div>
+</footer>
+
+</body>
+</html>

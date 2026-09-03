@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quartet / Quintet — A Parallel Development Workflow for Claude Code</title>
+<meta name="description" content="A configuration set that assigns Architect, Coder, Reviewer and Conflict Resolver personas to Claude Code, running parallel development around GitHub Issues and branches.">
+<style>
+  :root{
+    --bg:#FBFAF7; --panel:#FFFEFB; --ink:#1C1E26; --muted:#62656E;
+    --rule:#E2DFD8; --anchor:#A8431F; --anchor-soft:#F5E7E0; --code-bg:#F3F1EC;
+    --sans:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,"Roboto Mono",monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#16171B; --panel:#1D1F24; --ink:#E7E4DD; --muted:#9A9CA4;
+      --rule:#2E3037; --anchor:#E8825A; --anchor-soft:#33221B; --code-bg:#212329;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#16171B; --panel:#1D1F24; --ink:#E7E4DD; --muted:#9A9CA4;
+    --rule:#2E3037; --anchor:#E8825A; --anchor-soft:#33221B; --code-bg:#212329;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+       line-height:1.75;-webkit-font-smoothing:antialiased;font-size:16px}
+  .wrap{max-width:760px;margin:0 auto;padding:0 24px}
+
+  /* 見出しは左寄せ。中央揃えのヒーローは使わない */
+  header{border-bottom:1px solid var(--rule);padding:56px 0 32px}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;
+           text-transform:uppercase;color:var(--anchor);margin:0 0 14px}
+  h1{font-size:clamp(28px,5vw,40px);line-height:1.25;margin:0 0 16px;letter-spacing:-.02em}
+  .lede{font-size:18px;color:var(--muted);margin:0;max-width:56ch}
+
+  section{padding:44px 0;border-bottom:1px solid var(--rule)}
+  h2{font-size:20px;margin:0 0 6px;letter-spacing:-.01em}
+  h2 + .sub{font-family:var(--mono);font-size:12px;color:var(--muted);margin:0 0 22px}
+  h3{font-size:16px;margin:28px 0 8px}
+  p{margin:0 0 14px;max-width:64ch}
+
+  ul.symptoms{list-style:none;padding:0;margin:0}
+  ul.symptoms li{padding:11px 0 11px 26px;border-bottom:1px dashed var(--rule);
+                 position:relative;color:var(--ink)}
+  ul.symptoms li:last-child{border-bottom:0}
+  ul.symptoms li::before{content:"—";position:absolute;left:0;color:var(--anchor);
+                         font-family:var(--mono)}
+
+  .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+  th{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+     color:var(--muted);font-weight:500}
+  td.no{color:var(--muted)}
+  td strong{font-weight:600}
+
+  pre{background:var(--code-bg);border:1px solid var(--rule);border-radius:4px;
+      padding:16px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;
+      line-height:1.65;margin:0 0 14px}
+  code{font-family:var(--mono);font-size:.92em;background:var(--code-bg);
+       padding:1px 5px;border-radius:3px}
+  pre code{background:none;padding:0}
+
+  .plans{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);
+         border-radius:4px;overflow:hidden;margin-top:8px}
+  @media (min-width:680px){ .plans{grid-template-columns:1fr 1fr} }
+  .plan{background:var(--panel);padding:22px}
+  .plan h3{margin:0 0 2px;font-size:17px}
+  .plan .price{font-family:var(--mono);font-size:13px;color:var(--anchor);margin:0 0 14px}
+  .plan ul{margin:0;padding-left:18px;font-size:14px;color:var(--muted)}
+  .plan li{margin:0 0 6px}
+
+  a{color:var(--anchor);text-decoration:none;border-bottom:1px solid transparent;
+    transition:border-color .12s ease,color .12s ease}
+  a:hover{border-bottom-color:var(--anchor)}
+  a:focus-visible{outline:2px solid var(--anchor);outline-offset:3px;border-radius:2px}
+
+  .btn{display:inline-block;font-family:var(--mono);font-size:13px;
+       padding:11px 20px;border:1px solid var(--anchor);color:var(--anchor);
+       border-radius:3px;background:transparent;margin:16px 10px 0 0;
+       transition:background-color .12s ease,color .12s ease,opacity .12s ease}
+  .btn:hover{background:var(--anchor-soft);border-bottom-color:var(--anchor)}
+  .btn:active{transform:translateY(1px)}
+  .btn:focus-visible{outline:2px solid var(--anchor);outline-offset:3px}
+  .btn[aria-disabled="true"]{opacity:.45;pointer-events:none;border-style:dashed}
+
+  .note{font-size:13.5px;color:var(--muted);border-left:2px solid var(--anchor);
+        padding:2px 0 2px 14px;margin:18px 0 0}
+  footer{padding:32px 0 56px;font-size:13px;color:var(--muted)}
+  footer a{color:var(--muted)}
+  footer a:hover{color:var(--anchor);border-bottom-color:var(--anchor)}
+
+  .langbar{display:flex;justify-content:flex-end;gap:14px;padding:18px 0 0;
+           font-family:var(--mono);font-size:12px}
+  .langbar span{color:var(--muted)}
+  .langbar a{color:var(--muted)}
+  .langbar a:hover{color:var(--anchor);border-bottom-color:var(--anchor)}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="langbar"><a href="index.html">日本語</a><span>English</span></div>
+    <p class="eyebrow">Claude Code / GitHub Issue-based workflow</p>
+    <h1>Don't let the same persona handle design, implementation, and review.</h1>
+    <p class="lede">A configuration set to assign different personas to Claude Code for distinct responsibilities, enabling parallel development centered around GitHub Issues and branches.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>If this sounds familiar</h2>
+    <p class="sub">SYMPTOMS</p>
+    <ul class="symptoms">
+      <li>I asked for authentication, but it also included standardizing error handling.</li>
+      <li>The diff involves 40 files, and I lack the motivation to read them all, so I approve them superficially.</li>
+      <li>Three days later, I can't even explain why this implementation was chosen.</li>
+      <li>I want to run tasks in parallel, but fear of conflicts forces me to run them one by one.</li>
+      <li>The screens generated always look like something I've seen before.</li>
+    </ul>
+    <p class="note">This is not a capability issue. It happens because you are assigning design, implementation, review, and merging to a single persona. If this were a human team, no one would allow the same person to decide on the design, implement it, review it, and merge it.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The solution is reducing permissions</h2>
+    <p class="sub">PERMISSIONS</p>
+    <p>All five personas use the same model. There is no difference in intelligence.
+      The only difference is<strong>what they are allowed to do</strong>.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Persona</th><th>Can do</th><th>Cannot do</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Architect</strong></td><td>Create and split Issues</td><td class="no">Write code</td></tr>
+          <tr><td><strong>UI Designer</strong></td><td>Write UI specifications</td><td class="no">Write code</td></tr>
+          <tr><td><strong>Coder</strong></td><td>Change only within the scope of the assigned Issue</td><td class="no">Touch outside scope / Merge / Decide on design</td></tr>
+          <tr><td><strong>Reviewer</strong></td><td>Review and merge</td><td class="no">Implement / Resolve conflicts</td></tr>
+          <tr><td><strong>Conflict Resolver</strong></td><td>Resolve conflicts</td><td class="no">Merge / Act before being called</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:18px">AI chooses the most plausible next step within the given context.
+      If you say "Create a login feature," it is plausible to do everything related to it.
+      If you say "Change only inside <code>src/auth/**</code> and satisfy these three acceptance criteria,"
+      the most plausible next step becomes something entirely different.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Workflow</h2>
+    <p class="sub">FLOW</p>
+<pre><code>Request → [Architect] Split into Issues (create non-overlapping scopes)
+         │
+         ├─ [Coder] issue/12-xxx ─┐
+         ├─ [Coder] issue/13-yyy ─┤  Parallel
+         └─ [Coder] issue/14-zzz ─┘
+                                   │ One PR at a time
+                                   ▼
+                            [Reviewer] Check acceptance criteria and scope → Merge
+                                   │
+                                   └─ Conflict → [Conflict Resolver] → Reviewer</code></pre>
+    <p><strong>Parallel implementation, sequential merging.</strong> Merging three things simultaneously means that even if each is correct individually, you cannot isolate the cause if the combination breaks. You end up re-examining all three, which is slower than doing it sequentially.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Two configurations</h2>
+    <p class="sub">PACKAGES</p>
+    <div class="plans">
+      <div class="plan">
+        <h3>Quartet</h3>
+        <p class="price">Free · MIT</p>
+        <ul>
+          <li>4 personas (Architect / Coder / Reviewer / Conflict Resolver)</li>
+          <li><code>CLAUDE.md</code> — Global rules</li>
+          <li>Issue templates</li>
+          <li><code>setup.sh</code> — Label creation</li>
+        </ul>
+      </div>
+      <div class="plan">
+        <h3>Quintet</h3>
+        <p class="price">¥4,980 · One-time purchase</p>
+        <ul>
+          <li>All contents of Quartet</li>
+          <li><strong>UI Designer persona</strong> — Explicitly prohibits standard forms and designs 8 states</li>
+          <li>UI design Issue template</li>
+          <li>Reviewer judgment criteria</li>
+          <li>Issue-based parallel execution script</li>
+          <li>Label automation (GitHub Actions)</li>
+          <li>Practical guide (10 chapters)</li>
+          <li>1 year of updates</li>
+        </ul>
+      </div>
+    </div>
+    <a class="btn" href="https://github.com/quintetkit/quartet">View Quartet on GitHub</a>
+    <a class="btn" href="#" aria-disabled="true">Purchase Quintet (Coming soon)</a>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Why your UI always looks the same</h2>
+    <p class="sub">WHY YOUR SCREENS LOOK GENERATED</p>
+    <p>Hero section centered on the full screen. Three-column monospace cards with icons. Purple gradient.
+      Pure black text on a pure white background. You recognize it instantly, and once recognized, you lose trust in it.</p>
+    <p>The cause is letting the Coder decide on the design. If asked to make decisions without specifying colors, fonts, or spacing, the output will be the most frequent form in the training data.
+      <strong>This is not an issue of AI's aesthetic sense; it is a lack of input.</strong></p>
+    <p>In Quintet, the UI Designer writes the specification before implementation. Structure → Tokens → States → Motion → Copy are determined in order, and the Coder implements based solely on the specification. If design elements not written in the spec are required, implementation stops and is sent back.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>When not to use this</h2>
+    <p class="sub">WHEN NOT TO USE THIS</p>
+    <p>This adds overhead. The number of steps per task definitely increases.</p>
+    <ul class="symptoms">
+      <li>Exploration / Prototyping (stage where acceptance criteria cannot be written)</li>
+      <li>Changes that can be completed in one file (no point in creating a PR for a typo fix)</li>
+      <li>Work with inherently linear dependencies (splitting does not enable parallelism)</li>
+      <li>Tasks that take 30 minutes</li>
+    </ul>
+    <p class="note">There are also limits. Since the Reviewer uses the same model as the Coder, it cannot detect errors inherent in the model's systematic knowledge. If a library's API is consistently misremembered, the Coder will make a mistake, and the Reviewer will judge it as correct. The countermeasure is to include executable verification in the acceptance criteria.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>The format for sub-agent definitions is based on
+      <a href="https://github.com/VoltAgent/awesome-claude-code-subagents">VoltAgent/awesome-claude-code-subagents</a>.</p>
+    <p>Quartet is released under the MIT License.</p>
+  </div>
+</footer>
+
+</body>
+</html>
