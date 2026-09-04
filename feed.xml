@@ -43,8 +43,8 @@
   </item>
   <item>
     <title>Claude Codeを本当に並列で走らせる - git worktree と、直列にすべき工程</title>
-    <link>https://quintetkit.github.io/articles/claude-code-parallel-worktree.html</link>
-    <guid isPermaLink="true">https://quintetkit.github.io/articles/claude-code-parallel-worktree.html</guid>
+    <link>https://quintetkit.github.io/articles/claude-code-worktree-isolation.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/claude-code-worktree-isolation.html</guid>
     <description>Claude Codeで複数の作業を同時に走らせたら、こうなった人向けです。</description>
     <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
   </item>

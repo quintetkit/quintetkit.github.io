@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Running Claude Code in True Parallelism - git worktree and Serial Steps | Quartet / Quintet</title>
 <meta name="description" content="This article is for those who encountered issues when running multiple tasks simultaneously with Claude Code.">
-<link rel="canonical" href="https://quintetkit.github.io/en/articles/claude-code-parallel-worktree.html">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/claude-code-worktree-isolation.html">
 <link rel="alternate" type="application/rss+xml" title="Running Claude Code in True Parallelism - git worktree and Serial Steps | Quartet / Quintet" href="../feed.xml">
 <link rel="stylesheet" href="../../assets/site.css">
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
@@ -14,7 +14,7 @@
 <meta property="og:type" content="article">
 <meta property="og:title" content="Running Claude Code in True Parallelism - git worktree and Serial Steps | Quartet / Quintet">
 <meta property="og:description" content="This article is for those who encountered issues when running multiple tasks simultaneously with Claude Code.">
-<meta property="og:url" content="https://quintetkit.github.io/en/articles/claude-code-parallel-worktree.html">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/claude-code-worktree-isolation.html">
 </head>
 <body>
 <div class="topbar"><div class="wrap">
@@ -48,14 +48,9 @@ Here is what I learned.</p>
 </code></pre>
 <p>If you do not explicitly state &quot;issue them simultaneously,&quot; they may be processed one by one. If the request format implies &quot;one by one,&quot; the model tends to follow that pattern.</p>
 <h2 id="2-running-in-the-same-directory-causes-accidents">2. Running in the Same Directory Causes Accidents</h2>
-<p>Even if you logically separate responsibilities, <strong>if the working directory is the same, physical conflicts will occur.</strong></p>
-<p>Here are actual incidents that occurred:</p>
-<ul>
-<li>One task was reading <code>package.json</code> while the other was running <code>npm install</code>, causing a crash.</li>
-<li>Build artifacts in <code>dist/</code> mixed together, making it impossible to distinguish which output belonged to which task.</li>
-<li>A <code>git checkout</code> by one task inadvertently included uncommitted changes from the other.</li>
-</ul>
-<p>Isolate them using <code>git worktree</code>.</p>
+<p>The three incidents at the top of this article all come from one cause. <strong>Splitting
+responsibilities logically does not help when there is only one working directory.</strong>
+Isolate them using <code>git worktree</code>.</p>
 <pre><code class="language-bash">git worktree add -b issue/12-upload  ../worktrees/issue-12  main
 git worktree add -b issue/13-profile ../worktrees/issue-13  main
 git worktree add -b issue/14-export  ../worktrees/issue-14  main
@@ -118,10 +113,9 @@ collapses several commits into one can never match. Measured:</p>
 why people try it, see it work, and ship it. Rather than deleting branches on an
 unreliable guess, read the PR state through <code>gh</code> when it is available. When it is
 not, give up on detecting squashes and remove them by hand.</p>
-<h2 id="3-the-other-three-are-in-a-separate-article">3. The Other Three Are in a Separate Article</h2>
+<h2 id="3-the-other-pitfalls-are-in-a-separate-article">3. The Other Pitfalls Are in a Separate Article</h2>
 <p>There are other pitfalls encountered besides worktree, but since their nature is different, I will cover them separately.</p>
 <ul>
-<li>Parallel execution only occurs if Agent calls are issued simultaneously within one message.</li>
 <li>Merges must be done serially; otherwise, debugging becomes difficult when things break.</li>
 <li>The upper limit for parallel tasks is 3–4. The constraint lies with the AI reviewer, not the system.</li>
 </ul>
@@ -129,14 +123,14 @@ not, give up on detecting squashes and remove them by hand.</p>
 <h2 id="supplement-fine-points-when-using-worktree">Supplement: Fine Points When Using worktree</h2>
 <h3 id="a-branch-can-only-be-checked-out-from-one-worktree">A branch can only be checked out from one worktree</h3>
 <p>Git will prevent you from opening the same branch in two worktrees. This is a safety mechanism, so do not try to bypass it; adhere to &quot;one task per branch.&quot;</p>
-<h3 id="git-worktree-prune-does-not-delete-automatically"><code>git worktree prune</code> does not delete automatically</h3>
+<h3 id="deleting-a-directory-by-hand-leaves-the-metadata-behind">Deleting a directory by hand leaves the metadata behind</h3>
 <p>If you manually delete directories with <code>rm -rf</code>, the git management information remains.</p>
 <pre><code class="language-bash">rm -rf ../worktrees/issue-12    # Directory is gone, but metadata remains
 git worktree prune              # Clean up management info
 </code></pre>
 <p>Using <code>git worktree remove</code> avoids this hassle.</p>
 <h3 id="dependency-installation-is-required-per-worktree">Dependency installation is required per worktree</h3>
-<p><code>.git</code> is shared, but <code>node_modules</code> is not. Installation runs every time a worktree is created. This is the cost of isolation; you must either accept it or use tools like pnpm that have a global store.</p>
+<p>The objects in <code>.git</code> are shared, but <code>node_modules</code> is not. Installation runs every time a worktree is created. This is the cost of isolation; you must either accept it or use tools like pnpm that have a global store.</p>
 <h3 id="ci-configurations-may-not-recognize-worktrees">CI configurations may not recognize worktrees</h3>
 <p><code>git rev-parse --git-dir</code> returns <code>/path/to/main/.git/worktrees/&lt;name&gt;</code> instead of <code>.git</code> in a worktree. Scripts relying on this path will break. It is safer to use <code>git rev-parse --show-toplevel</code>.</p>
 <h2 id="summary">Summary</h2>

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Claude Codeを本当に並列で走らせる - git worktree と、直列にすべき工程 | Quartet / Quintet</title>
 <meta name="description" content="Claude Codeで複数の作業を同時に走らせたら、こうなった人向けです。">
-<link rel="canonical" href="https://quintetkit.github.io/articles/claude-code-parallel-worktree.html">
+<link rel="canonical" href="https://quintetkit.github.io/articles/claude-code-worktree-isolation.html">
 <link rel="alternate" type="application/rss+xml" title="Claude Codeを本当に並列で走らせる - git worktree と、直列にすべき工程 | Quartet / Quintet" href="../feed.xml">
 <link rel="stylesheet" href="../assets/site.css">
 <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
@@ -14,7 +14,7 @@
 <meta property="og:type" content="article">
 <meta property="og:title" content="Claude Codeを本当に並列で走らせる - git worktree と、直列にすべき工程 | Quartet / Quintet">
 <meta property="og:description" content="Claude Codeで複数の作業を同時に走らせたら、こうなった人向けです。">
-<meta property="og:url" content="https://quintetkit.github.io/articles/claude-code-parallel-worktree.html">
+<meta property="og:url" content="https://quintetkit.github.io/articles/claude-code-worktree-isolation.html">
 </head>
 <body>
 <div class="topbar"><div class="wrap">
@@ -50,14 +50,8 @@
 <p>「同時に発行すること」を明示しないと、1つずつ丁寧に処理されることがあります。
 依頼の形が「1つずつ」だと、そちらに引きずられます。</p>
 <h2 id="2-同じディレクトリで走らせると事故る">2. 同じディレクトリで走らせると事故る</h2>
-<p>論理的な担当範囲を分けても、<strong>作業ディレクトリが同じなら物理的に衝突します。</strong></p>
-<p>実際に起きたこと。</p>
-<ul>
-<li>片方が <code>npm install</code> している最中に、もう片方が <code>package.json</code> を読んで壊れた</li>
-<li><code>dist/</code> のビルド成果物が混ざり、どちらの出力か分からなくなった</li>
-<li>片方の <code>git checkout</code> が、もう片方の未コミットの変更を巻き込んだ</li>
-</ul>
-<p><code>git worktree</code> で分離します。</p>
+<p>冒頭に挙げた3つは、どれも同じ原因から出ています。<strong>担当範囲を論理的に分けても、
+作業ディレクトリが1つなら物理的に衝突する。</strong> <code>git worktree</code> で分離します。</p>
 <pre><code class="language-bash">git worktree add -b issue/12-upload  ../worktrees/issue-12  main
 git worktree add -b issue/13-profile ../worktrees/issue-13  main
 git worktree add -b issue/14-export  ../worktrees/issue-14  main
@@ -120,10 +114,9 @@ esac
 <p><strong>1コミットのときだけ偶然動く</strong>ので、試して動いたと思い込みやすい落とし穴です。
 当てにならない推測でブランチを消すより、<code>gh</code> が使えるなら PR の状態を見るほうが確実です。
 使えないなら、squash の判定はあきらめて手で消します。</p>
-<h2 id="3-他の3つは別記事に分けました">3. 他の3つは別記事に分けました</h2>
+<h2 id="3-他の落とし穴は別記事に分けました">3. 他の落とし穴は別記事に分けました</h2>
 <p>worktree以外にも踏んだ落とし穴がありますが、性質が違うので分けます。</p>
 <ul>
-<li>1メッセージ内でAgent呼び出しを同時発行しないと並列にならない</li>
 <li>マージは直列にしないと、壊れたときの切り分けができない</li>
 <li>並列数の上限は3〜4本。制約はAI側ではなくレビュー側にある</li>
 </ul>
@@ -133,7 +126,7 @@ esac
 <h3 id="ブランチは1つの-worktree-からしか-checkout-できない">ブランチは1つの worktree からしか checkout できない</h3>
 <p>同じブランチを2つの worktree で開こうとすると git が止めます。これは安全機構なので、
 回避しようとせず、1作業1ブランチを守ってください。</p>
-<h3 id="git-worktree-prune-は自動では消さない"><code>git worktree prune</code> は自動では消さない</h3>
+<h3 id="手で-rm--rf-すると管理情報が残る">手で <code>rm -rf</code> すると管理情報が残る</h3>
 <p>ディレクトリを手で <code>rm -rf</code> した場合、gitの管理情報は残ります。</p>
 <pre><code class="language-bash">rm -rf ../worktrees/issue-12    # ディレクトリだけ消えた状態
 git worktree prune              # 管理情報を整理

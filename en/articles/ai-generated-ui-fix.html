@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Why AI-Generated Screens Look &#x27;AI-Like&#x27; Isn&#x27;t a Taste Issue | Quartet / Quintet</title>
 <meta name="description" content="When you ask generative AI to create a screen, these patterns appear every time.">
-<link rel="canonical" href="https://quintetkit.github.io/en/articles/ai-generated-ui-fix.html">
+<link rel="canonical" href="https://dev.to/quintetkit/why-ai-generated-screens-look-ai-like-isnt-a-taste-issue-noi">
 <link rel="alternate" type="application/rss+xml" title="Why AI-Generated Screens Look &#x27;AI-Like&#x27; Isn&#x27;t a Taste Issue | Quartet / Quintet" href="../feed.xml">
 <link rel="stylesheet" href="../../assets/site.css">
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
@@ -14,7 +14,7 @@
 <meta property="og:type" content="article">
 <meta property="og:title" content="Why AI-Generated Screens Look &#x27;AI-Like&#x27; Isn&#x27;t a Taste Issue | Quartet / Quintet">
 <meta property="og:description" content="When you ask generative AI to create a screen, these patterns appear every time.">
-<meta property="og:url" content="https://quintetkit.github.io/en/articles/ai-generated-ui-fix.html">
+<meta property="og:url" content="https://dev.to/quintetkit/why-ai-generated-screens-look-ai-like-isnt-a-taste-issue-noi">
 </head>
 <body>
 <div class="topbar"><div class="wrap">
@@ -68,7 +68,7 @@ There is likely no reason to place three-column cards on a settings screen.</p>
 <li><strong>Do not use gradient backgrounds or gradient headings.</strong></li>
 <li><strong>Do not use pure black <code>#000000</code> or pure white <code>#ffffff</code>.</strong></li>
 </ul>
-<p>The last item requires explanation. Pure black and pure white do not exist in reality on paper or objects under natural light. The contrast is maximum, causing eye strain, and gives the impression of &quot;being unadjusted.&quot; Simply shifting slightly to something like <code>#16203D</code> and <code>#FFFEFB</code> changes the impression significantly.</p>
+<p>The last item requires explanation. Pure black and pure white do not exist in reality on paper or objects under natural light. <strong>They read as unadjusted.</strong> Simply shifting slightly to something like <code>#16203D</code> and <code>#FFFEFB</code> changes the impression significantly.</p>
 <h3 id="3-define-all-8-states">3. Define All 8 States</h3>
 <pre><code>default / hover / focus-visible / active / disabled / loading / error / success
 </code></pre>
@@ -134,6 +134,11 @@ you cannot detect structural duplication with the previous screen. As a result, 
 <li>Do not parallelize design</li>
 </ul>
 <p>I have distributed a configuration where this design role is defined as a Claude Code sub-agent, combined with implementation and review roles. The free version (4 personas, no UI design role) is published under MIT.</p>
+<h2 id="related">Related</h2>
+<ul>
+<li><a href="https://dev.to/quintetkit/assigning-5-personas-to-claude-code-for-parallel-development-5abn">Assigning 5 Personas to Claude Code for Parallel Development</a> — the overall picture of splitting personas</li>
+<li><a href="https://dev.to/quintetkit/what-works-and-what-doesnt-in-claudemd-d22">What Works and What Doesn't in CLAUDE.md</a> — how to write the shared rules</li>
+</ul>
 <hr />
 <!-- product-links -->
 

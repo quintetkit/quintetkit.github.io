@@ -43,8 +43,8 @@
   </item>
   <item>
     <title>Running Claude Code in True Parallelism - git worktree and Serial Steps</title>
-    <link>https://quintetkit.github.io/en/articles/claude-code-parallel-worktree.html</link>
-    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/claude-code-parallel-worktree.html</guid>
+    <link>https://quintetkit.github.io/en/articles/claude-code-worktree-isolation.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/claude-code-worktree-isolation.html</guid>
     <description>This article is for those who encountered issues when running multiple tasks simultaneously with Claude Code.</description>
     <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
   </item>
