@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What You Refuse to Check Decides the Quality of a Linter | Quartet / Quintet</title>
+<meta name="description" content="I built a checker for a configuration directory. The time went not into adding rules, but into deciding what not to add.">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/linter-false-positives.html">
+<link rel="alternate" type="application/rss+xml" title="What You Refuse to Check Decides the Quality of a Linter | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="What You Refuse to Check Decides the Quality of a Linter | Quartet / Quintet">
+<meta property="og:description" content="I built a checker for a configuration directory. The time went not into adding rules, but into deciding what not to add.">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/linter-false-positives.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-05 &nbsp;·&nbsp; ai · softwaredevelopment · typescript · cli</p>
+  <h1>What You Refuse to Check Decides the Quality of a Linter</h1>
+<p>I built a checker for a configuration directory. The time went not into adding
+rules, but into <strong>deciding what not to add</strong>.</p>
+<p>Things you could detect are easy to think of. That was never the constraint.</p>
+<h2 id="one-false-positive-is-enough-to-get-the-tool-thrown-out">One false positive is enough to get the tool thrown out</h2>
+<p>A checker is asymmetric.</p>
+<ul>
+<li>A <strong>miss</strong> goes unnoticed. The cost is only that you did not learn something you could have.</li>
+<li>A <strong>false positive</strong> stops the reader and demands a decision: is this actually wrong?</li>
+</ul>
+<p>And once someone has been burned, they <strong>read every finding with suspicion</strong>.
+Twice, and the tool comes out of CI.</p>
+<p>So a checker that calls a valid configuration broken is worse than no checker.
+Better ten rules with no false positives than thirty with one.</p>
+<p>That is obvious in the abstract and hard in practice, because while you are writing
+the code, every &quot;oh, I could check that too&quot; pulls in the other direction.</p>
+<h2 id="no-citation-no-rule">No citation, no rule</h2>
+<p>So I fixed one condition for adding a rule:</p>
+<blockquote>
+<p><strong>Only check what the official documentation states outright — as an error,
+as skipped, or as ignored.</strong></p>
+</blockquote>
+<p>If the documentation does not say it, the rule does not go in, however wrong the
+pattern looks.</p>
+<p>What this buys is that the judgement stops living in my memory. &quot;I'm fairly sure
+that form was invalid&quot; is not a citation, and my memory goes stale the moment the
+tool it describes releases a new version.</p>
+<p>In the implementation, every finding carries its reason:</p>
+<pre><code class="language-ts">export interface Finding {
+  severity: &quot;error&quot; | &quot;warn&quot;;
+  file: string;
+  line?: number;
+  /** what is wrong, in one sentence */
+  message: string;
+  /** why that can be claimed — includes the source URL */
+  because: string;
+}
+</code></pre>
+<p>Making <code>because</code> required is the point. <strong>A rule you cannot justify cannot be
+written</strong>, because the type will not let you leave the field out. If no source
+comes to mind, the rule never gets implemented.</p>
+<p>The tests enforce it too:</p>
+<pre><code class="language-ts">for (const f of findings) {
+  if (!f.because.includes(&quot;https://&quot;)) fail(`no source: ${f.message}`);
+}
+</code></pre>
+<p>One finding without a source URL fails the suite.</p>
+<h2 id="the-four-things-i-decided-not-to-check">The four things I decided not to check</h2>
+<p>Each of these is easy to detect. That was not the question.</p>
+<h3 id="1-unknown-keys">1. Unknown keys</h3>
+<p>The settings file has a published JSON schema. Diffing against it would let me flag
+unfamiliar keys as possible typos.</p>
+<p>I did not, because the documentation says this:</p>
+<blockquote>
+<p>The schema can lag behind the newest CLI releases, so a validation warning on a
+recently documented key doesn't mean your configuration is invalid.</p>
+</blockquote>
+<p>Which means <strong>the people who adopt new features first are the ones who get the false
+positives.</strong> You would lose your most engaged users in order of engagement.</p>
+<h3 id="2-model-names">2. Model names</h3>
+<p>It is tempting to validate the value of <code>model</code>. But no exhaustive list of valid
+values exists in the documentation — only a handful of examples.</p>
+<p><strong>Examples are not an enumeration.</strong> Not appearing in an example is no basis for
+calling a value invalid. Dropped.</p>
+<h3 id="3-file-path-patterns">3. File path patterns</h3>
+<p>In permission rules, the leading characters change the anchor four different ways:</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Pattern</th>
+  <th>Anchored at</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>//path</code></td>
+  <td>the filesystem root</td>
+</tr>
+<tr>
+  <td><code>~/path</code></td>
+  <td>the home directory</td>
+</tr>
+<tr>
+  <td><code>/path</code></td>
+  <td><strong>the settings file's own location</strong> — not an absolute path</td>
+</tr>
+<tr>
+  <td><code>path</code></td>
+  <td>the current directory</td>
+</tr>
+</tbody>
+</table></div>
+<p>The third is the trap: <code>/Users/alice/file</code> is not an absolute path here. On top of
+that sits gitignore-style globbing.</p>
+<p>I was not confident I could implement it correctly, so it is not checked.
+<strong>False positives come out of exactly the places you were not sure about.</strong></p>
+<h3 id="4-booleans-restricted-to-true-false">4. Booleans restricted to <code>true</code> / <code>false</code></h3>
+<p>Frontmatter booleans. It is tempting to accept <code>true</code> and <code>false</code> and reject the rest.</p>
+<p>The documentation lists <code>yes</code> / <code>no</code> / <code>on</code> / <code>off</code> / <code>1</code> / <code>0</code> as valid too.
+Obvious in hindsight for YAML — and <strong>had I implemented it without checking, it
+would have been a false positive.</strong></p>
+<h2 id="do-not-emit-quot-probably-wrong-quot">Do not emit &quot;probably wrong&quot;</h2>
+<p>Anything I cannot decide passes in silence, with no warning at all.</p>
+<p>&quot;Just mentioning it for your information&quot; looks considerate and reads, from the
+other side, as <strong>offloading the judgement onto the user</strong>. The output gets longer,
+and the errors that matter get buried in it.</p>
+<p>There are only two severities:</p>
+<ul>
+<li><code>error</code> — a documented violation. It does not work until you fix it.</li>
+<li><code>warn</code> — it works, but it is deprecated or will break later.</li>
+</ul>
+<p>There is deliberately no <code>info</code>, because an <code>info</code> level becomes the place where
+&quot;I couldn't decide&quot; goes to live. Give it a home and everything undecided piles up there.</p>
+<h2 id="weight-the-valid-input-more-heavily-than-the-broken-one">Weight the valid input more heavily than the broken one</h2>
+<p>Two fixtures:</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Input</th>
+  <th>Expected</th>
+  <th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>deliberately broken config</td>
+  <td>findings</td>
+  <td>22</td>
+</tr>
+<tr>
+  <td><strong>valid config</strong></td>
+  <td><strong>nothing at all</strong></td>
+  <td><strong>0</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>The second row is the one that matters. And the &quot;valid&quot; fixture deliberately
+includes things designed to trip the checker:</p>
+<ul>
+<li>a key that looks like it belongs to a release that has not happened yet</li>
+<li><code>$schema</code>, which exists only for editor completion</li>
+<li>a setting nested inside another, where writing it at the top level would be an error</li>
+</ul>
+<p>A single finding from any of those means the design is wrong.</p>
+<p>The failure messages follow the same asymmetry:</p>
+<pre><code>FALSE POSITIVES on a valid tree: 1
+</code></pre>
+<p>Misses are reported plainly as &quot;not detected&quot;. False positives get the shouting.
+The output itself decides which one you fix first.</p>
+<h2 id="summary">Summary</h2>
+<ul>
+<li>A checker's value is not how much it detects. It is that it does not cry wolf.</li>
+<li>One false positive costs you trust; two costs you your place in CI.</li>
+<li>Fix the condition for adding a rule at &quot;can I cite this?&quot; Put <code>because</code> in the
+type and unjustifiable rules become unimplementable.</li>
+<li>If you are not confident you can implement it correctly, do not check it.</li>
+<li>No <code>info</code> level. It becomes the dumping ground for undecided cases.</li>
+<li>Make &quot;zero findings on a valid tree&quot; the most important test, and seed that
+tree with things designed to trip you.</li>
+</ul>
+<p>Deciding what to pass over in silence turned out to be harder than deciding what
+to catch.</p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>linter を作るとき、何を検査しないかで品質が決まる | Quartet / Quintet</title>
+<meta name="description" content="設定ファイルの検査ツールを作りました。作る過程で、いちばん時間を使ったのは ルールを足すことではなく、足さないと決めることでした。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/linter-false-positives.html">
+<link rel="alternate" type="application/rss+xml" title="linter を作るとき、何を検査しないかで品質が決まる | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="linter を作るとき、何を検査しないかで品質が決まる | Quartet / Quintet">
+<meta property="og:description" content="設定ファイルの検査ツールを作りました。作る過程で、いちばん時間を使ったのは ルールを足すことではなく、足さないと決めることでした。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/linter-false-positives.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-05 &nbsp;·&nbsp; 設計 · typescript · cli · claudecode · 個人開発</p>
+  <h1>linter を作るとき、何を検査しないかで品質が決まる</h1>
+<p>設定ファイルの検査ツールを作りました。作る過程で、いちばん時間を使ったのは
+ルールを足すことではなく、<strong>足さないと決めること</strong>でした。</p>
+<p>検出できる項目は、いくらでも思いつきます。問題はそこではありません。</p>
+<h2 id="誤検出が1件あると-ツール全体が捨てられる">誤検出が1件あると、ツール全体が捨てられる</h2>
+<p>検査ツールには非対称性があります。</p>
+<ul>
+<li><strong>見逃し</strong>が1件あっても、利用者は気づきません。損失は「気づけたはずのものに気づけなかった」だけ</li>
+<li><strong>誤検出</strong>が1件あると、利用者はその場で判断を迫られます。「これは本当に間違いか?」</li>
+</ul>
+<p>そして誤検出を1度でも踏むと、次からは<strong>全部の指摘を疑って読む</strong>ようになります。
+2度踏んだら、CI から外されます。</p>
+<p>つまり、正しい設定を「壊れている」と言うツールは、無いほうがマシです。
+検出項目を10個から30個に増やして誤検出が1件混ざるくらいなら、10個のままがいい。</p>
+<p>これは頭では分かっていても、実装中は逆に振れます。「ここも検査できるな」と
+思いつくたびに、足したくなるからです。</p>
+<h2 id="根拠を書けないルールは足さない">根拠を書けないルールは足さない</h2>
+<p>そこで、ルールを足す条件を1つに決めました。</p>
+<blockquote>
+<p><strong>公式ドキュメントに「エラーになる」「スキップされる」「無視される」と
+書かれているものだけを検査する。</strong></p>
+</blockquote>
+<p>書かれていなければ、どれだけ「たぶん間違い」に見えても足しません。</p>
+<p>この条件が効くのは、判断が自分の記憶から切り離される点です。
+「たしかこの書き方は駄目だったはず」は、根拠になりません。
+自分の記憶は、対象のバージョンが上がった瞬間に古くなります。</p>
+<p>実装では、指摘ごとに根拠の文字列を持たせました。</p>
+<pre><code class="language-ts">export interface Finding {
+  severity: &quot;error&quot; | &quot;warn&quot;;
+  file: string;
+  line?: number;
+  /** 何が問題か。1文 */
+  message: string;
+  /** なぜそう言えるか。出典 URL を含める */
+  because: string;
+}
+</code></pre>
+<p><code>because</code> を必須の項目にしたのが要点です。<strong>根拠を書けないルールは、
+型の上で書けません。</strong> 出典を思いつかないものは、そもそも実装できない。</p>
+<p>テストにもこれを入れました。</p>
+<pre><code class="language-ts">for (const f of findings) {
+  if (!f.because.includes(&quot;https://&quot;)) fail(`出典なし: ${f.message}`);
+}
+</code></pre>
+<p>出典 URL が無い指摘が1つでもあれば、テストが落ちます。</p>
+<h2 id="検査しないと決めた4つ">検査しないと決めた4つ</h2>
+<p>実際に「できるけどやらない」と判断したものを書きます。
+どれも、検出そのものは簡単です。</p>
+<h3 id="1-未知のキー">1. 未知のキー</h3>
+<p>設定ファイルの JSON スキーマは公開されています。それと突き合わせれば、
+知らないキーを「タイポでは?」と指摘できます。</p>
+<p>やりませんでした。公式ドキュメントにこう書いてあったからです。</p>
+<blockquote>
+<p>スキーマは最新の CLI リリースに遅れることがあるため、最近文書化された
+キーに検証警告が出ても、その設定が無効であることを意味しません</p>
+</blockquote>
+<p>つまり、<strong>新機能を使った人ほど誤検出を踏みます。</strong> 一番熱心な利用者から
+順にツールを捨てていく設計になります。</p>
+<h3 id="2-モデル名の値">2. モデル名の値</h3>
+<p><code>model</code> に指定できる値を検査したくなります。しかし、有効な値の網羅リストが
+ドキュメントに存在しませんでした。例としていくつか挙がっているだけです。</p>
+<p><strong>例は網羅ではありません。</strong> 例に載っていない値を「無効」と判定する根拠には
+ならない。ここも落としました。</p>
+<h3 id="3-ファイルパスのパターン">3. ファイルパスのパターン</h3>
+<p>権限設定のパスは、先頭の記号でアンカーが4通りに変わります。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>書き方</th>
+  <th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>//path</code></td>
+  <td>ファイルシステムのルートから</td>
+</tr>
+<tr>
+  <td><code>~/path</code></td>
+  <td>ホームディレクトリから</td>
+</tr>
+<tr>
+  <td><code>/path</code></td>
+  <td><strong>設定ファイルの位置から</strong>（絶対パスではない）</td>
+</tr>
+<tr>
+  <td><code>path</code></td>
+  <td>カレントディレクトリから</td>
+</tr>
+</tbody>
+</table></div>
+<p>3番目が特に紛らわしく、<code>/Users/alice/file</code> と書いても絶対パスになりません。
+これに gitignore 式のグロブが重なります。</p>
+<p>正しく実装できる自信が持てなかったので、検査対象から外しました。
+<strong>自信が持てないものを検査すると、誤検出はそこから出ます。</strong></p>
+<h3 id="4-真偽値を-true-false-に限ること">4. 真偽値を <code>true</code> / <code>false</code> に限ること</h3>
+<p>frontmatter の真偽値です。<code>true</code> と <code>false</code> だけを許して、それ以外を
+エラーにしたくなります。</p>
+<p>ドキュメントを読むと、<code>yes</code> / <code>no</code> / <code>on</code> / <code>off</code> / <code>1</code> / <code>0</code> も有効でした。
+YAML の仕様としては当然ですが、<strong>確認せずに実装していたら誤検出になっていました。</strong></p>
+<h2 id="たぶん違反-を出さない">「たぶん違反」を出さない</h2>
+<p>判断がつかないものは、警告も出さずに黙って通します。</p>
+<p>「念のため情報として出しておく」は、一見親切ですが、利用者から見ると
+<strong>判断を押しつけられている</strong>のと同じです。出力が長くなり、本当に見るべき
+error が埋もれます。</p>
+<p>深刻度も2段階だけにしました。</p>
+<ul>
+<li><code>error</code> — 根拠が取れた違反。直さないと動かない</li>
+<li><code>warn</code> — 動くが、非推奨・将来壊れる書き方</li>
+</ul>
+<p><code>info</code> を作らなかったのは、作ると「判断がつかないもの」の逃げ場になるからです。
+逃げ場があると、迷ったものが全部そこに積まれます。</p>
+<h2 id="検証は-壊れた入力-より-正しい入力-を重く見る">検証は「壊れた入力」より「正しい入力」を重く見る</h2>
+<p>テストは2種類の入力で行いました。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>入力</th>
+  <th>期待</th>
+  <th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>わざと壊した設定</td>
+  <td>検出すること</td>
+  <td>22件</td>
+</tr>
+<tr>
+  <td><strong>正しい設定</strong></td>
+  <td><strong>1件も出さないこと</strong></td>
+  <td><strong>0件</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>重要なのは下です。しかも「正しい設定」には、<strong>わざと引っかかりそうなものを
+混ぜました。</strong></p>
+<ul>
+<li>次のリリースで追加されそうな、知らないキー</li>
+<li>エディタ補完用の <code>$schema</code></li>
+<li>入れ子の中に書かれた設定（トップレベルに書くと誤りになるもの）</li>
+</ul>
+<p>このどれかで1件でも出たら、設計が間違っているという合図です。</p>
+<p>テストの失敗メッセージも、この非対称性に合わせました。</p>
+<pre><code>FALSE POSITIVES on a valid tree: 1
+</code></pre>
+<p>見逃しは「検出されず」と淡々と出しますが、誤検出は目立つ文言にしています。
+どちらを先に直すべきかを、出力の側で決めてしまう。</p>
+<h2 id="まとめ">まとめ</h2>
+<ul>
+<li>検査ツールの価値は、検出できる項目数ではなく<strong>誤検出しないこと</strong></li>
+<li>誤検出は1件で信頼を失い、2件で CI から外される</li>
+<li>ルールを足す条件を「根拠を書けること」に固定する。
+型に <code>because</code> を持たせると、根拠の無いルールは実装できなくなる</li>
+<li>正しく実装できる自信が持てないものは、検査しない</li>
+<li><code>info</code> を作らない。判断がつかないものの逃げ場になる</li>
+<li>テストは「正しい入力で0件」を最重要にする。引っかかりそうなものを混ぜておく</li>
+</ul>
+<p>検出力を上げるより、<strong>黙って通す範囲を決めるほうが難しい</strong>というのが、
+作ってみての実感です。</p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

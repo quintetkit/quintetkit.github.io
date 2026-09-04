@@ -7,6 +7,13 @@
   <description>Notes on running parallel development with Claude Code by splitting it into separate personas — the configuration actually in use, and the failures behind it.</description>
   <language>en</language>
   <item>
+    <title>What You Refuse to Check Decides the Quality of a Linter</title>
+    <link>https://quintetkit.github.io/en/articles/linter-false-positives.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/linter-false-positives.html</guid>
+    <description>I built a checker for a configuration directory. The time went not into adding rules, but into deciding what not to add.</description>
+    <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>What Works and What Doesn&#x27;t in CLAUDE.md</title>
     <link>https://quintetkit.github.io/en/articles/what-belongs-in-claude-md.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/en/articles/what-belongs-in-claude-md.html</guid>

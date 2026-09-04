@@ -7,6 +7,13 @@
   <description>Claude Code に複数の人格を分担させて並列開発を回すための、実際に使っている設定と、そこで踏んだ失敗の記録です。</description>
   <language>ja</language>
   <item>
+    <title>linter を作るとき、何を検査しないかで品質が決まる</title>
+    <link>https://quintetkit.github.io/articles/linter-false-positives.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/linter-false-positives.html</guid>
+    <description>設定ファイルの検査ツールを作りました。作る過程で、いちばん時間を使ったのは ルールを足すことではなく、足さないと決めることでした。</description>
+    <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>CLAUDE.md に何を書くと効いて、何を書いても効かないのか</title>
     <link>https://quintetkit.github.io/articles/what-belongs-in-claude-md.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/articles/what-belongs-in-claude-md.html</guid>
