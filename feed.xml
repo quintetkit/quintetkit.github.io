@@ -7,6 +7,13 @@
   <description>Claude Code に複数の人格を分担させて並列開発を回すための、実際に使っている設定と、そこで踏んだ失敗の記録です。</description>
   <language>ja</language>
   <item>
+    <title>CLAUDE.md に何を書くと効いて、何を書いても効かないのか</title>
+    <link>https://quintetkit.github.io/articles/what-belongs-in-claude-md.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/what-belongs-in-claude-md.html</guid>
+    <description>CLAUDE.md に「きれいなコードを書いてください」と書いても、何も変わりません。</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>並列開発を殺すのは、いつも共有ファイル</title>
     <link>https://quintetkit.github.io/articles/shared-files-kill-parallelism.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/articles/shared-files-kill-parallelism.html</guid>
@@ -32,13 +39,6 @@
     <link>https://quintetkit.github.io/articles/composite-github-action.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/articles/composite-github-action.html</guid>
     <description>小さな CLI を作ったとき、他の人に使ってもらう方法として npm 公開を考えがちです。 でもアカウントも公開手続きも要らない配布経路があります。GitHub Action です。</description>
-    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
-  </item>
-  <item>
-    <title>CLAUDE.md に何を書くと効いて、何を書いても効かないのか</title>
-    <link>https://quintetkit.github.io/articles/claude-md-what-works.html</link>
-    <guid isPermaLink="true">https://quintetkit.github.io/articles/claude-md-what-works.html</guid>
-    <description>CLAUDE.md に「きれいなコードを書いてください」と書いても、何も変わりません。</description>
     <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>

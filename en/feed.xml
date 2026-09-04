@@ -7,6 +7,13 @@
   <description>Notes on running parallel development with Claude Code by splitting it into separate personas — the configuration actually in use, and the failures behind it.</description>
   <language>en</language>
   <item>
+    <title>What Works and What Doesn&#x27;t in CLAUDE.md</title>
+    <link>https://quintetkit.github.io/en/articles/what-belongs-in-claude-md.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/what-belongs-in-claude-md.html</guid>
+    <description>Writing &quot;Write clean code&quot; in CLAUDE.md changes nothing.</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>What Kills Parallel Development Is Always Shared Files</title>
     <link>https://quintetkit.github.io/en/articles/shared-files-kill-parallelism.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/en/articles/shared-files-kill-parallelism.html</guid>
@@ -32,13 +39,6 @@
     <link>https://quintetkit.github.io/en/articles/composite-github-action.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/en/articles/composite-github-action.html</guid>
     <description>When you create a small CLI tool, it is common to consider publishing it on npm for others to use. However, there is a distribution path that require…</description>
-    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
-  </item>
-  <item>
-    <title>What Works and What Doesn&#x27;t in CLAUDE.md</title>
-    <link>https://quintetkit.github.io/en/articles/claude-md-what-works.html</link>
-    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/claude-md-what-works.html</guid>
-    <description>Writing &quot;Write clean code&quot; in CLAUDE.md changes nothing.</description>
     <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
