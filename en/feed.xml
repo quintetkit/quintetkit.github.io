@@ -7,6 +7,13 @@
   <description>Notes on running parallel development with Claude Code by splitting it into separate personas — the configuration actually in use, and the failures behind it.</description>
   <language>en</language>
   <item>
+    <title>Treating \&quot;It Worked\&quot; as Verification Ships Code That Only Works With One Commit</title>
+    <link>https://quintetkit.github.io/en/articles/verification-that-verifies-nothing.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/verification-that-verifies-nothing.html</guid>
+    <description>I shipped a bug in a script I sell. I had also reported that script as &quot;verified across four scenarios.&quot;</description>
+    <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>What You Refuse to Check Decides the Quality of a Linter</title>
     <link>https://quintetkit.github.io/en/articles/linter-false-positives.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/en/articles/linter-false-positives.html</guid>

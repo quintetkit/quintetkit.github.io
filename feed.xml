@@ -7,6 +7,13 @@
   <description>Claude Code に複数の人格を分担させて並列開発を回すための、実際に使っている設定と、そこで踏んだ失敗の記録です。</description>
   <language>ja</language>
   <item>
+    <title>「動いた」を検証と見なすと、1コミットでだけ通るコードが出荷される</title>
+    <link>https://quintetkit.github.io/articles/verification-that-verifies-nothing.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/verification-that-verifies-nothing.html</guid>
+    <description>有料で配っているスクリプトに、バグを1つ入れたまま出しました。 しかも私は、そのバグを「4シナリオで検証済み」と報告していました。</description>
+    <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>linter を作るとき、何を検査しないかで品質が決まる</title>
     <link>https://quintetkit.github.io/articles/linter-false-positives.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/articles/linter-false-positives.html</guid>

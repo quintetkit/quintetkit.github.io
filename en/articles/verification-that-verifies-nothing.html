@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Treating \&quot;It Worked\&quot; as Verification Ships Code That Only Works With One Commit | Quartet / Quintet</title>
+<meta name="description" content="I shipped a bug in a script I sell. I had also reported that script as &quot;verified across four scenarios.&quot;">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/verification-that-verifies-nothing.html">
+<link rel="alternate" type="application/rss+xml" title="Treating \&quot;It Worked\&quot; as Verification Ships Code That Only Works With One Commit | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Treating \&quot;It Worked\&quot; as Verification Ships Code That Only Works With One Commit | Quartet / Quintet">
+<meta property="og:description" content="I shipped a bug in a script I sell. I had also reported that script as &quot;verified across four scenarios.&quot;">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/verification-that-verifies-nothing.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-05 &nbsp;·&nbsp; testing · git · softwaredevelopment · typescript</p>
+  <h1>Treating \&quot;It Worked\&quot; as Verification Ships Code That Only Works With One Commit</h1>
+<p>I shipped a bug in a script I sell. I had also reported that script as
+&quot;verified across four scenarios.&quot;</p>
+<p>I had verified it. In a way that verified nothing.</p>
+<h2 id="what-was-broken">What was broken</h2>
+<p>The script cleans up <code>git worktree</code> directories once their branch is merged.
+Part of the decision was detecting squash merges.</p>
+<pre><code class="language-bash"># the broken check
+cherry=&quot;$(git cherry &quot;$base&quot; &quot;$branch&quot;)&quot;
+[ -z &quot;$cherry&quot; ] &amp;&amp; return 1
+printf '%s\n' &quot;$cherry&quot; | grep -q '^+' &amp;&amp; return 1
+return 0   # every line is &quot;-&quot;, so it is merged
+</code></pre>
+<p><code>git cherry</code> marks each commit <code>-</code> or <code>+</code> depending on whether an equivalent
+exists on the base. All <code>-</code> means merged.</p>
+<p>That is wrong. <strong><code>git cherry</code> matches on patch-id</strong>, so a squash that collapses
+several commits into one can never match.</p>
+<p>Measured locally:</p>
+<pre><code class="language-bash"># after squash-merging a branch with one commit
+$ git cherry main one
+- 52b3d961...
+
+# after squash-merging a branch with two commits
+$ git cherry main two
++ 02577c73...
++ 221f83ce...
+</code></pre>
+<p><strong>It only works by accident when the branch has a single commit.</strong></p>
+<h2 id="why-i-did-not-catch-it">Why I did not catch it</h2>
+<p>I had built a scratch repository and run four scenarios:</p>
+<ul>
+<li>no work yet → keep ✓</li>
+<li>ordinary merge → delete ✓</li>
+<li>unmerged → keep ✓</li>
+<li><strong>squash merge → delete ✓</strong></li>
+</ul>
+<p>All four behaved as expected. And the branch in the fourth scenario
+<strong>had exactly one commit.</strong></p>
+<p>The test setup read like this:</p>
+<pre><code class="language-bash">git checkout -qb squash main
+echo x &gt; x.txt &amp;&amp; git add -A &amp;&amp; git commit -qm c1   # ← one commit
+git checkout -q main &amp;&amp; git merge -q --squash squash &amp;&amp; git commit -qm &quot;squash&quot;
+</code></pre>
+<p>Reaching for the smallest possible reproduction is a normal instinct.
+<strong>That &quot;smallest&quot; happened to be the only shape in which the broken code passes.</strong></p>
+<p>A squash collapses several commits into one. <strong>A one-commit squash has none of the
+properties of a squash.</strong> I thought I was testing squash merges; I was testing
+something else that shared the name.</p>
+<h2 id="the-fix-was-not-quot-detect-it-more-cleverly-quot">The fix was not &quot;detect it more cleverly&quot;</h2>
+<p>My first instinct was to find a more accurate check — compare diffs, compare tree
+hashes.</p>
+<p>I dropped that. <strong>A false &quot;merged&quot; verdict deletes someone's working tree.</strong>
+An error that errs toward deleting costs far more than one that errs toward keeping.</p>
+<p>So the answer was to not decide at all:</p>
+<pre><code class="language-bash">  # Squash merges are deliberately not detected here.
+  #
+  # git cherry matches on patch-id, so a squash that collapses several commits
+  # into one can never match. Measured: a one-commit branch returns `-`, a
+  # two-commit branch returns `+ +`. It only ever worked by accident.
+  #
+  # A false &quot;merged&quot; verdict deletes a working tree, so we do not guess.
+  # With gh available, the PR state answers this exactly.
+  return 1
+</code></pre>
+<p>And then made the inability visible:</p>
+<pre><code class="language-bash">if ! command -v gh &gt;/dev/null 2&gt;&amp;1; then
+  echo &quot;  Note: without gh, squash-merged branches cannot be detected.&quot;
+  echo &quot;        If any of the kept worktrees were squash-merged, remove them by hand.&quot;
+fi
+</code></pre>
+<p><strong>Silently doing nothing reads as being broken.</strong> If you cannot decide, say so.</p>
+<h2 id="rebuild-the-scenarios-around-the-property-not-the-boundary">Rebuild the scenarios around the property, not the boundary</h2>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Branch</th>
+  <th>Commits</th>
+  <th>Expected</th>
+  <th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>no work</td>
+  <td>0</td>
+  <td>keep</td>
+  <td>✓</td>
+</tr>
+<tr>
+  <td>ordinary merge</td>
+  <td>2</td>
+  <td>delete</td>
+  <td>✓</td>
+</tr>
+<tr>
+  <td>unmerged</td>
+  <td>2</td>
+  <td>keep</td>
+  <td>✓</td>
+</tr>
+<tr>
+  <td>squash (1 commit)</td>
+  <td>1</td>
+  <td>keep</td>
+  <td>✓</td>
+</tr>
+<tr>
+  <td><strong>squash (3 commits)</strong></td>
+  <td><strong>3</strong></td>
+  <td><strong>keep</strong></td>
+  <td><strong>✓</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>The change was not &quot;use more than one commit everywhere.&quot; It was <strong>splitting
+one-commit squash and multi-commit squash into separate cases.</strong></p>
+<p>Thinking in boundary values gets you 0, 1, 2. That is not the same as asking what
+the smallest shape is <strong>in which the property under test actually appears.</strong>
+A squash's property is collapsing, and collapsing needs at least two things to collapse.</p>
+<h2 id="the-same-hole-in-how-i-measured">The same hole, in how I measured</h2>
+<p>Three separate times in the same session I made this mistake:</p>
+<pre><code class="language-bash"># wrong. $? belongs to head
+./script.sh | head -5
+echo &quot;exit code: $?&quot;
+</code></pre>
+<p>Through a pipe, <code>$?</code> is the last command's status. <code>head</code> always succeeds, so
+<strong>a failing script is reported as exit code 0.</strong></p>
+<p>All three times the conclusion was the same: the tool was right, my measurement was wrong.</p>
+<pre><code class="language-bash"># right
+./script.sh &gt; /tmp/out.log 2&gt;&amp;1
+echo &quot;exit code: $?&quot;
+head -5 /tmp/out.log
+</code></pre>
+<p>The common thread is never doubting the measurement apparatus.
+<strong>When a number matches expectations, nothing tests how it was obtained.</strong></p>
+<h2 id="the-checklist-that-came-out-of-it">The checklist that came out of it</h2>
+<ul>
+<li><strong>&quot;It worked&quot; is not verification.</strong> Can you explain <em>why</em> it passed?</li>
+<li>Does the test input actually carry the property under test, or did minimising
+the repro delete that property?</li>
+<li>Decide in advance <strong>which way an error should fall.</strong> Deleting costs more than keeping.</li>
+<li>When you cannot decide, do not go quiet about it.</li>
+<li>Distrust the measurement path — pipes, redirection, <code>$?</code>. Especially when the
+number is the one you wanted.</li>
+</ul>
+<h2 id="summary">Summary</h2>
+<ul>
+<li>Detecting squash merges with <code>git cherry</code> is wrong: it matches on patch-id, so a
+collapsed squash never matches</li>
+<li>It passes for single-commit branches, which is exactly why people try it and ship it</li>
+<li>When you minimise a reproduction, check you have not minimised away the property</li>
+<li>If you cannot decide accurately, do not decide — but do not stay silent either</li>
+<li>Doubt your measurement most when the result is what you expected</li>
+</ul>
+<p>This script is something I sell. <strong>When a shipped thing turns out to be broken,
+writing up how it broke leaves more trust behind than quietly swapping the file.</strong></p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>「動いた」を検証と見なすと、1コミットでだけ通るコードが出荷される | Quartet / Quintet</title>
+<meta name="description" content="有料で配っているスクリプトに、バグを1つ入れたまま出しました。 しかも私は、そのバグを「4シナリオで検証済み」と報告していました。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/verification-that-verifies-nothing.html">
+<link rel="alternate" type="application/rss+xml" title="「動いた」を検証と見なすと、1コミットでだけ通るコードが出荷される | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="「動いた」を検証と見なすと、1コミットでだけ通るコードが出荷される | Quartet / Quintet">
+<meta property="og:description" content="有料で配っているスクリプトに、バグを1つ入れたまま出しました。 しかも私は、そのバグを「4シナリオで検証済み」と報告していました。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/verification-that-verifies-nothing.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-05 &nbsp;·&nbsp; テスト · git · 設計 · typescript · 個人開発</p>
+  <h1>「動いた」を検証と見なすと、1コミットでだけ通るコードが出荷される</h1>
+<p>有料で配っているスクリプトに、バグを1つ入れたまま出しました。
+しかも私は、そのバグを「4シナリオで検証済み」と報告していました。</p>
+<p>検証はしていました。<strong>検証したつもりになる形で。</strong></p>
+<h2 id="何が壊れていたか">何が壊れていたか</h2>
+<p><code>git worktree</code> で作った作業ツリーを、マージ済みなら片付けるスクリプトです。
+判定の一部に、squash マージの検出が入っていました。</p>
+<pre><code class="language-bash"># 壊れていた判定
+cherry=&quot;$(git cherry &quot;$base&quot; &quot;$branch&quot;)&quot;
+[ -z &quot;$cherry&quot; ] &amp;&amp; return 1
+printf '%s\n' &quot;$cherry&quot; | grep -q '^+' &amp;&amp; return 1
+return 0   # 全行が - なのでマージ済み
+</code></pre>
+<p><code>git cherry</code> は、ブランチのコミットが base 側に同等物を持つかを <code>-</code> / <code>+</code> で返します。
+全部 <code>-</code> ならマージ済み、という判定です。</p>
+<p>これは誤りです。<strong><code>git cherry</code> は patch-id の一致で判定する</strong>ので、
+複数のコミットを1つに潰した squash では、原理的に一致しません。</p>
+<p>手元で確かめた結果です。</p>
+<pre><code class="language-bash"># 1コミットのブランチを squash merge した後
+$ git cherry main one
+- 52b3d961...
+
+# 2コミットのブランチを squash merge した後
+$ git cherry main two
++ 02577c73...
++ 221f83ce...
+</code></pre>
+<p><strong>1コミットのときだけ、たまたま通ります。</strong></p>
+<h2 id="なぜ気づかなかったか">なぜ気づかなかったか</h2>
+<p>検証用のリポジトリを作って、4つのシナリオを試していました。</p>
+<ul>
+<li>作業なし → 消さない ✓</li>
+<li>通常マージ → 消す ✓</li>
+<li>未マージ → 消さない ✓</li>
+<li><strong>squash マージ → 消す ✓</strong></li>
+</ul>
+<p>4つとも期待どおりでした。そして4つ目の検証用ブランチは、
+<strong>コミットが1つしかありませんでした。</strong></p>
+<p>検証コードはこう書いていました。</p>
+<pre><code class="language-bash">git checkout -qb squash main
+echo x &gt; x.txt &amp;&amp; git add -A &amp;&amp; git commit -qm c1   # ← 1コミット
+git checkout -q main &amp;&amp; git merge -q --squash squash &amp;&amp; git commit -qm &quot;squash&quot;
+</code></pre>
+<p>テストを書くとき、最小の再現を作ろうとするのは自然です。
+<strong>そしてその「最小」が、たまたま壊れた実装が通る唯一の形でした。</strong></p>
+<p>squash は「複数のコミットを1つに潰す」操作です。
+<strong>1コミットの squash は、squash の性質を何も持っていません。</strong>
+私は squash を検証したつもりで、squash ではないものを検証していました。</p>
+<h2 id="直し方は-もっと賢く判定する-ではなかった">直し方は「もっと賢く判定する」ではなかった</h2>
+<p>最初に考えたのは、より正確な判定方法を探すことでした。
+差分の内容を比較する、ツリーのハッシュを見る、といった案です。</p>
+<p>やめました。<strong>誤って「マージ済み」と判定すると、作業ツリーを消してしまう</strong>からです。
+消す側に倒れる誤りは、残す側に倒れる誤りより桁違いに高くつきます。</p>
+<p>結論は、判定しないことでした。</p>
+<pre><code class="language-bash">  # squash merge はここでは判定しない。
+  #
+  # git cherry は patch-id の一致で見るため、複数コミットを1つに潰した squash では
+  # 原理的に一致しない。実測: 1コミットのブランチは `-`、2コミットは `+ +` を返す。
+  # つまり1コミットのときだけ偶然動いていた。
+  #
+  # 誤って「マージ済み」と判定すると作業ツリーを消してしまうので、
+  # 当てにならない推測はしない。gh があれば PR の状態で確実に分かる。
+  return 1
+</code></pre>
+<p>そのうえで、判定できないことを黙らせないようにしました。</p>
+<pre><code class="language-bash">if ! command -v gh &gt;/dev/null 2&gt;&amp;1; then
+  echo &quot;  注意: gh コマンドが無いため、squash マージされたブランチは判定できません。&quot;
+  echo &quot;        残った中に squash 済みのものがあれば、手で remove してください。&quot;
+fi
+</code></pre>
+<p><strong>黙って何もしないと、「動いていない」と誤解されます。</strong>
+できないことは、できないと出力する。</p>
+<h2 id="再検証は-境界ではなく-性質-で作る">再検証は、境界ではなく「性質」で作る</h2>
+<p>直した後、シナリオを作り直しました。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>ブランチ</th>
+  <th>コミット数</th>
+  <th>期待</th>
+  <th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>作業なし</td>
+  <td>0</td>
+  <td>残す</td>
+  <td>✓</td>
+</tr>
+<tr>
+  <td>通常マージ</td>
+  <td>2</td>
+  <td>消す</td>
+  <td>✓</td>
+</tr>
+<tr>
+  <td>未マージ</td>
+  <td>2</td>
+  <td>残す</td>
+  <td>✓</td>
+</tr>
+<tr>
+  <td>squash（1コミット）</td>
+  <td>1</td>
+  <td>残す</td>
+  <td>✓</td>
+</tr>
+<tr>
+  <td><strong>squash（3コミット）</strong></td>
+  <td><strong>3</strong></td>
+  <td><strong>残す</strong></td>
+  <td><strong>✓</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>変えたのは、<strong>すべてのシナリオでコミット数を1より大きくした</strong>ことではありません。
+「1コミットの squash」と「複数コミットの squash」を<strong>別のケースとして分けた</strong>ことです。</p>
+<p>境界値を足すという発想だと、「0件・1件・2件」を試すという話になります。
+そうではなく、<strong>その操作の性質が現れる最小の形</strong>を考える必要がありました。
+squash の性質は「潰す」ことなので、潰す対象が2つ以上ないと現れません。</p>
+<h2 id="同じ穴を-測定でも踏んでいた">同じ穴を、測定でも踏んでいた</h2>
+<p>もう1つ、同じセッションで3回繰り返した失敗があります。
+終了コードの測定です。</p>
+<pre><code class="language-bash"># 間違い。$? は head のもの
+./script.sh | head -5
+echo &quot;終了コード: $?&quot;
+</code></pre>
+<p>パイプを通すと、<code>$?</code> は最後のコマンドの終了コードになります。
+<code>head</code> は必ず 0 を返すので、<strong>スクリプトが失敗していても「0」と報告されます。</strong></p>
+<p>3回とも「ツールは正しく、私の測定が間違っていた」という結末でした。</p>
+<pre><code class="language-bash"># 正しい
+./script.sh &gt; /tmp/out.log 2&gt;&amp;1
+echo &quot;終了コード: $?&quot;
+head -5 /tmp/out.log
+</code></pre>
+<p>共通しているのは、<strong>測定系そのものを疑っていない</strong>ことです。
+出た数字が期待どおりだと、測り方は検証されません。</p>
+<h2 id="チェックリストにしたもの">チェックリストにしたもの</h2>
+<p>作業のたびに見る形で残しました。</p>
+<ul>
+<li><strong>「動いた」は検証の完了ではない。</strong> 通った理由を説明できるか</li>
+<li>テストの入力が、<strong>検証したい性質を持っているか</strong>。最小の再現が性質を消していないか</li>
+<li>誤りが<strong>どちら側に倒れるか</strong>を先に決める。消す側の誤りは残す側より高くつく</li>
+<li>判定できないときは、<strong>黙らずに言う</strong></li>
+<li>測定系（パイプ、リダイレクト、<code>$?</code>）を疑う。期待どおりの数字ほど疑う</li>
+</ul>
+<h2 id="まとめ">まとめ</h2>
+<ul>
+<li><code>git cherry</code> で squash マージを判定するのは誤り。patch-id の一致で見るので、
+複数コミットを潰した squash では一致しない</li>
+<li>1コミットのブランチでだけ通るので、<strong>試して動いたと思い込みやすい</strong></li>
+<li>最小の再現を作るとき、検証したい性質まで削っていないか確認する</li>
+<li>正確に判定できないなら、判定しない。そのかわり黙らない</li>
+<li>期待どおりの結果が出たときこそ、測り方を疑う</li>
+</ul>
+<p>このスクリプトは有料で配っているものです。<strong>出荷済みのものにバグを見つけたら、
+直した経緯ごと書くほうが、黙って差し替えるより信用が残ると考えています。</strong></p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>
