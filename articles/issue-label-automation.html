@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRの動きに合わせてIssueのラベルを自動で張り替える | Quartet / Quintet</title>
+<meta name="description" content="Issue に status:in-progress や status:review のようなラベルを付けて進捗を追う運用、 やってみると必ず付け忘れます。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/issue-label-automation.html">
+<link rel="alternate" type="application/rss+xml" title="PRの動きに合わせてIssueのラベルを自動で張り替える | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="PRの動きに合わせてIssueのラベルを自動で張り替える | Quartet / Quintet">
+<meta property="og:description" content="Issue に status:in-progress や status:review のようなラベルを付けて進捗を追う運用、 やってみると必ず付け忘れます。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/issue-label-automation.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-04 &nbsp;·&nbsp; githubactions · github · ci · claudecode</p>
+  <h1>PRの動きに合わせてIssueのラベルを自動で張り替える</h1>
+<p>Issue に <code>status:in-progress</code> や <code>status:review</code> のようなラベルを付けて進捗を追う運用、
+やってみると<strong>必ず付け忘れます。</strong></p>
+<p>人間も忘れますし、AI にやらせても忘れます。実装が終わって PR を出した後、
+Issue のラベルが <code>in-progress</code> のまま残っている。翌日見て「これ終わってたっけ」となる。</p>
+<p>状態管理は機械に寄せるのが正解でした。実際に使っているワークフローを全文載せます。</p>
+<h2 id="やること">やること</h2>
+<div class="scroll"><table><thead>
+<tr>
+  <th>PR で起きたこと</th>
+  <th>Issue のラベル</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>PR が作られた</td>
+  <td><code>status:review</code></td>
+</tr>
+<tr>
+  <td>レビューで changes requested</td>
+  <td><code>status:changes-requested</code></td>
+</tr>
+<tr>
+  <td>PR がマージされた</td>
+  <td><code>status:done</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>PR 本文の <code>Closes #&lt;番号&gt;</code> から Issue を特定します。</p>
+<h2 id="全文">全文</h2>
+<pre><code class="language-yaml">name: issue-status
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, closed]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: issue-status-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync label on the linked issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+          ACTION: ${{ github.event.action }}
+          REVIEW_STATE: ${{ github.event.review.state }}
+        run: |
+          set -euo pipefail
+
+          issues=&quot;$(printf '%s' &quot;${PR_BODY:-}&quot; \
+            | grep -oiE '(close[sd]?|fixe?[sd]?|resolve[sd]?)[[:space:]]*#[0-9]+' \
+            | grep -oE '[0-9]+' \
+            | sort -u || true)&quot;
+
+          if [ -z &quot;$issues&quot; ]; then
+            echo &quot;No linked issue in the PR body. Nothing to do.&quot;
+            exit 0
+          fi
+
+          target=&quot;&quot;
+          if [ &quot;$ACTION&quot; = &quot;closed&quot; ]; then
+            if [ &quot;$PR_MERGED&quot; = &quot;true&quot; ]; then target=&quot;status:done&quot;; fi
+          elif [ &quot;$ACTION&quot; = &quot;submitted&quot; ]; then
+            case &quot;${REVIEW_STATE:-}&quot; in
+              changes_requested) target=&quot;status:changes-requested&quot; ;;
+            esac
+          else
+            target=&quot;status:review&quot;
+          fi
+
+          [ -z &quot;$target&quot; ] &amp;&amp; { echo &quot;No state change for this event&quot;; exit 0; }
+
+          all=&quot;status:planned status:in-progress status:review \
+               status:changes-requested status:conflict status:done&quot;
+
+          for n in $issues; do
+            echo &quot;Issue #${n} -&gt; ${target}&quot;
+            gh issue edit &quot;$n&quot; --repo &quot;$REPO&quot; --add-label &quot;$target&quot; &gt;/dev/null
+            for l in $all; do
+              [ &quot;$l&quot; = &quot;$target&quot; ] &amp;&amp; continue
+              gh issue edit &quot;$n&quot; --repo &quot;$REPO&quot; --remove-label &quot;$l&quot; &gt;/dev/null 2&gt;&amp;1 || true
+            done
+          done
+</code></pre>
+<h2 id="ハマったところ">ハマったところ</h2>
+<h3 id="付いていないラベルを消そうとすると落ちる">付いていないラベルを消そうとすると落ちる</h3>
+<p><code>gh issue edit --remove-label</code> は、そのラベルが付いていないと失敗します。
+<code>status:</code> を常に1つだけに保ちたいので全部消しにいくのですが、そのままだと
+最初の1つで <code>set -e</code> に引っかかって死にます。</p>
+<pre><code class="language-bash">gh issue edit &quot;$n&quot; --remove-label &quot;$l&quot; &gt;/dev/null 2&gt;&amp;1 || true
+</code></pre>
+<p>握りつぶします。<strong>ただし <code>--add-label</code> のほうは握りつぶしません。</strong>
+そこが失敗したら本当に問題なので、落として気づけるようにします。</p>
+<h3 id="イベントが連続すると競合する">イベントが連続すると競合する</h3>
+<p>PR を作ってすぐレビューが付くと、2つのイベントがほぼ同時に走ります。
+どちらも同じ Issue のラベルを触るので、順番によっては古い状態が後から上書きされます。</p>
+<pre><code class="language-yaml">concurrency:
+  group: issue-status-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+</code></pre>
+<p>PR 番号ごとに直列化します。<code>cancel-in-progress: false</code> が重要で、
+<code>true</code> にすると<strong>先行のラベル更新が途中でキャンセルされます。</strong> 待たせるのが正解です。</p>
+<h3 id="45-のような素の参照を拾わない"><code>#45</code> のような素の参照を拾わない</h3>
+<p>「関連: #45」のような言及で状態を変えてしまうと事故ります。
+<code>Closes</code> / <code>Fixes</code> / <code>Resolves</code> が前に付いているものだけを拾います。</p>
+<p>実際に検証した結果です。</p>
+<pre><code>Closes #12                    -&gt; [12]
+Fixes #7 and Closes #9        -&gt; [7 9]
+Resolved #3                   -&gt; [3]
+この PR は #45 に関連します      -&gt; []        ← 拾わない
+issue #8 を見てください          -&gt; []        ← 拾わない
+</code></pre>
+<h3 id="権限は最小にする">権限は最小にする</h3>
+<p>既定の <code>GITHUB_TOKEN</code> は広い権限を持つので明示的に絞ります。
+このワークフローに書き込みが要るのは Issue だけです。</p>
+<h3 id="fork-からの-pr-では動かない">fork からの PR では動かない</h3>
+<p>fork 元の <code>GITHUB_TOKEN</code> は読み取り専用になるため、外部コントリビューターの
+PR ではラベルが更新されません。個人プロジェクトや社内リポジトリなら問題に
+なりませんが、OSS で使うなら <code>pull_request_target</code> を検討することになります
+（ただしセキュリティ上の注意が別途必要です）。</p>
+<h2 id="ラベルを先に作る">ラベルを先に作る</h2>
+<p>ラベルが無いと <code>--add-label</code> が失敗するので、作成もスクリプトにしておきます。</p>
+<pre><code class="language-bash">labels=(
+  &quot;status:planned|ededed|Issue created, not started&quot;
+  &quot;status:in-progress|1d76db|Implementation in progress&quot;
+  &quot;status:review|fbca04|PR opened, waiting for review&quot;
+  &quot;status:changes-requested|d93f0b|Changes requested&quot;
+  &quot;status:conflict|b60205|Waiting for conflict resolution&quot;
+  &quot;status:done|0e8a16|Merged and closed&quot;
+)
+
+for entry in &quot;${labels[@]}&quot;; do
+  IFS='|' read -r name color desc &lt;&lt;&lt; &quot;${entry}&quot;
+  gh label create &quot;${name}&quot; --color &quot;${color}&quot; --description &quot;${desc}&quot; 2&gt;/dev/null \
+    || gh label edit &quot;${name}&quot; --color &quot;${color}&quot; --description &quot;${desc}&quot;
+done
+</code></pre>
+<p>作成に失敗したら編集にフォールバックするので、何度実行しても同じ結果になります。</p>
+<h2 id="なぜ機械に寄せるのか">なぜ機械に寄せるのか</h2>
+<p>これは、Claude Code に複数の人格を分担させて開発を回す構成の一部として使っています。
+設計者・実装者・レビュアーと役割を分けると、<strong>それぞれにラベル操作までやらせたく
+なります。</strong> しかし人格に任せると、必ず付け忘れます。</p>
+<p>状態は機械が持ち、人格は「何をしたか」だけに集中させる。この分け方にしてから、
+Issue の一覧が実態とずれなくなりました。</p>
+<p>このワークフローを含む4人格ぶんの設定を MIT で公開しています。
+コピーして <code>./setup.sh</code> を叩けば動きます。</p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

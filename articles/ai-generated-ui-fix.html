@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIに作らせた画面が「AIっぽい」のは、センスの問題ではない | Quartet / Quintet</title>
+<meta name="description" content="生成AIに画面を作らせると、毎回これが出てきます。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/ai-generated-ui-fix.html">
+<link rel="alternate" type="application/rss+xml" title="AIに作らせた画面が「AIっぽい」のは、センスの問題ではない | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="AIに作らせた画面が「AIっぽい」のは、センスの問題ではない | Quartet / Quintet">
+<meta property="og:description" content="生成AIに画面を作らせると、毎回これが出てきます。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/ai-generated-ui-fix.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-04 &nbsp;·&nbsp; ai · claudecode · ui · デザイン · frontend</p>
+  <h1>AIに作らせた画面が「AIっぽい」のは、センスの問題ではない</h1>
+<p>生成AIに画面を作らせると、毎回これが出てきます。</p>
+<ul>
+<li>全画面中央揃えのヒーロー。大きな見出し、サブテキスト、その下にCTAボタン</li>
+<li>アイコン付き3カラムの等幅カード</li>
+<li>紫から青のグラデーション背景、またはグラデーションの見出し文字</li>
+<li>ワードマーク＋リンク5個＋右端にCTAのヘッダー</li>
+<li>4カラムのリンク＋SNSアイコンのフッター</li>
+<li>純黒 <code>#000000</code> の文字に、純白 <code>#ffffff</code> の背景</li>
+</ul>
+<p>見た瞬間に分かります。そして<strong>分かると信用されません。</strong>
+「中身も同じように既製品なのだろう」と読まれるからです。</p>
+<p>これはモデルの美的センスの問題ではありません。<strong>入力の欠落の問題</strong>です。</p>
+<h2 id="なぜ最頻値が出るのか">なぜ最頻値が出るのか</h2>
+<p>「プロフィール画面を作って」と頼んだとき、モデルには色も書体も余白も
+指定されていません。判断材料がない状態で判断を求められたら、
+学習データの中でもっとも頻度の高い形が出ます。上のリストは、その最頻値です。</p>
+<p>つまり、実装役に造形の判断をさせている限り、この結果は避けられません。
+プロンプトに「おしゃれにして」「モダンに」と足しても変わりません。
+それらの語もまた、最頻値に紐づいているからです。</p>
+<h2 id="対処は-実装より先に仕様を確定させること">対処は、実装より先に仕様を確定させること</h2>
+<p>やることは1つです。<strong>造形を決める工程を、実装から切り離す。</strong></p>
+<pre><code>[UI設計] docs/design/21-profile.md を書く
+            ↓ 仕様書が確定してから
+[実装]   仕様書を唯一の入力として実装する
+</code></pre>
+<p>実装役は、仕様書に書かれていない造形が必要になったら、自分で決めずに
+<strong>実装を止めて差し戻します。</strong> ここが肝です。「書かれていないので推測しました」を
+許すと、推測の中身は最頻値に戻ります。</p>
+<h2 id="決める順序">決める順序</h2>
+<p><strong>構造 → トークン → 状態 → モーション → コピー</strong> の順です。</p>
+<p>色から決めないことに意味があります。色から決めると、骨格が最頻値のまま残り、
+配色だけ変わった同じ画面ができます。</p>
+<h3 id="1-構造">1. 構造</h3>
+<p>ページの骨格を先に決めます。ルールを1つ置きます。</p>
+<blockquote>
+<p>直前に作った画面と同じ骨格を繰り返さない</p>
+</blockquote>
+<p>3画面続けて「ヒーロー＋3カラム＋フッター」になったら、設計していません。
+画面ごとに、その画面の目的に合った骨格があるはずです。</p>
+<p>一覧画面なら、そもそもヒーローは要らないかもしれません。
+設定画面に3カラムカードを置く理由は、たぶんありません。</p>
+<h3 id="2-トークン">2. トークン</h3>
+<ul>
+<li><strong>アンカー色は1つ。</strong> 主役の色を1つ決め、他は無彩色とその派生に留める</li>
+<li><strong>書体は2つまで。</strong> 見出しと本文、または本文と等幅</li>
+<li><strong>グラデーション背景・グラデーション見出しを使わない</strong></li>
+<li><strong>純黒 <code>#000000</code> と純白 <code>#ffffff</code> を使わない</strong></li>
+</ul>
+<p>最後の項目は理由を書いておきます。純黒と純白は、現実の紙にも自然光下の物体にも
+存在しない色です。コントラストが最大になるので目が疲れますし、
+「調整されていない」という印象を与えます。<code>#16203D</code> と <code>#FFFEFB</code> のように
+わずかに寄せるだけで、印象がかなり変わります。</p>
+<h3 id="3-状態を8つ全部決める">3. 状態を8つ全部決める</h3>
+<pre><code>default / hover / focus-visible / active / disabled / loading / error / success
+</code></pre>
+<p><strong>欠けている状態は、実装時に実装役が発明します。</strong> それが崩れの原因になります。</p>
+<p>特に忘れられやすく、かつ抜けると実害が出るのが2つあります。</p>
+<ul>
+<li><strong><code>focus-visible</code></strong> — キーボード操作時の見え方。抜けるとキーボードだけで
+操作している人が現在位置を見失います。<code>outline: none</code> だけ書かれて代替が
+無い実装は、これが設計されていないから起きます</li>
+<li><strong><code>loading</code></strong> — 非同期処理中の見え方。抜けると、押したのか押していないのか
+分からないボタンができます</li>
+</ul>
+<h3 id="4-モーション">4. モーション</h3>
+<p><strong>足す前に削ります。</strong> 消して情報が失われないアニメーションは、消します。</p>
+<p>判断基準はこれだけです。「なめらかに見せるため」だけの動きは、
+待ち時間を増やしているだけです。1画面で3種類までに抑えます。</p>
+<h3 id="5-コピー">5. コピー</h3>
+<p>文言を仕様書に書きます。実装役に文言を考えさせない、という意味です。</p>
+<p>そして<strong>数字・証言・ロゴを捏造しないこと。</strong> 未確定の数値は <code>—</code>（要確認）として
+空けます。プレースホルダのつもりで「10,000+ ユーザー」と書かせると、
+そのまま公開されます。これは実際によく起きます。</p>
+<h2 id="検査する">検査する</h2>
+<p>仕様書を書いても、実装が従っているかを見なければ意味がありません。
+レビュー時に機械的に検査できる項目に落とします。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>検査項目</th>
+  <th>差し戻す条件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>色・書体</td>
+  <td>仕様書のトークン以外の生の色コード・書体名がコードにある</td>
+</tr>
+<tr>
+  <td>状態</td>
+  <td>8状態のどれかが欠けている</td>
+</tr>
+<tr>
+  <td>構造</td>
+  <td>仕様書に無い要素が足されている、または省かれている</td>
+</tr>
+<tr>
+  <td>モーション</td>
+  <td>仕様書に無いアニメーションがある</td>
+</tr>
+<tr>
+  <td>文言</td>
+  <td>仕様書と違う文字列が使われている</td>
+</tr>
+</tbody>
+</table></div>
+<p>「色コードがコードに直書きされていないか」は grep で確認できます。
+主観を挟まずに判定できる形にしておくと、レビューが機能します。</p>
+<p>差し戻し先は<strong>実装役ではなく設計役</strong>です。仕様書の不足が原因だからです。</p>
+<h2 id="1画面ずつ設計する">1画面ずつ設計する</h2>
+<p>最後に、運用上の注意を1つ。</p>
+<p><strong>設計は並列にしないでください。</strong> 複数画面を同時に設計させると、
+直前の画面との構造の重複を検出できません。結果、全部同じ骨格になります。</p>
+<p>実装は並列でよいのですが、設計だけは1画面ずつです。</p>
+<h2 id="まとめ">まとめ</h2>
+<ul>
+<li>AIっぽい画面は、センスではなく入力の欠落から生まれる</li>
+<li>造形を決める工程を実装から切り離し、仕様書を唯一の入力にする</li>
+<li>構造から決める。色から決めると骨格が最頻値のまま残る</li>
+<li>状態は8つ全部。<code>focus-visible</code> と <code>loading</code> が特に抜けやすい</li>
+<li>検査は主観を挟まない形に落とす</li>
+<li>設計だけは並列にしない</li>
+</ul>
+<p>この設計役をClaude Codeのサブエージェントとして定義し、実装役・レビュー役と
+組み合わせた構成を配布しています。無料版（4人格・UI設計役なし）はMITで公開しています。</p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

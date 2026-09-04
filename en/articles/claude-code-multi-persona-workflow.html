@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assigning 5 Personas to Claude Code for Parallel Development | Quartet / Quintet</title>
+<meta name="description" content="When you give a large request to Claude Code, doesn&#x27;t this happen?">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/claude-code-multi-persona-workflow.html">
+<link rel="alternate" type="application/rss+xml" title="Assigning 5 Personas to Claude Code for Parallel Development | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Assigning 5 Personas to Claude Code for Parallel Development | Quartet / Quintet">
+<meta property="og:description" content="When you give a large request to Claude Code, doesn&#x27;t this happen?">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/claude-code-multi-persona-workflow.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-04 &nbsp;·&nbsp; claudecode · ai · github · productivity</p>
+  <h1>Assigning 5 Personas to Claude Code for Parallel Development</h1>
+<p>When you give a large request to Claude Code, doesn't this happen?</p>
+<ul>
+<li>You asked for authentication logic, but it also included standardizing error handling.</li>
+<li>There are 40 changed files, and you lack the motivation to read them all, so you approve them based on intuition.</li>
+<li>Three days later, you can’t even explain why the implementation is the way it is.</li>
+<li>You want to run tasks in parallel, but fear of conflicts forces you to run them one by one.</li>
+</ul>
+<p>While building 10 personal apps in three months and releasing two to the App Store,
+I encountered these issues extensively. Here is the architecture I arrived at.</p>
+<p>The conclusion is that <strong>this was not a capability problem. It was a permission design problem.</strong></p>
+<h2 id="what-is-happening">What Is Happening</h2>
+<p>You are asking one persona to handle design, implementation, review, and merging.</p>
+<p>You decide the design, implement it yourself, review it yourself, and merge it yourself.
+There is no check or balance anywhere. No human team would approve this configuration.</p>
+<h2 id="divide-responsibilities-and-lower-permissions">Divide Responsibilities and Lower Permissions</h2>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Persona</th>
+  <th>Can Do</th>
+  <th>Cannot Do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Architect</td>
+  <td>Create/split Issues</td>
+  <td>Write code</td>
+</tr>
+<tr>
+  <td>UI Designer</td>
+  <td>Write UI specifications</td>
+  <td>Write code</td>
+</tr>
+<tr>
+  <td>Coder</td>
+  <td>Change only within the assigned Issue's scope</td>
+  <td>Touch outside scope, merge, or decide structure</td>
+</tr>
+<tr>
+  <td>Reviewer</td>
+  <td>Review and merge</td>
+  <td>Implement or resolve conflicts</td>
+</tr>
+<tr>
+  <td>Conflict Resolver</td>
+  <td>Resolve conflicts</td>
+  <td>Merge or act before being called</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>All use the same model.</strong> There is no difference in intelligence. The only difference is what they are allowed to do.</p>
+<p>Why does this change the result? AI selects the most plausible next step within the given context. If you just say &quot;build a login feature,&quot; it is plausible for it to do everything related to that topic. If you say &quot;change only <code>src/auth/**</code> and satisfy these three acceptance criteria,&quot; the most plausible next step becomes completely different.</p>
+<p><strong>Constraints create context, and context determines output.</strong></p>
+<h2 id="overall-flow">Overall Flow</h2>
+<pre><code>Request → [Architect] Split into Issues (create groups with non-overlapping scopes)
+         │
+         ├─ [Coder] issue/12-xxx ─┐
+         ├─ [Coder] issue/13-yyy ─┤ Parallel
+         └─ [Coder] issue/14-zzz ─┘
+                                   │ One by one per PR
+                                   ▼
+                            [Reviewer] Check acceptance criteria and scope → Merge
+                                   │
+                                   └─ Conflict → [Conflict Resolver] → Reviewer
+</code></pre>
+<h2 id="actual-configuration">Actual Configuration</h2>
+<p><code>.claude/agents/architect.md</code> looks like this:</p>
+<pre><code class="language-markdown">---
+name: architect
+description: Use to turn a feature request into GitHub issues for
+  issue-driven parallel development. Defines per-issue scope (owned paths),
+  dependencies, branch names, and acceptance criteria. Never implements code.
+tools: Bash, Read, Grep, Glob
+model: inherit
+---
+
+You are the **Architect**. You do not write code.
+Your job is to &quot;split Issues into units that can be executed safely in parallel.&quot;
+
+## What to do when called
+
+1. Read the request and identify necessary tasks.
+2. Split tasks into **1 Issue = 1 scope = 1 branch**.
+   - Keep scopes as narrow as possible and ensure they do not overlap with other Issues.
+   - Group non-overlapping Issues together as a &quot;parallel start group.&quot;
+3. When creating an issue via `gh issue create`, always include:
+   - Scope: Paths of files/directories you are allowed to modify
+   - Branch: issue/&lt;number&gt;-&lt;slug&gt;
+   - Depends on: Dependent Issue number (or &quot;none&quot;)
+   - Acceptance Criteria: Specific enough for the Reviewer to judge
+
+## Rules to follow
+
+- Do not write implementation or test code.
+- Do not put Issues with overlapping scopes in the same parallel group.
+</code></pre>
+<p>On the Coder side, include this:</p>
+<pre><code class="language-markdown">- Do not touch files or branches of Issues you are not assigned to.
+- Do not merge to main yourself (only Reviewers may merge).
+- Do not resolve conflicts on your own judgment.
+- If implementation cannot be completed without changing files outside the scope, stop changes and return a report stating &quot;Changes outside scope are required.&quot;
+</code></pre>
+<p>The last line is crucial. If the Coder silently expands its scope,
+the <strong>signal that &quot;the Architect split incorrectly&quot; disappears.</strong></p>
+<h2 id="most-of-the-result-is-determined-by-how-you-cut-scopes">Most of the result is determined by how you cut scopes</h2>
+<p>To be honest, <strong>how you split Issues</strong> matters more than persona settings.</p>
+<h3 id="consolidate-shared-files-into-a-single-issue">Consolidate shared files into a single Issue</h3>
+<p>In practice, conflicts usually occur in the following files:</p>
+<ul>
+<li>Routing definitions</li>
+<li>Aggregated type definition files</li>
+<li>DI containers, entry points</li>
+<li><code>package.json</code>, migration indexes</li>
+</ul>
+<p>If multiple Issues are designed to touch these, conflicts will inevitably occur.
+Create an Issue that changes only the shared file first, and make others depend on it.</p>
+<pre><code>Issue #10  Scope: src/routes/index.ts        (Add route definitions first)
+Issue #11  Scope: src/pages/settings/**      Depends on #10
+Issue #12  Scope: src/pages/billing/**       Depends on #10
+</code></pre>
+<p>This allows #11 and #12 to run in parallel. Since #10 is small, it finishes quickly.</p>
+<h3 id="write-acceptance-criteria-in-a-verifiable-format">Write acceptance criteria in a verifiable format</h3>
+<p>The Reviewer judges based solely on the acceptance criteria. If written in an unverifiable way,
+the review will pass through without scrutiny.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Writing Style</th>
+  <th>Verifiable?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>&quot;Login functionality works correctly&quot;</td>
+  <td>No</td>
+</tr>
+<tr>
+  <td>&quot;Logging in with an unregistered email returns 401 and <code>USER_NOT_FOUND</code>&quot;</td>
+  <td>Yes</td>
+</tr>
+<tr>
+  <td>&quot;Improve performance&quot;</td>
+  <td>No</td>
+</tr>
+<tr>
+  <td>&quot;Initial list display of 200 items completes within 500ms&quot;</td>
+  <td>Yes</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="cut-vertically-by-feature">Cut vertically by feature</h3>
+<p>Splitting into &quot;Model Layer Issues&quot; and &quot;View Layer Issues&quot; creates linear dependencies,
+so they cannot run in parallel.</p>
+<h2 id="two-pitfalls-with-parallel-execution">Two Pitfalls with Parallel Execution</h2>
+<h3 id="must-launch-simultaneously-in-one-message-to-be-parallel">Must launch simultaneously in one message to be parallel</h3>
+<pre><code>(NG) &quot;Have the coder do Issue 12&quot; → Wait for completion → &quot;Do 13&quot;
+(OK) &quot;Implement Issues 12, 13, and 14 in parallel using the Coder.
+       Issue three Agent calls simultaneously within one message.&quot;
+</code></pre>
+<p>Separating the calls makes them sequential. I wasted a significant amount of time here initially.</p>
+<h3 id="merge-sequentially">Merge sequentially</h3>
+<p>Even if implementation is parallel, merging must be done one by one. If you merge three at once,
+even if each is correct individually, you cannot isolate issues if the combination breaks.
+You end up re-examining all three, making it slower than sequential merging.</p>
+<p>The practical upper limit for parallel tasks was <strong>3–4</strong>. The constraint lies not with AI, but with review capacity.</p>
+<h2 id="separate-working-trees">Separate Working Trees</h2>
+<p>Even if scopes are respected, running multiple Coders in the same directory causes accidents.
+Build artifacts mix, and one <code>git checkout</code> affects the other.</p>
+<p>Separate them at the filesystem level using <code>git worktree</code>.</p>
+<pre><code class="language-bash">git worktree add -b issue/12-upload ../worktrees/issue-12 main
+git worktree add -b issue/13-profile ../worktrees/issue-13 main
+</code></pre>
+<p>Since <code>.git</code> is shared, disk usage increases by only the size of one branch.</p>
+<h2 id="when-this-approach-is-not-suitable">When This Approach Is Not Suitable</h2>
+<p>To be honest, <strong>this adds overhead.</strong></p>
+<ul>
+<li>Exploration/Prototyping (stage where acceptance criteria cannot be written)</li>
+<li>Changes contained in a single file (no point in creating a PR for a typo fix)</li>
+<li>Work with inherently linear dependencies (splitting does not enable parallelism)</li>
+<li>Tasks that take 30 minutes or less</li>
+</ul>
+<p>It is only worth it when you want to run three or more tasks simultaneously, and when
+tracing history later has value.</p>
+<p>There is one more limitation. <strong>The Reviewer uses the same model.</strong>
+If the model has systematic errors, such as consistently misremembering a library's API,
+the Coder will make the mistake, and the Reviewer will judge it as correct.</p>
+<p>The countermeasure is to include <strong>executable verification</strong> in the acceptance criteria.
+&quot;Tests passing&quot; is one of the few ways to externally verify against the model's assumptions.</p>
+<h2 id="full-configuration">Full Configuration</h2>
+<p>I have released the settings for all four personas under the MIT license.</p>
+<ul>
+<li><strong>Quartet</strong> — 4 Personas: Architect / Coder / Reviewer / Conflict Resolver.
+Includes <code>CLAUDE.md</code>, <code>.claude/agents/</code>, Issue templates, and label creation scripts.</li>
+</ul>
+<p>Copy and run <code>./setup.sh</code> to get started. It does not depend on any specific tech stack.</p>
+<p>In development involving UI, adding a fifth persona (UI Designer) to finalize UI specifications
+before implementation allows you to avoid default screens common in generative AI
+(full-screen centered heroes, 3-column cards with icons, purple gradients).
+I distribute the latter along with parallel execution scripts, review criteria, and practical guides separately.</p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

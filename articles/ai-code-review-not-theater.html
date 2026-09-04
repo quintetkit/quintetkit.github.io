@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIに書かせたコードのレビューが、形だけになっていないか | Quartet / Quintet</title>
+<meta name="description" content="AIにコードを書かせている人に聞きたいことがあります。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/ai-code-review-not-theater.html">
+<link rel="alternate" type="application/rss+xml" title="AIに書かせたコードのレビューが、形だけになっていないか | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="AIに書かせたコードのレビューが、形だけになっていないか | Quartet / Quintet">
+<meta property="og:description" content="AIにコードを書かせている人に聞きたいことがあります。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/ai-code-review-not-theater.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-04 &nbsp;·&nbsp; ai · claudecode · コードレビュー · githubactions</p>
+  <h1>AIに書かせたコードのレビューが、形だけになっていないか</h1>
+<p>AIにコードを書かせている人に聞きたいことがあります。</p>
+<p><strong>そのレビュー、何を根拠に「OK」と言っていますか。</strong></p>
+<p>差分が40ファイルあって、全部読む時間はない。テストは通っている。
+見た感じ悪くない。だからマージする。——これはレビューではなく、承認の儀式です。</p>
+<p>3ヶ月で個人アプリを10本作る過程で、この状態に何度もなりました。
+抜け出すために変えたのは、レビュアーの能力ではなく<strong>判定の根拠</strong>でした。</p>
+<h2 id="なぜ形だけになるのか">なぜ形だけになるのか</h2>
+<p>理由は2つあります。</p>
+<h3 id="1-判定できる基準が無い">1. 判定できる基準が無い</h3>
+<p>Issueに「ログイン機能を作る」としか書いていなければ、レビュアーは
+「ログイン機能ができているか」で判定するしかありません。これは判定できません。
+できているように見えれば通ります。</p>
+<h3 id="2-書いた本人がレビューしている">2. 書いた本人がレビューしている</h3>
+<p>AIに書かせて、同じ会話の続きで「レビューして」と頼む。これが一番危ない形です。</p>
+<p>レビュアーは実装過程の文脈を全部持っています。「なぜこう書いたか」を知っているので、
+<strong>書かれていないことまで補って読みます。</strong> 人間が自分のコードをレビューできないのと
+同じ理由です。</p>
+<h2 id="変えたこと">変えたこと</h2>
+<h3 id="判定可能な受け入れ条件を-実装前に書く">判定可能な受け入れ条件を、実装前に書く</h3>
+<p>これが一番効きました。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>書き方</th>
+  <th>判定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>「ログイン機能が正しく動くこと」</td>
+  <td>判定不能</td>
+</tr>
+<tr>
+  <td>「未登録メールでログインすると 401 と <code>USER_NOT_FOUND</code> を返す」</td>
+  <td>判定可能</td>
+</tr>
+<tr>
+  <td>「パフォーマンスを改善すること」</td>
+  <td>判定不能</td>
+</tr>
+<tr>
+  <td>「一覧の初期表示が200件で500ms以内（ローカル計測）」</td>
+  <td>判定可能</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>実装より先に書くこと</strong>が重要です。あとから書くと、実装に合わせた条件になります。</p>
+<h3 id="レビュアーに文脈を渡さない">レビュアーに文脈を渡さない</h3>
+<p>レビューは別のセッション、別の人格として実行します。渡す入力は2つだけです。</p>
+<ul>
+<li>Issueの受け入れ条件</li>
+<li>PRのdiff</li>
+</ul>
+<p>実装過程の会話は渡しません。<strong>持っていないほうが、書かれていないことに気づけます。</strong></p>
+<p>「この PR は認証まわりを整理する意図で……」という説明を足したくなりますが、
+足さないでください。説明が要るなら、それはIssueかPR本文に書かれているべきです。</p>
+<h3 id="安いチェックから先にやる">安いチェックから先にやる</h3>
+<p>判定には順序があります。</p>
+<ol>
+<li><strong>担当範囲の違反</strong> — 変更ファイル一覧を見るだけで判定できる</li>
+<li><strong>テスト・lint</strong> — 機械が判定済み</li>
+<li><strong>受け入れ条件</strong> — コードを読む必要がある</li>
+</ol>
+<p>前の段で差し戻しが決まったら、後ろは見ません。全部指摘してから返しても、
+1つ直せば他も変わるので手戻りが増えるだけです。</p>
+<p>そして1は本当に安い。</p>
+<pre><code class="language-bash">gh pr diff &lt;番号&gt; --name-only
+</code></pre>
+<p>これだけで、Issueに書いた担当範囲の外を触っていないかが分かります。
+40ファイルの diff でも、一覧を見れば「なぜ認証のIssueでルーティングが変わっているのか」
+がすぐ分かります。</p>
+<h3 id="条件に無い機能-も差し戻す">「条件に無い機能」も差し戻す</h3>
+<p>見落とされがちですが、これが効きます。</p>
+<p><strong>「ついでに便利にしておきました」は、レビューされていない変更がmainに入る</strong>
+ということです。受け入れ条件に無い機能は、判定する根拠がありません。</p>
+<p>対処は、その部分を別Issueに切り出させることです。捨てるわけではありません。</p>
+<h2 id="差し戻しの書き方">差し戻しの書き方</h2>
+<p>差し戻すときは3つ書きます。</p>
+<ol>
+<li><strong>何が問題か</strong> — 該当ファイルと行</li>
+<li><strong>なぜ問題か</strong> — どの受け入れ条件・どの担当範囲に反するか</li>
+<li><strong>どうなれば通るか</strong> — 判定可能な形で</li>
+</ol>
+<p>「もう少し整理してください」は差し戻しになりません。何をすれば通るのか
+判定できないので、次も通らないものが返ってきます。</p>
+<h2 id="状態管理は機械に寄せる">状態管理は機械に寄せる</h2>
+<p>レビューの判定に集中させるため、ラベルの付け替えはGitHub Actionsに任せています。</p>
+<pre><code class="language-yaml">on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, closed]
+  pull_request_review:
+    types: [submitted]
+</code></pre>
+<p>PR本文の <code>Closes #&lt;番号&gt;</code> からIssueを特定し、PRの動きに応じて
+<code>status:review</code> / <code>status:changes-requested</code> / <code>status:done</code> を張り替えます。</p>
+<p>人格にラベル操作を任せると、付け忘れが必ず起きます。
+状態は機械が持ち、人格は「何をしたか」だけに集中させるほうが安定しました。</p>
+<h2 id="限界も書いておきます">限界も書いておきます</h2>
+<p><strong>レビュアーは実装者と同じモデルです。</strong></p>
+<p>文脈を分離しても、根本的には同じモデルです。<strong>モデルが体系的に持っている誤りは、
+レビュアーも見抜けません。</strong> あるライブラリのAPIを一貫して間違えて覚えていれば、
+実装者が間違え、レビュアーも正しいと判定します。</p>
+<p>これは構成では解けません。対処は、受け入れ条件に<strong>実行可能な検証</strong>を入れることです。</p>
+<pre><code>- [ ] 未登録メールでログインすると 401 と USER_NOT_FOUND を返す
+      → これを検証するテストがあること
+</code></pre>
+<p>「テストが通ること」は、モデルの思い込みを外部から検証できる数少ない手段です。
+だから受け入れ条件は、できるだけテストに落とせる形で書きます。</p>
+<h2 id="まとめ">まとめ</h2>
+<ul>
+<li>判定可能な受け入れ条件を、実装より先に書く</li>
+<li>レビュアーに実装過程の文脈を渡さない</li>
+<li>担当範囲の違反から先に見る。一覧を見るだけで判定できて安い</li>
+<li>条件に無い機能も差し戻す。別Issueに切り出す</li>
+<li>状態管理は機械に寄せ、判定に集中させる</li>
+<li>モデル共通の誤りは見抜けない。受け入れ条件を実行可能な検証に落とす</li>
+</ul>
+<p>この判定手順をレビュアー人格の定義として明文化し、実装者・設計者と組み合わせた構成を
+配布しています。4人格の無料版はMITで公開しています。</p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

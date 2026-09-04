@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>記事 | Quartet / Quintet</title>
+<meta name="description" content="Claude Code に複数の人格を分担させて並列開発を回すための、実際に使っている設定と、そこで踏んだ失敗の記録です。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/">
+<link rel="alternate" type="application/rss+xml" title="記事 | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="記事 | Quartet / Quintet">
+<meta property="og:description" content="Claude Code に複数の人格を分担させて並列開発を回すための、実際に使っている設定と、そこで踏んだ失敗の記録です。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span></nav>
+</div></div>
+<div class="index-head"><div class="wrap">
+  <h1>記事</h1>
+  <p>Claude Code に複数の人格を分担させて並列開発を回すための、実際に使っている設定と、そこで踏んだ失敗の記録です。</p>
+</div></div>
+<div class="wrap">
+<ul class="posts">
+  <li>
+    <h2><a href="shared-files-kill-parallelism.html">並列開発を殺すのは、いつも共有ファイル</a></h2>
+    <p>複数の作業を並列で走らせようとして、こうなったことはありませんか。</p>
+    <span class="tags">2026-09-04 &nbsp;·&nbsp; git · githubactions · 設計 · claudecode</span>
+  </li>
+  <li>
+    <h2><a href="local-llm-delegation.html">ローカルLLMに何を任せて、何を任せないか（実測つき）</a></h2>
+    <p>クラウドのLLMを使っていると、トークン量が気になってきます。 「軽い作業はローカルLLMに逃がせば節約できるのでは」と考えるのは自然です。</p>
+    <span class="tags">2026-09-04 &nbsp;·&nbsp; llm · ollama · ai · claudecode · 個人開発</span>
+  </li>
+  <li>
+    <h2><a href="issue-label-automation.html">PRの動きに合わせてIssueのラベルを自動で張り替える</a></h2>
+    <p>Issue に status:in-progress や status:review のようなラベルを付けて進捗を追う運用、 やってみると必ず付け忘れます。</p>
+    <span class="tags">2026-09-04 &nbsp;·&nbsp; githubactions · github · ci · claudecode</span>
+  </li>
+  <li>
+    <h2><a href="composite-github-action.html">自作ツールを composite GitHub Action で配る（npm 公開なし）</a></h2>
+    <p>小さな CLI を作ったとき、他の人に使ってもらう方法として npm 公開を考えがちです。 でもアカウントも公開手続きも要らない配布経路があります。GitHub Action です。</p>
+    <span class="tags">2026-09-04 &nbsp;·&nbsp; githubactions · cli · ci · typescript</span>
+  </li>
+  <li>
+    <h2><a href="claude-md-what-works.html">CLAUDE.md に何を書くと効いて、何を書いても効かないのか</a></h2>
+    <p>CLAUDE.md に「きれいなコードを書いてください」と書いても、何も変わりません。</p>
+    <span class="tags">2026-09-04 &nbsp;·&nbsp; claudecode · ai · claude · 個人開発</span>
+  </li>
+  <li>
+    <h2><a href="claude-code-parallel-worktree.html">Claude Codeを本当に並列で走らせる - git worktree と、直列にすべき工程</a></h2>
+    <p>Claude Codeで複数の作業を同時に走らせたら、こうなった人向けです。</p>
+    <span class="tags">2026-09-04 &nbsp;·&nbsp; claudecode · git · ai · 個人開発</span>
+  </li>
+  <li>
+    <h2><a href="claude-code-multi-persona-workflow.html">Claude Code に5人格を分担させて並列開発する</a></h2>
+    <p>Claude Code に大きめの依頼をすると、こうなりませんか。</p>
+    <span class="tags">2026-09-04 &nbsp;·&nbsp; claudecode · ai · github · 個人開発</span>
+  </li>
+  <li>
+    <h2><a href="ai-generated-ui-fix.html">AIに作らせた画面が「AIっぽい」のは、センスの問題ではない</a></h2>
+    <p>生成AIに画面を作らせると、毎回これが出てきます。</p>
+    <span class="tags">2026-09-04 &nbsp;·&nbsp; ai · claudecode · ui · デザイン · frontend</span>
+  </li>
+  <li>
+    <h2><a href="ai-code-review-not-theater.html">AIに書かせたコードのレビューが、形だけになっていないか</a></h2>
+    <p>AIにコードを書かせている人に聞きたいことがあります。</p>
+    <span class="tags">2026-09-04 &nbsp;·&nbsp; ai · claudecode · コードレビュー · githubactions</span>
+  </li>
+</ul>
+</div>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

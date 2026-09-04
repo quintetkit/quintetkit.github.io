@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ローカルLLMに何を任せて、何を任せないか（実測つき） | Quartet / Quintet</title>
+<meta name="description" content="クラウドのLLMを使っていると、トークン量が気になってきます。 「軽い作業はローカルLLMに逃がせば節約できるのでは」と考えるのは自然です。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/local-llm-delegation.html">
+<link rel="alternate" type="application/rss+xml" title="ローカルLLMに何を任せて、何を任せないか（実測つき） | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ローカルLLMに何を任せて、何を任せないか（実測つき） | Quartet / Quintet">
+<meta property="og:description" content="クラウドのLLMを使っていると、トークン量が気になってきます。 「軽い作業はローカルLLMに逃がせば節約できるのでは」と考えるのは自然です。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/local-llm-delegation.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-04 &nbsp;·&nbsp; llm · ollama · ai · claudecode · 個人開発</p>
+  <h1>ローカルLLMに何を任せて、何を任せないか（実測つき）</h1>
+<p>クラウドのLLMを使っていると、トークン量が気になってきます。
+「軽い作業はローカルLLMに逃がせば節約できるのでは」と考えるのは自然です。</p>
+<p>手元のマシンで Ollama を動かし、実際に振り分けてみました。
+<strong>結論は「効く作業と、やると逆に高くつく作業がはっきり分かれる」でした。</strong>
+その線引きを、実測値つきで書きます。</p>
+<h2 id="使った環境">使った環境</h2>
+<ul>
+<li>Ollama on ローカルGPUマシン（HTTP API で呼ぶ）</li>
+<li><code>qwen3.6:35b</code>（MoE）— 長文の一括処理</li>
+<li><code>qwen3.6:27b</code>（dense）— 短文・定型</li>
+<li><code>bge-m3</code> — 埋め込み</li>
+</ul>
+<p>呼び出し側は Node の薄いラッパを1本書いただけです。</p>
+<pre><code class="language-ts">const HOST = process.env.OLLAMA_HOST ?? &quot;http://192.168.x.x:11434&quot;;
+
+export async function chat(prompt: string, opts: ChatOptions = {}) {
+  const res = await fetch(`${HOST}/api/chat`, {
+    method: &quot;POST&quot;,
+    headers: { &quot;content-type&quot;: &quot;application/json&quot; },
+    body: JSON.stringify({
+      model: resolveModel(opts.model),
+      messages: [...(opts.system ? [{ role: &quot;system&quot;, content: opts.system }] : []),
+                 { role: &quot;user&quot;, content: prompt }],
+      stream: false,
+      think: opts.think ?? false,          // 思考トークンは基本不要
+      options: { temperature: opts.temperature ?? 0.7 },
+    }),
+  });
+  const data = await res.json();
+  return { text: data.message.content.trim(), tokens: data.eval_count };
+}
+</code></pre>
+<p><code>think: false</code> は忘れないでください。既定で思考を出すモデルだと、
+必要のない推論トークンを延々と吐きます。</p>
+<hr />
+<h2 id="効いた作業">効いた作業</h2>
+<h3 id="1-長文の一括翻訳-これが本命">1. 長文の一括翻訳 — これが本命</h3>
+<p>技術ドキュメント10章・882行を英訳させました。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>指標</th>
+  <th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>1章あたりの所要</td>
+  <td>約35秒</td>
+</tr>
+<tr>
+  <td>見出し数の一致</td>
+  <td>10/10章で完全一致</td>
+</tr>
+<tr>
+  <td>コードブロック数の一致</td>
+  <td>10/10章で完全一致</td>
+</tr>
+<tr>
+  <td>表の行数の一致</td>
+  <td>10/10章で完全一致</td>
+</tr>
+<tr>
+  <td>相対リンクの保存</td>
+  <td>全11本が保持</td>
+</tr>
+<tr>
+  <td>誇張語の混入</td>
+  <td>0件</td>
+</tr>
+<tr>
+  <td>日本語の残存</td>
+  <td>0件</td>
+</tr>
+</tbody>
+</table></div>
+<p>記事1本（217行、出力2030トークン）で32.6秒でした。</p>
+<p><strong>構造が完全に保存されたのが大きい。</strong> プロンプトでこう縛りました。</p>
+<pre><code>- Preserve the markdown structure exactly: headings, tables, code blocks, lists.
+- Do NOT translate content inside code blocks. Keep code identical.
+- Keep relative markdown links exactly as they are (e.g. [text](03-architect.md)).
+- Keep the tone factual and plain. No hype words
+  (revolutionary, seamless, supercharge, unlock, effortless).
+- Output ONLY the translated markdown. No preamble.
+</code></pre>
+<p><strong>禁止語を名指しで並べたのが効きました。</strong> これを書かないと
+&quot;revolutionary&quot; や &quot;seamless&quot; が湧いてきます。</p>
+<p>検証は機械でやります。原文と訳文で構造の数を比べるだけです。</p>
+<pre><code class="language-python">def stats(t):
+    return (len(re.findall(r'^#{1,3} ', t, re.M)),   # 見出し
+            t.count(&quot;```&quot;) // 2,                      # コードブロック
+            len(re.findall(r'^\|', t, re.M)),         # 表の行
+            len(re.findall(r'\[[^\]]+\]\([^)]+\)', t)))  # リンク
+</code></pre>
+<p>一致しなければ訳し漏れか勝手な追加が起きています。</p>
+<h3 id="2-記事の重複検査-埋め込み">2. 記事の重複検査（埋め込み）</h3>
+<p>記事を書き足していくと、前に書いたことの焼き直しになりがちです。
+<code>bge-m3</code> で埋め込みを取り、コサイン類似度で機械的に弾きます。</p>
+<pre><code>0.945  a.md &lt;&gt; b.md   ← 言い換えただけの焼き直し。検出できる
+0.805  記事1 &lt;&gt; 記事3  ← 話題が近い。許容範囲
+0.591  記事2 &lt;&gt; 記事3  ← 別物
+</code></pre>
+<p>閾値 0.85 を超えたら公開しない、というルールにしています。
+実際に1本、0.855 で引っかかったので構成を切り直しました。
+<strong>書いている本人には「別のことを書いている」ように見えるので、機械の判定が要ります。</strong></p>
+<h3 id="3-見出し案・タイトル案の量産">3. 見出し案・タイトル案の量産</h3>
+<p>10案出させて1案選ぶ、という使い方なら十分です。</p>
+<hr />
+<h2 id="やると逆に高くつく作業">やると逆に高くつく作業</h2>
+<h3 id="販売コピーや記事本文の新規執筆">販売コピーや記事本文の新規執筆</h3>
+<p>ここが一番の学びでした。<strong>下訳を読んで書き直すぶん、自分で書くより高くつきます。</strong></p>
+<p>実際に出てきた出力です。</p>
+<pre><code>* Claude Codeによる5つのAIエージェント分工体制：3ヶ月間で10本の個人アプリを完遂した開発プロセス
+* 並列処理で開発効率化：Claude Codeを活用し、5つの役割分担で3ヶ月に10本アプリをリリースする方法
+* 個人開発の速度革命：Claude Codeで構成する5人格ワークフローが3ヶ月で10本の実用アプリを生んだ理由
+</code></pre>
+<p>「速度革命」「駆使した」「完遂した」。<strong>日本語の誇張表現が混ざります。</strong>
+禁止語リストを日本語でも書けば減りますが、根本的には「何を言わないか」の判断が要る作業で、
+そこは指示に落としきれません。</p>
+<p>そして経済的にも合いません。下訳を全文読み（入力トークン）、書き直す（出力トークン）。
+最初から書けば出力トークンだけで済みます。<strong>削減どころか増えます。</strong></p>
+<h3 id="短い文章">短い文章</h3>
+<p>27bモデルで147トークンの出力に12.3秒。<strong>短文はレイテンシが支配的</strong>で、
+待ち時間のほうが体感コストになります。数十トークンなら自分で書いたほうが速い。</p>
+<hr />
+<h2 id="線引き">線引き</h2>
+<p>実測から出した基準です。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>任せる</th>
+  <th>任せない</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>長文の一括変換（翻訳・整形）</td>
+  <td>新規の文章執筆</td>
+</tr>
+<tr>
+  <td>出力を全文読まなくてよい作業</td>
+  <td>品質が売上や信用に直結する文面</td>
+</tr>
+<tr>
+  <td>検証が機械でできる作業</td>
+  <td>「何を言わないか」の判断が要る作業</td>
+</tr>
+<tr>
+  <td>埋め込み・分類・重複検査</td>
+  <td>短文（レイテンシ負け）</td>
+</tr>
+</tbody>
+</table></div>
+<p>一行でまとめると、<strong>「出力を読まずにファイルへ流し込めるか」</strong> です。</p>
+<p>読まずに済むなら委譲が効きます。全文読んで直すなら、最初から自分で書くほうが安い。
+翻訳は前者です。構造の一致という機械的な合格判定があるので、全文を目で追う必要がありません。</p>
+<h2 id="失敗しないための実装上の注意">失敗しないための実装上の注意</h2>
+<p><strong>バックグラウンド実行を <code>nohup</code> で投げないこと。</strong> 親プロセスが終わると子が落ちて、
+ログだけ空で残ります。私はこれで一度、10章ぶんの翻訳が走っていないことに
+数分気づきませんでした。ジョブ管理は呼び出し側の仕組みに任せます。</p>
+<p><strong>タイムアウトは長めに。</strong> 長文の一括処理は数十秒かかります。
+既定の数秒でアボートすると、モデルは動いているのに結果が捨てられます。</p>
+<p><strong>モデルは別名で呼ぶ。</strong> <code>fast</code> / <code>big</code> / <code>coder</code> / <code>embed</code> のような別名を
+ラッパ側で解決すると、モデルを入れ替えても呼び出し側を触らずに済みます。</p>
+<h2 id="まとめ">まとめ</h2>
+<ul>
+<li>長文の一括翻訳は効く。構造の一致で機械検証できるのが大きい</li>
+<li>埋め込みによる重複検査は、書いている本人には見えないものを見つける</li>
+<li>新規の文章執筆は任せない。読んで直すぶん自分で書くより高くつく</li>
+<li>短文はレイテンシ負けする</li>
+<li>判断基準は「出力を読まずにファイルへ流し込めるか」</li>
+</ul>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

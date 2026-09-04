@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Codeを本当に並列で走らせる - git worktree と、直列にすべき工程 | Quartet / Quintet</title>
+<meta name="description" content="Claude Codeで複数の作業を同時に走らせたら、こうなった人向けです。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/claude-code-parallel-worktree.html">
+<link rel="alternate" type="application/rss+xml" title="Claude Codeを本当に並列で走らせる - git worktree と、直列にすべき工程 | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Claude Codeを本当に並列で走らせる - git worktree と、直列にすべき工程 | Quartet / Quintet">
+<meta property="og:description" content="Claude Codeで複数の作業を同時に走らせたら、こうなった人向けです。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/claude-code-parallel-worktree.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-04 &nbsp;·&nbsp; claudecode · git · ai · 個人開発</p>
+  <h1>Claude Codeを本当に並列で走らせる - git worktree と、直列にすべき工程</h1>
+<p>Claude Codeで複数の作業を同時に走らせたら、こうなった人向けです。</p>
+<ul>
+<li>片方が <code>npm install</code> している最中に、もう片方が <code>package.json</code> を読んで壊れた</li>
+<li><code>dist/</code> のビルド成果物が混ざり、どちらの出力か分からなくなった</li>
+<li>片方の <code>git checkout</code> が、もう片方の未コミットの変更を巻き込んだ</li>
+</ul>
+<p>論理的な担当範囲を分けても、<strong>作業ディレクトリが同じなら物理的に衝突します。</strong>
+<code>git worktree</code> で分離するのが答えなのですが、片付けの自動化でハマったので、
+その中身を書きます。</p>
+<h2 id="1-呼び出しを分けた時点で並列ではない">1. 呼び出しを分けた時点で並列ではない</h2>
+<p>最初に踏むのがこれです。</p>
+<pre><code>（並列にならない）
+「Issue 12 を実装して」
+  → 完了を待つ
+「Issue 13 を実装して」
+  → 完了を待つ
+</code></pre>
+<p>Claude Codeは、<strong>1つの応答の中で複数のAgent呼び出しを発行したときにだけ</strong>、
+それらを同時に走らせます。会話のターンを分けると、その時点で直列です。</p>
+<pre><code>（並列になる）
+「Issue 12, 13, 14 を実装して。
+  1メッセージ内で3つのAgent呼び出しを同時に発行すること」
+</code></pre>
+<p>「同時に発行すること」を明示しないと、1つずつ丁寧に処理されることがあります。
+依頼の形が「1つずつ」だと、そちらに引きずられます。</p>
+<h2 id="2-同じディレクトリで走らせると事故る">2. 同じディレクトリで走らせると事故る</h2>
+<p>論理的な担当範囲を分けても、<strong>作業ディレクトリが同じなら物理的に衝突します。</strong></p>
+<p>実際に起きたこと。</p>
+<ul>
+<li>片方が <code>npm install</code> している最中に、もう片方が <code>package.json</code> を読んで壊れた</li>
+<li><code>dist/</code> のビルド成果物が混ざり、どちらの出力か分からなくなった</li>
+<li>片方の <code>git checkout</code> が、もう片方の未コミットの変更を巻き込んだ</li>
+</ul>
+<p><code>git worktree</code> で分離します。</p>
+<pre><code class="language-bash">git worktree add -b issue/12-upload  ../worktrees/issue-12  main
+git worktree add -b issue/13-profile ../worktrees/issue-13  main
+git worktree add -b issue/14-export  ../worktrees/issue-14  main
+</code></pre>
+<p>これで3つの独立した作業ディレクトリができます。<code>.git</code> は共有されるので、
+ディスク使用量はブランチ1本ぶんしか増えません。各担当には、
+自分のディレクトリで作業させます。</p>
+<h3 id="片付けで気をつけること">片付けで気をつけること</h3>
+<p>終わったら消すのですが、ここに落とし穴があります。</p>
+<pre><code class="language-bash"># 危ない書き方
+git worktree list | ... | while read branch; do
+  git merge-base --is-ancestor &quot;$branch&quot; main &amp;&amp; git worktree remove ...
+done
+</code></pre>
+<p>これは<strong>作業がまだ1つも入っていない worktree を消します。</strong>
+作りたてのブランチは main と同じコミットを指しているので、
+「mainの祖先＝マージ済み」と判定されてしまうからです。</p>
+<p>正しくは、分岐点から見て自前のコミットがあるかを先に見ます。</p>
+<pre><code class="language-bash">fork=&quot;$(git merge-base main &quot;$branch&quot;)&quot;
+own=&quot;$(git rev-list --count &quot;${fork}..${branch}&quot;)&quot;
+[ &quot;$own&quot; -eq 0 ] &amp;&amp; continue   # 作業ゼロ。消さない
+</code></pre>
+<p>さらに注意点があります。<strong>マージ後は <code>merge-base</code> がブランチ先端と一致します。</strong>
+そのため「マージ済み」と「作業ゼロ」が区別できなくなります。</p>
+<p>対策は、ブランチを作った時点で分岐点を記録しておくことです。</p>
+<pre><code class="language-bash">git worktree add -b &quot;$branch&quot; &quot;$dir&quot; main
+git config &quot;branch.${branch}.myBase&quot; &quot;$(git rev-parse main)&quot;
+</code></pre>
+<p>PRベースで運用しているなら、<strong>GitHubのPRのマージ状態を正とするのが確実</strong>です。</p>
+<pre><code class="language-bash">state=&quot;$(gh pr list --head &quot;$branch&quot; --state all --limit 1 --json state -q '.[0].state')&quot;
+case &quot;$state&quot; in
+  MERGED) echo &quot;消してよい&quot; ;;
+  OPEN|CLOSED) echo &quot;残す&quot; ;;
+esac
+</code></pre>
+<p>squash merge にも対応できます。squashだとブランチ先端はmainの祖先にならないので、
+git だけで判定するなら <code>git cherry main &quot;$branch&quot;</code> を見て、
+全行が <code>-</code>（同等物がmain側にある）かどうかで判断します。</p>
+<h2 id="3-他の3つは別記事に分けました">3. 他の3つは別記事に分けました</h2>
+<p>worktree以外にも踏んだ落とし穴がありますが、性質が違うので分けます。</p>
+<ul>
+<li>1メッセージ内でAgent呼び出しを同時発行しないと並列にならない</li>
+<li>マージは直列にしないと、壊れたときの切り分けができない</li>
+<li>並列数の上限は3〜4本。制約はAI側ではなくレビュー側にある</li>
+</ul>
+<p>これらは「担当範囲をどう切るか」の話で、別記事で扱っています。
+この記事はディレクトリの分離に絞ります。</p>
+<h2 id="補足-worktree-を使うときの細かい注意">補足: worktree を使うときの細かい注意</h2>
+<h3 id="ブランチは1つの-worktree-からしか-checkout-できない">ブランチは1つの worktree からしか checkout できない</h3>
+<p>同じブランチを2つの worktree で開こうとすると git が止めます。これは安全機構なので、
+回避しようとせず、1作業1ブランチを守ってください。</p>
+<h3 id="git-worktree-prune-は自動では消さない"><code>git worktree prune</code> は自動では消さない</h3>
+<p>ディレクトリを手で <code>rm -rf</code> した場合、gitの管理情報は残ります。</p>
+<pre><code class="language-bash">rm -rf ../worktrees/issue-12    # ディレクトリだけ消えた状態
+git worktree prune              # 管理情報を整理
+</code></pre>
+<p><code>git worktree remove</code> を使えばこの手間は要りません。</p>
+<h3 id="依存関係のインストールは-worktree-ごとに必要">依存関係のインストールは worktree ごとに必要</h3>
+<p><code>.git</code> は共有されますが、<code>node_modules</code> は共有されません。worktreeを作るたびに
+インストールが走ります。これは分離の代償なので、受け入れるか、
+pnpm のようにグローバルストアを持つツールを使うかの判断になります。</p>
+<h3 id="ci-の設定によっては-worktree-を認識しない">CI の設定によっては worktree を認識しない</h3>
+<p><code>git rev-parse --git-dir</code> が worktree では <code>.git</code> ではなく
+<code>/path/to/main/.git/worktrees/&lt;name&gt;</code> を返します。このパスを前提にした
+スクリプトがあると壊れます。<code>git rev-parse --show-toplevel</code> を使うほうが安全です。</p>
+<h2 id="まとめ">まとめ</h2>
+<ul>
+<li>担当範囲を分けても、作業ディレクトリが同じなら物理的に衝突する</li>
+<li><code>git worktree</code> で分ける。<code>.git</code> は共有されるのでディスクはほぼ増えない</li>
+<li><strong>片付けの自動化が危ない。</strong> 「mainの祖先か」だけで判定すると、
+作業がまだ入っていないブランチを消す</li>
+<li>「分岐点から見て自前のコミットがあるか」を先に見る</li>
+<li>マージ後は <code>merge-base</code> がブランチ先端と一致するので、作成時に分岐点を記録しておく</li>
+<li>PR運用なら、PRのマージ状態を正とするのが確実。squashにも対応できる</li>
+</ul>
+<p>この運用をClaude Codeのサブエージェント構成として定義し、
+worktreeの作成・片付けスクリプトと合わせて配布しています。
+無料版はMITで公開しています。</p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

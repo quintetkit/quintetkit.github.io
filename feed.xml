@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+  <title>Quartet / Quintet — 記事</title>
+  <link>https://quintetkit.github.io/</link>
+  <atom:link href="https://quintetkit.github.io/feed.xml" rel="self" type="application/rss+xml"/>
+  <description>Claude Code に複数の人格を分担させて並列開発を回すための、実際に使っている設定と、そこで踏んだ失敗の記録です。</description>
+  <language>ja</language>
+  <item>
+    <title>並列開発を殺すのは、いつも共有ファイル</title>
+    <link>https://quintetkit.github.io/articles/shared-files-kill-parallelism.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/shared-files-kill-parallelism.html</guid>
+    <description>複数の作業を並列で走らせようとして、こうなったことはありませんか。</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
+    <title>ローカルLLMに何を任せて、何を任せないか（実測つき）</title>
+    <link>https://quintetkit.github.io/articles/local-llm-delegation.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/local-llm-delegation.html</guid>
+    <description>クラウドのLLMを使っていると、トークン量が気になってきます。 「軽い作業はローカルLLMに逃がせば節約できるのでは」と考えるのは自然です。</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
+    <title>PRの動きに合わせてIssueのラベルを自動で張り替える</title>
+    <link>https://quintetkit.github.io/articles/issue-label-automation.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/issue-label-automation.html</guid>
+    <description>Issue に status:in-progress や status:review のようなラベルを付けて進捗を追う運用、 やってみると必ず付け忘れます。</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
+    <title>自作ツールを composite GitHub Action で配る（npm 公開なし）</title>
+    <link>https://quintetkit.github.io/articles/composite-github-action.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/composite-github-action.html</guid>
+    <description>小さな CLI を作ったとき、他の人に使ってもらう方法として npm 公開を考えがちです。 でもアカウントも公開手続きも要らない配布経路があります。GitHub Action です。</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
+    <title>CLAUDE.md に何を書くと効いて、何を書いても効かないのか</title>
+    <link>https://quintetkit.github.io/articles/claude-md-what-works.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/claude-md-what-works.html</guid>
+    <description>CLAUDE.md に「きれいなコードを書いてください」と書いても、何も変わりません。</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
+    <title>Claude Codeを本当に並列で走らせる - git worktree と、直列にすべき工程</title>
+    <link>https://quintetkit.github.io/articles/claude-code-parallel-worktree.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/claude-code-parallel-worktree.html</guid>
+    <description>Claude Codeで複数の作業を同時に走らせたら、こうなった人向けです。</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
+    <title>Claude Code に5人格を分担させて並列開発する</title>
+    <link>https://quintetkit.github.io/articles/claude-code-multi-persona-workflow.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/claude-code-multi-persona-workflow.html</guid>
+    <description>Claude Code に大きめの依頼をすると、こうなりませんか。</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
+    <title>AIに作らせた画面が「AIっぽい」のは、センスの問題ではない</title>
+    <link>https://quintetkit.github.io/articles/ai-generated-ui-fix.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/ai-generated-ui-fix.html</guid>
+    <description>生成AIに画面を作らせると、毎回これが出てきます。</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
+    <title>AIに書かせたコードのレビューが、形だけになっていないか</title>
+    <link>https://quintetkit.github.io/articles/ai-code-review-not-theater.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/ai-code-review-not-theater.html</guid>
+    <description>AIにコードを書かせている人に聞きたいことがあります。</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+</channel>
+</rss>

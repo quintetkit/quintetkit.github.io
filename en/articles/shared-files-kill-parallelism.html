@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What Kills Parallel Development Is Always Shared Files | Quartet / Quintet</title>
+<meta name="description" content="Has this ever happened to you when trying to run multiple tasks in parallel?">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/shared-files-kill-parallelism.html">
+<link rel="alternate" type="application/rss+xml" title="What Kills Parallel Development Is Always Shared Files | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="What Kills Parallel Development Is Always Shared Files | Quartet / Quintet">
+<meta property="og:description" content="Has this ever happened to you when trying to run multiple tasks in parallel?">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/shared-files-kill-parallelism.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-04 &nbsp;·&nbsp; git · githubactions · design · claudecode</p>
+  <h1>What Kills Parallel Development Is Always Shared Files</h1>
+<p>Has this ever happened to you when trying to run multiple tasks in parallel?</p>
+<ul>
+<li>You worked on three features on separate branches, and all of them conflicted in the same file.</li>
+<li>After resolving and merging, another branch conflicted in the same spot again.</li>
+<li>In the end, you ended up running them one by one.</li>
+</ul>
+<p><strong>The cause is usually a shared file.</strong> And this can be avoided by how you split the work.</p>
+<p>I’ve encountered this repeatedly when using AI to implement features in parallel, so I’ll outline patterns and countermeasures. This isn’t limited to AI; the same issues occur in human teams.</p>
+<h2 id="the-culprits-are-usually-predictable">The Culprits Are Usually Predictable</h2>
+<p>The files that actually conflicted were almost always one of these five types:</p>
+<ul>
+<li><strong>Routing definitions</strong> — <code>routes/index.ts</code>, <code>&lt;Route&gt;</code> lists in <code>App.tsx</code></li>
+<li><strong>Type aggregation files</strong> — bundles of re-exports like <code>types/index.ts</code></li>
+<li><strong>DI container entry points</strong> — places where dependencies are registered in one spot</li>
+<li><strong><code>package.json</code></strong> — overlapping dependency additions</li>
+<li><strong>Migration indexes</strong> — ordered lists</li>
+</ul>
+<p>They share a common trait: <strong>they are lists.</strong> A structure that adds one line every time a new feature is added will inevitably cause multiple people (or agents) to edit the same location simultaneously.</p>
+<p>Worse yet, <strong>conflicts here are semantically harmless.</strong> Person A adds one line, Person B adds another. Keeping both results in the correct state. Yet Git cannot resolve them automatically, halting human progress.</p>
+<h2 id="countermeasure-1-tackle-shared-files-first">Countermeasure 1: Tackle Shared Files First</h2>
+<p>This is the most effective approach. <strong>Isolate the task involving shared files and run it first.</strong></p>
+<pre><code>Issue #10  Add three entries to route definitions       Scope: src/routes/index.ts
+Issue #11  Implement settings page                      Scope: src/pages/settings/**   Depends on #10
+Issue #12  Implement billing page                       Scope: src/pages/billing/**    Depends on #10
+Issue #13  Implement notifications page                 Scope: src/pages/notifications/**  Depends on #10
+</code></pre>
+<p><code>#10</code> only requires &quot;adding routes to screens that don’t exist yet,&quot; so it finishes in minutes.
+After that, <code>#11</code>, <code>#12</code>, and <code>#13</code> <strong>do not touch any shared files</strong>, allowing them to run completely in parallel.</p>
+<p>This won’t work if the order is reversed. If you implement <code>#11</code> while also adding routes,
+all three will compete for the same file.</p>
+<h3 id="quot-is-it-weird-to-add-routes-to-non-existent-screens-quot">&quot;Is it weird to add routes to non-existent screens?&quot;</h3>
+<p>You might worry that this temporarily breaks the build. In reality,
+it passes if you leave placeholder components in place.</p>
+<pre><code class="language-tsx">// src/pages/settings/index.tsx  ← #11 implements the actual content
+export default function Settings() {
+  return null;
+}
+</code></pre>
+<p><strong>Place empty boxes first.</strong> That alone enables parallelization.</p>
+<h2 id="countermeasure-2-adopt-structures-without-lists">Countermeasure 2: Adopt Structures Without Lists</h2>
+<p>If you can eliminate &quot;list files&quot; altogether, that is more fundamental.</p>
+<ul>
+<li>Routing → Automatic collection from directory conventions (file-based routing)</li>
+<li>Type aggregation → Don’t create <code>types/index.ts</code>; import directly from each module</li>
+<li>Migrations → Determine order via timestamps in filenames, without an index file</li>
+</ul>
+<p>It’s worth isolating this as a single task. <strong>Once done, future parallelization becomes much easier.</strong></p>
+<p>However, doing this abruptly in an existing project has a wide impact scope,
+so it’s good to have a criterion like &quot;change the structure after three conflicts.&quot;</p>
+<h2 id="countermeasure-3-decide-not-to-touch-what-you-can-t-touch">Countermeasure 3: Decide Not to Touch What You Can’t Touch</h2>
+<p>When having AI implement features, this is effective. Explicitly define the scope of responsibility, and
+<strong>stop and report if the scope is exceeded.</strong></p>
+<pre><code class="language-markdown">- Do not modify paths outside the Scope written in your assigned task
+- If changes outside the Scope are required, stop implementation and report
+</code></pre>
+<p>If changes expand silently, <strong>information indicating that the split was wrong disappears.</strong>
+If it stops, you can fix the split there.</p>
+<p>Here is a real example. During one task, a report came from the implementer:</p>
+<blockquote>
+<p><code>tsc --noEmit</code> cannot resolve types for <code>node:path</code> because
+<code>@types/node</code> is missing in <code>devDependencies</code>. I did not modify <code>package.json</code> as it is out of Scope.
+Please decide whether to isolate this as a separate task.</p>
+</blockquote>
+<p>This is <strong>a deficiency in the foundation</strong>, not due to that specific task.
+If <code>package.json</code> had been modified without permission, unrelated changes would have mixed into that PR,
+blurring the review criteria. It was isolated as a separate task and fixed via an independent PR.</p>
+<h2 id="countermeasure-4-merge-serially">Countermeasure 4: Merge Serially</h2>
+<p>Even if splitting is correct, parallel merging ruins it.</p>
+<p>Merging three PRs simultaneously can cause failures after all three are merged, even though each passed tests individually. And <strong>you cannot determine which one is the cause.</strong> You end up re-examining all three, making it slower than serial merging.</p>
+<p>If you merge one by one, each subsequent PR is evaluated against the state of <code>main</code> at that time.
+If it breaks, you can confirm the previous single item was the cause.</p>
+<p><strong>Implementation in parallel, merging in serial.</strong> That is the practical conclusion.</p>
+<h2 id="conflicts-are-symptoms-not-causes">Conflicts Are Symptoms, Not Causes</h2>
+<p>When conflicts occur repeatedly, improving how you resolve them is meaningless.
+<strong>Your splitting method is wrong.</strong></p>
+<p>The frequency of conflicts can serve as a metric for the quality of your split.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Frequency</th>
+  <th>What It Indicates</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Rarely happens</td>
+  <td>Splitting is effective</td>
+</tr>
+<tr>
+  <td>Happens occasionally</td>
+  <td>Unexpected dependencies exist. Resolving them per occurrence is sufficient</td>
+</tr>
+<tr>
+  <td>Happens every time</td>
+  <td><strong>Multiple tasks are competing for shared files. Re-evaluate the split</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>If it happens every time and you resolve it ad hoc, symptoms disappear but the cause remains,
+and costs continue to rise.</p>
+<h2 id="summary">Summary</h2>
+<ul>
+<li>Parallel development is usually stopped by shared files with a &quot;list&quot; structure</li>
+<li>Run the task touching shared files <strong>first</strong>. Placing empty boxes first is sufficient</li>
+<li>If possible, adopt structures without lists (automatic collection based on conventions) for a more fundamental fix</li>
+<li>Stop and report if you go outside your assigned scope. Silent expansion hides split errors</li>
+<li>Implementation in parallel, merging in serial</li>
+<li>Conflict frequency measures split quality. If it happens every time, suspect the split</li>
+</ul>
+<p>I have documented this splitting approach as a configuration for Claude Code’s sub-agents
+and published it under the MIT license.</p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

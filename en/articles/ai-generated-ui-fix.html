@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why AI-Generated Screens Look &#x27;AI-Like&#x27; Isn&#x27;t a Taste Issue | Quartet / Quintet</title>
+<meta name="description" content="When you ask generative AI to create a screen, these patterns appear every time.">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/ai-generated-ui-fix.html">
+<link rel="alternate" type="application/rss+xml" title="Why AI-Generated Screens Look &#x27;AI-Like&#x27; Isn&#x27;t a Taste Issue | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Why AI-Generated Screens Look &#x27;AI-Like&#x27; Isn&#x27;t a Taste Issue | Quartet / Quintet">
+<meta property="og:description" content="When you ask generative AI to create a screen, these patterns appear every time.">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/ai-generated-ui-fix.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-04 &nbsp;·&nbsp; ai · claudecode · ui · design</p>
+  <h1>Why AI-Generated Screens Look &#x27;AI-Like&#x27; Isn&#x27;t a Taste Issue</h1>
+<p>When you ask generative AI to create a screen, these patterns appear every time.</p>
+<ul>
+<li>A hero section centered on the full screen with a large heading, subtext, and a CTA button below</li>
+<li>Three-column cards with equal width and icons</li>
+<li>Backgrounds or headings with gradients from purple to blue</li>
+<li>Headers with a wordmark, five links, and a CTA on the far right</li>
+<li>Footers with four columns of links and social media icons</li>
+<li>Pure black <code>#000000</code> text on a pure white <code>#ffffff</code> background</li>
+</ul>
+<p>You can tell immediately. And once you know what to look for, <strong>you stop trusting it.</strong>
+Because readers assume, &quot;The content is probably generic too.&quot;</p>
+<p>This is not an issue of the model's aesthetic taste. <strong>It is an issue of missing input.</strong></p>
+<h2 id="why-the-mode-appears">Why the Mode Appears</h2>
+<p>When you ask to &quot;create a profile screen,&quot; no colors, fonts, or whitespace are specified.
+When asked to make decisions without reference material, the model outputs the most frequent patterns from its training data. The list above represents that mode.</p>
+<p>In other words, as long as you leave visual design decisions to the implementation role, this result is unavoidable.
+Adding prompts like &quot;make it stylish&quot; or &quot;make it modern&quot; won't change anything.
+Those words are also linked to the same modes in the training data.</p>
+<h2 id="the-solution-finalize-specifications-before-implementation">The Solution: Finalize Specifications Before Implementation</h2>
+<p>There is only one thing to do. <strong>Separate the design decision process from implementation.</strong></p>
+<pre><code>[UI Design] Write docs/design/21-profile.md
+            ↓ Only after specifications are finalized
+[Implementation] Implement using the spec as the sole input
+</code></pre>
+<p>If the implementation role needs a design element not described in the spec, they must <strong>stop implementing and return it for revision</strong> rather than deciding on their own. This is the key point. If you allow &quot;I inferred this because it wasn't written,&quot; the inference will revert to the mode.</p>
+<h2 id="order-of-decisions">Order of Decisions</h2>
+<p><strong>Structure → Tokens → States → Motion → Copy.</strong></p>
+<p>The meaning lies in not starting with color. If you start with color, the skeleton remains in the mode, and only the color scheme changes, resulting in the same screen structure.</p>
+<h3 id="1-structure">1. Structure</h3>
+<p>Decide the page skeleton first. Set one rule:</p>
+<blockquote>
+<p>Do not repeat the same skeleton as the previously created screen.</p>
+</blockquote>
+<p>If three consecutive screens all have &quot;Hero + 3 Columns + Footer,&quot; you haven't designed them.
+Each screen should have a skeleton suited to its purpose.</p>
+<p>A list screen might not need a hero section at all.
+There is likely no reason to place three-column cards on a settings screen.</p>
+<h3 id="2-tokens">2. Tokens</h3>
+<ul>
+<li><strong>One anchor color.</strong> Decide one primary color and keep others achromatic or derived from it.</li>
+<li><strong>Up to two typefaces.</strong> Headings and body text, or body text and monospace.</li>
+<li><strong>Do not use gradient backgrounds or gradient headings.</strong></li>
+<li><strong>Do not use pure black <code>#000000</code> or pure white <code>#ffffff</code>.</strong></li>
+</ul>
+<p>The last item requires explanation. Pure black and pure white do not exist in reality on paper or objects under natural light. The contrast is maximum, causing eye strain, and gives the impression of &quot;being unadjusted.&quot; Simply shifting slightly to something like <code>#16203D</code> and <code>#FFFEFB</code> changes the impression significantly.</p>
+<h3 id="3-define-all-8-states">3. Define All 8 States</h3>
+<pre><code>default / hover / focus-visible / active / disabled / loading / error / success
+</code></pre>
+<p><strong>Missing states will be invented by the implementation role during coding.</strong> This causes breakdowns in consistency.</p>
+<p>Two are particularly easy to forget and cause real issues if omitted:</p>
+<ul>
+<li><strong><code>focus-visible</code></strong> — Appearance during keyboard navigation. If omitted, users navigating solely with a keyboard lose track of their current position. Implementations that only have <code>outline: none</code> without alternatives occur because this wasn't designed.</li>
+<li><strong><code>loading</code></strong> — Appearance during asynchronous processing. If omitted, you get buttons where it's unclear whether they were clicked or not.</li>
+</ul>
+<h3 id="4-motion">4. Motion</h3>
+<p><strong>Subtract before adding.</strong> Remove animations that don't result in information loss when removed.</p>
+<p>The only criterion is this. Movements &quot;just to make them look smooth&quot; only increase wait times. Limit to three types per screen.</p>
+<h3 id="5-copy">5. Copy</h3>
+<p>Write the text in the spec. This means do not let the implementation role come up with the copy.</p>
+<p>And <strong>do not fabricate numbers, testimonials, or logos.</strong> Leave uncertain values as <code>—</code> (TBD). If you write &quot;10,000+ Users&quot; thinking of it as a placeholder, it will be published as is. This actually happens frequently.</p>
+<h2 id="inspection">Inspection</h2>
+<p>Even if you write a spec, it's meaningless if you don't verify that implementation follows it.
+Reduce inspection items to those that can be mechanically checked during review.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Inspection Item</th>
+  <th>Condition for Return</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Colors &amp; Fonts</td>
+  <td>Raw color codes or font names other than the spec's tokens exist in the code</td>
+</tr>
+<tr>
+  <td>States</td>
+  <td>Any of the 8 states is missing</td>
+</tr>
+<tr>
+  <td>Structure</td>
+  <td>Elements are added or omitted that are not in the spec</td>
+</tr>
+<tr>
+  <td>Motion</td>
+  <td>Animations exist that are not in the spec</td>
+</tr>
+<tr>
+  <td>Copy</td>
+  <td>Strings different from the spec are used</td>
+</tr>
+</tbody>
+</table></div>
+<p>You can check &quot;whether color codes are hardcoded&quot; using grep.
+Making it possible to judge without subjective input ensures reviews function properly.</p>
+<p>The return destination is <strong>the design role, not the implementation role.</strong> Because the cause is a deficiency in the spec.</p>
+<h2 id="design-one-screen-at-a-time">Design One Screen at a Time</h2>
+<p>Finally, one operational note.</p>
+<p><strong>Do not parallelize design.</strong> If you let multiple screens be designed simultaneously,
+you cannot detect structural duplication with the previous screen. As a result, everything ends up with the same skeleton.</p>
+<p>Implementation can be parallelized, but design must be done one screen at a time.</p>
+<h2 id="summary">Summary</h2>
+<ul>
+<li>AI-like screens are born from missing input, not lack of taste</li>
+<li>Separate the design decision process from implementation and make the spec the sole input</li>
+<li>Decide structure first. Starting with color leaves the skeleton in the mode</li>
+<li>Define all 8 states. <code>focus-visible</code> and <code>loading</code> are particularly easy to miss</li>
+<li>Reduce inspection items to forms that exclude subjective judgment</li>
+<li>Do not parallelize design</li>
+</ul>
+<p>I have distributed a configuration where this design role is defined as a Claude Code sub-agent, combined with implementation and review roles. The free version (4 personas, no UI design role) is published under MIT.</p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

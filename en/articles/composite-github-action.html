@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Distribute Custom Tools as Composite GitHub Actions (Without npm Publishing) | Quartet / Quintet</title>
+<meta name="description" content="When you create a small CLI tool, it is common to consider publishing it on npm for others to use. However, there is a distribution path that require…">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/composite-github-action.html">
+<link rel="alternate" type="application/rss+xml" title="Distribute Custom Tools as Composite GitHub Actions (Without npm Publishing) | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Distribute Custom Tools as Composite GitHub Actions (Without npm Publishing) | Quartet / Quintet">
+<meta property="og:description" content="When you create a small CLI tool, it is common to consider publishing it on npm for others to use. However, there is a distribution path that require…">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/composite-github-action.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-04 &nbsp;·&nbsp; githubactions · cli · ci · typescript</p>
+  <h1>Distribute Custom Tools as Composite GitHub Actions (Without npm Publishing)</h1>
+<p>When you create a small CLI tool, it is common to consider publishing it on npm for others to use.
+However, there is a <strong>distribution path that requires no account or publishing process</strong>: GitHub Actions.</p>
+<pre><code class="language-yaml">- uses: your-name/tool-name@v1
+</code></pre>
+<p>With this single line, the tool becomes usable. I have done this myself, so here are the steps and common pitfalls.</p>
+<h2 id="composite-vs-docker">Composite vs Docker</h2>
+<p>There are three types of Actions (JavaScript / Docker / composite), but
+<strong>if the tool runs on Node, composite is the only choice.</strong></p>
+<div class="scroll"><table><thead>
+<tr>
+  <th></th>
+  <th>composite</th>
+  <th>Docker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Startup</td>
+  <td>Fast</td>
+  <td>Requires building or pulling an image</td>
+</tr>
+<tr>
+  <td>Execution Environment</td>
+  <td>Uses the runner's environment</td>
+  <td>Isolated</td>
+</tr>
+<tr>
+  <td>Implementation</td>
+  <td>Just list shell steps</td>
+  <td>Requires a Dockerfile</td>
+</tr>
+</tbody>
+</table></div>
+<p>Docker isolation is necessary for tools that modify the system or require bundling special dependencies. <strong>Using Docker for a tool that completes with just Node yields no return on the startup cost.</strong></p>
+<h2 id="full-code">Full Code</h2>
+<p>Place <code>action.yml</code> in the root of your repository.</p>
+<pre><code class="language-yaml">name: 'mdlinkcheck'
+description: 'Find broken relative links in Markdown files.'
+author: 'your-name'
+branding:
+  icon: 'link-2'
+  color: 'orange'
+
+inputs:
+  path:
+    description: 'Directory or file to check.'
+    required: false
+    default: '.'
+  format:
+    description: 'Output format: text or json.'
+    required: false
+    default: 'text'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+
+    - name: Build
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: |
+        npm ci --no-audit --no-fund
+        npm run build
+
+    - name: Check links
+      shell: bash
+      run: |
+        node &quot;${{ github.action_path }}/bin/mdlinkcheck.js&quot; \
+          &quot;${{ inputs.path }}&quot; --format &quot;${{ inputs.format }}&quot;
+</code></pre>
+<p>That is all.</p>
+<h2 id="pitfalls">Pitfalls</h2>
+<h3 id="shell-is-required-for-every-step"><code>shell:</code> is required for every step</h3>
+<p>Composite <code>run</code> steps <strong>will error if you do not specify <code>shell:</code> for each one.</strong>
+It can be omitted in normal workflows, so it is easy to forget.</p>
+<h3 id="use-github-action_path">Use <code>${{ github.action_path }}</code></h3>
+<p>This is the absolute path of the directory where the action is located. <strong>Since it runs in the user's repository,
+the current directory belongs to the user.</strong></p>
+<pre><code class="language-yaml"># NG: Tries to run npm ci in the user's repository
+run: npm ci
+
+# OK
+working-directory: ${{ github.action_path }}
+run: npm ci
+</code></pre>
+<p>Specify the tool execution with an absolute path as well.</p>
+<pre><code class="language-yaml">run: node &quot;${{ github.action_path }}/bin/tool.js&quot; &quot;${{ inputs.path }}&quot;
+</code></pre>
+<h3 id="exit-codes-are-passed-through-directly">Exit codes are passed through directly</h3>
+<p>If a shell step ends with a non-zero exit code, the step fails.
+Unless you add <code>|| true</code> or write <code>continue-on-error</code>,
+<strong>the tool's exit code becomes the CI pass/fail result.</strong></p>
+<p>This is effective, so it is worth designing your tool's exit codes properly.</p>
+<pre><code>0  No issues
+1  Issues found (CI should fail)
+2  Usage error (missing path, invalid option)
+</code></pre>
+<h3 id="whether-to-commit-dist">Whether to commit <code>dist/</code></h3>
+<p>With JavaScript actions, you must commit <code>dist/</code>, but
+with composite, <strong>you can just run <code>npm ci &amp;&amp; npm run build</code> on the action side, so it is unnecessary.</strong></p>
+<p>This means a build runs every time. It takes a few seconds, which I accept.
+If this concerns you, you can use <code>actions/cache</code>.</p>
+<h2 id="tagging-versions">Tagging Versions</h2>
+<p>Guiding users to <code>@main</code> means <strong>users will inadvertently pull breaking changes.</strong></p>
+<pre><code class="language-bash">git tag -a v1.0.0 -m &quot;v1.0.0&quot;
+git push origin v1.0.0
+
+# v1 is the &quot;working tag&quot;. It always points to the latest 1.x
+git tag -f v1
+git push -f origin v1
+</code></pre>
+<p>Guide users to use <code>@v1</code>, and let them know that <code>@v1.0.0</code> is available for pinning.
+Advance <code>v1</code> with each release.</p>
+<pre><code class="language-bash">git tag -f v1 &amp;&amp; git push -f origin v1
+</code></pre>
+<h2 id="verify-published-tags-work-in-ci">Verify Published Tags Work in CI</h2>
+<p><strong>This was the most effective step.</strong></p>
+<p>It is easy to verify functionality by using <code>uses: ./</code> in your own repository,
+but even if that passes, <strong>if the commit pointed to by the tag is broken, users will not be able to use it.</strong>
+This is because <code>./</code> only looks at the local checkout.</p>
+<p>Therefore, add a job to CI that &quot;executes by referencing the published tags.&quot;</p>
+<pre><code class="language-yaml">jobs:
+  use-the-action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./                      # Local
+        with:
+          path: .
+
+  published-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: your-name/your-tool@v1  # Published tag
+        with:
+          path: .
+</code></pre>
+<p>With this, <strong>your CI will fail the moment you make a mistake in retagging.</strong>
+You can catch it before it fails in users' repositories.</p>
+<p>For tools that can run against themselves (linters, formatters,
+link checkers, etc.), this format is particularly suitable.
+&quot;Usable&quot; becomes more than just a claim; it is verified every time.</p>
+<h2 id="whether-to-publish-to-the-marketplace">Whether to Publish to the Marketplace</h2>
+<p>If you write <code>branding</code> in <code>action.yml</code>, GitHub's UI will prompt you to publish to the Marketplace. You do not need to rush, as it can be used via <code>uses:</code> even without publishing.</p>
+<p>Publishing adds one more discovery path, so it is worth doing after refining your repository description and topics.</p>
+<h2 id="summary">Summary</h2>
+<ul>
+<li>For tools running on Node, use composite. If Docker isolation is not needed, there is no reason to pay the cost.</li>
+<li><code>shell:</code> is required for every step. Do not forget it.</li>
+<li>Paths must use <code>${{ github.action_path }}</code>. The current directory is the user's repository.</li>
+<li>Exit codes directly determine CI pass/fail. Design them in your tool.</li>
+<li>Do not guide users to <code>@main</code>. Create a working tag <code>v1</code> and a pinned tag <code>v1.0.0</code>.</li>
+<li><strong>Place a job in CI that references the published tag.</strong> Even if <code>uses: ./</code> passes,
+users will not be able to use it if the tag is broken.</li>
+</ul>
+<p>I have open-sourced a small CLI (Markdown link checker) distributed in this format under the MIT license.</p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Automatically Update Issue Labels Based on PR Activity | Quartet / Quintet</title>
+<meta name="description" content="When tracking progress by adding labels like status:in-progress or status:review to Issues, you will inevitably forget to apply them.">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/issue-label-automation.html">
+<link rel="alternate" type="application/rss+xml" title="Automatically Update Issue Labels Based on PR Activity | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Automatically Update Issue Labels Based on PR Activity | Quartet / Quintet">
+<meta property="og:description" content="When tracking progress by adding labels like status:in-progress or status:review to Issues, you will inevitably forget to apply them.">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/issue-label-automation.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-04 &nbsp;·&nbsp; githubactions · github · ci · claudecode</p>
+  <h1>Automatically Update Issue Labels Based on PR Activity</h1>
+<p>When tracking progress by adding labels like <code>status:in-progress</code> or <code>status:review</code> to Issues, <strong>you will inevitably forget to apply them.</strong></p>
+<p>Humans forget. AI also forgets. After finishing implementation and opening a PR, the Issue label remains <code>in-progress</code>. The next day, you check and wonder, &quot;Was this already finished?&quot;</p>
+<p>The correct approach is to delegate state management to machines. Below is the full workflow I am currently using.</p>
+<h2 id="what-it-does">What it does</h2>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Event in PR</th>
+  <th>Issue Label</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>PR opened</td>
+  <td><code>status:review</code></td>
+</tr>
+<tr>
+  <td>Review with changes requested</td>
+  <td><code>status:changes-requested</code></td>
+</tr>
+<tr>
+  <td>PR merged</td>
+  <td><code>status:done</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>It identifies the Issue from <code>Closes #&lt;number&gt;</code> in the PR body.</p>
+<h2 id="full-code">Full Code</h2>
+<pre><code class="language-yaml">name: issue-status
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, closed]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: issue-status-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync label on the linked issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+          ACTION: ${{ github.event.action }}
+          REVIEW_STATE: ${{ github.event.review.state }}
+        run: |
+          set -euo pipefail
+
+          issues=&quot;$(printf '%s' &quot;${PR_BODY:-}&quot; \
+            | grep -oiE '(close[sd]?|fixe?[sd]?|resolve[sd]?)[[:space:]]*#[0-9]+' \
+            | grep -oE '[0-9]+' \
+            | sort -u || true)&quot;
+
+          if [ -z &quot;$issues&quot; ]; then
+            echo &quot;No linked issue in the PR body. Nothing to do.&quot;
+            exit 0
+          fi
+
+          target=&quot;&quot;
+          if [ &quot;$ACTION&quot; = &quot;closed&quot; ]; then
+            if [ &quot;$PR_MERGED&quot; = &quot;true&quot; ]; then target=&quot;status:done&quot;; fi
+          elif [ &quot;$ACTION&quot; = &quot;submitted&quot; ]; then
+            case &quot;${REVIEW_STATE:-}&quot; in
+              changes_requested) target=&quot;status:changes-requested&quot; ;;
+            esac
+          else
+            target=&quot;status:review&quot;
+          fi
+
+          [ -z &quot;$target&quot; ] &amp;&amp; { echo &quot;No state change for this event&quot;; exit 0; }
+
+          all=&quot;status:planned status:in-progress status:review \
+               status:changes-requested status:conflict status:done&quot;
+
+          for n in $issues; do
+            echo &quot;Issue #${n} -&gt; ${target}&quot;
+            gh issue edit &quot;$n&quot; --repo &quot;$REPO&quot; --add-label &quot;$target&quot; &gt;/dev/null
+            for l in $all; do
+              [ &quot;$l&quot; = &quot;$target&quot; ] &amp;&amp; continue
+              gh issue edit &quot;$n&quot; --repo &quot;$REPO&quot; --remove-label &quot;$l&quot; &gt;/dev/null 2&gt;&amp;1 || true
+            done
+          done
+</code></pre>
+<h2 id="pitfalls-encountered">Pitfalls Encountered</h2>
+<h3 id="deleting-a-non-existent-label-causes-failure">Deleting a non-existent label causes failure</h3>
+<p><code>gh issue edit --remove-label</code> fails if the label is not attached.
+Since I want to keep <code>status:</code> labels to exactly one at all times, I remove all of them. Without handling this, <code>set -e</code> would cause the script to exit on the first missing label.</p>
+<pre><code class="language-bash">gh issue edit &quot;$n&quot; --remove-label &quot;$l&quot; &gt;/dev/null 2&gt;&amp;1 || true
+</code></pre>
+<p>I suppress the error. <strong>However, I do not suppress errors for <code>--add-label</code>.</strong>
+If adding a label fails, it is a real problem, so I let it fail to make it noticeable.</p>
+<h3 id="race-conditions-with-consecutive-events">Race conditions with consecutive events</h3>
+<p>If a review is submitted immediately after opening a PR, two events run almost simultaneously.
+Both touch the same Issue labels, and depending on the order, an older state might overwrite a newer one.</p>
+<pre><code class="language-yaml">concurrency:
+  group: issue-status-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+</code></pre>
+<p>I serialize them per PR number. <code>cancel-in-progress: false</code> is critical;
+if set to <code>true</code>, <strong>the preceding label update is cancelled mid-execution.</strong> It is better to wait.</p>
+<h3 id="ignoring-raw-references-like-45">Ignoring raw references like <code>#45</code></h3>
+<p>Changing state based on mentions like &quot;Related: #45&quot; causes accidents.
+I only capture lines where <code>Closes</code> / <code>Fixes</code> / <code>Resolves</code> precede the number.</p>
+<p>Here are the actual verification results:</p>
+<pre><code>Closes #12                    -&gt; [12]
+Fixes #7 and Closes #9        -&gt; [7 9]
+Resolved #3                   -&gt; [3]
+この PR は #45 に関連します      -&gt; []        ← Not captured
+issue #8 を見てください          -&gt; []        ← Not captured
+</code></pre>
+<h3 id="minimize-permissions">Minimize permissions</h3>
+<p>The default <code>GITHUB_TOKEN</code> has broad permissions, so I restrict them explicitly.
+Only Issue writing is required for this workflow.</p>
+<h3 id="does-not-work-for-prs-from-forks">Does not work for PRs from forks</h3>
+<p>The <code>GITHUB_TOKEN</code> in the fork's source repository is read-only, so labels are not updated for external contributor PRs. This is not an issue for personal projects or internal repositories, but if you use this in OSS, you would need to consider <code>pull_request_target</code> (though additional security precautions are required).</p>
+<h2 id="create-labels-first">Create Labels First</h2>
+<p>If the labels do not exist, <code>--add-label</code> will fail, so I also script their creation.</p>
+<pre><code class="language-bash">labels=(
+  &quot;status:planned|ededed|Issue created, not started&quot;
+  &quot;status:in-progress|1d76db|Implementation in progress&quot;
+  &quot;status:review|fbca04|PR opened, waiting for review&quot;
+  &quot;status:changes-requested|d93f0b|Changes requested&quot;
+  &quot;status:conflict|b60205|Waiting for conflict resolution&quot;
+  &quot;status:done|0e8a16|Merged and closed&quot;
+)
+
+for entry in &quot;${labels[@]}&quot;; do
+  IFS='|' read -r name color desc &lt;&lt;&lt; &quot;${entry}&quot;
+  gh label create &quot;${name}&quot; --color &quot;${color}&quot; --description &quot;${desc}&quot; 2&gt;/dev/null \
+    || gh label edit &quot;${name}&quot; --color &quot;${color}&quot; --description &quot;${desc}&quot;
+done
+</code></pre>
+<p>If creation fails, it falls back to editing, so running it multiple times yields the same result.</p>
+<h2 id="why-delegate-to-machines">Why delegate to machines?</h2>
+<p>This is part of a setup where I assign multiple personas to Claude Code to drive development.
+When dividing roles into designer, implementer, and reviewer, <strong>you want each persona to handle label operations.</strong> However, if you leave this to the personas, they will inevitably forget.</p>
+<p>Let machines hold the state, and let personas focus only on &quot;what was done.&quot; Since making this distinction, the Issue list no longer diverges from reality.</p>
+<p>I have open-sourced the settings for these four personas under the MIT license.
+Copy them and run <code>./setup.sh</code> to get started.</p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

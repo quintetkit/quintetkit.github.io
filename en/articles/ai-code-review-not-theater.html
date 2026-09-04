@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Is Your AI-Generated Code Review Just a Formality? | Quartet / Quintet</title>
+<meta name="description" content="I have a question for those who are using AI to write code.">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/ai-code-review-not-theater.html">
+<link rel="alternate" type="application/rss+xml" title="Is Your AI-Generated Code Review Just a Formality? | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Is Your AI-Generated Code Review Just a Formality? | Quartet / Quintet">
+<meta property="og:description" content="I have a question for those who are using AI to write code.">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/ai-code-review-not-theater.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-04 &nbsp;·&nbsp; ai · claudecode · codereview · githubactions</p>
+  <h1>Is Your AI-Generated Code Review Just a Formality?</h1>
+<p>I have a question for those who are using AI to write code.</p>
+<p><strong>What is the basis for your &quot;OK&quot; during the review?</strong></p>
+<p>There are 40 files changed, and there’s no time to read them all. The tests pass. It looks fine at a glance. So, merge it. — This is not a review; it is a ritual of approval.</p>
+<p>While building 10 personal apps in three months, I encountered this state repeatedly.
+To escape it, I didn’t change the reviewer’s ability; I changed <strong>the basis for judgment</strong>.</p>
+<h2 id="why-it-becomes-a-formality">Why It Becomes a Formality</h2>
+<p>There are two reasons.</p>
+<h3 id="1-no-criteria-for-judgment">1. No Criteria for Judgment</h3>
+<p>If the issue only says &quot;Implement login functionality,&quot; the reviewer has no choice but to judge based on
+&quot;Whether the login functionality works.&quot; This cannot be judged objectively.
+It passes if it looks like it works.</p>
+<h3 id="2-the-author-is-reviewing-their-own-work">2. The Author Is Reviewing Their Own Work</h3>
+<p>Having AI write the code and then asking it to &quot;review this&quot; in the same conversation is the most dangerous pattern.</p>
+<p>The reviewer holds all the context of the implementation process. Because they know <strong>&quot;why it was written this way,&quot;</strong>
+<strong>they fill in the gaps for what isn't written.</strong> This is the same reason humans cannot effectively review their own code.</p>
+<h2 id="what-i-changed">What I Changed</h2>
+<h3 id="write-acceptance-criteria-before-implementation">Write Acceptance Criteria Before Implementation</h3>
+<p>This had the biggest impact.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Writing Style</th>
+  <th>Judgable?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>&quot;Login functionality works correctly&quot;</td>
+  <td>No</td>
+</tr>
+<tr>
+  <td>&quot;Logging in with an unregistered email returns 401 and <code>USER_NOT_FOUND</code>&quot;</td>
+  <td>Yes</td>
+</tr>
+<tr>
+  <td>&quot;Improve performance&quot;</td>
+  <td>No</td>
+</tr>
+<tr>
+  <td>&quot;Initial list display loads 200 items within 500ms (local measurement)&quot;</td>
+  <td>Yes</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Writing it before implementation</strong> is crucial. If you write it later, the criteria will just match the existing implementation.</p>
+<h3 id="don-t-give-the-reviewer-context">Don't Give the Reviewer Context</h3>
+<p>Perform reviews in a separate session or as a different persona. There are only two inputs to provide:</p>
+<ul>
+<li>Acceptance criteria from the Issue</li>
+<li>The PR diff</li>
+</ul>
+<p>Do not pass the conversation history of the implementation. <strong>Not having context allows you to notice what isn't written.</strong></p>
+<p>You might want to add explanations like &quot;This PR intends to clean up authentication...&quot;, but
+don't do it. If an explanation is needed, it should be in the Issue or PR description.</p>
+<h3 id="check-cheap-things-first">Check Cheap Things First</h3>
+<p>Judgment requires order.</p>
+<ol>
+<li><strong>Scope Violations</strong> — Can be judged just by looking at the list of changed files</li>
+<li><strong>Tests &amp; Lint</strong> — Already judged by machines</li>
+<li><strong>Acceptance Criteria</strong> — Requires reading code</li>
+</ol>
+<p>If a rejection is decided in an earlier stage, do not look further. Providing all comments before returning it only increases rework because fixing one thing changes others.</p>
+<p>And step 1 is really cheap.</p>
+<pre><code class="language-bash">gh pr diff &lt;number&gt; --name-only
+</code></pre>
+<p>This alone tells you if anything outside the scope defined in the Issue has been touched.
+Even with a diff of 40 files, looking at the list immediately reveals &quot;why routing changed for an authentication issue.&quot;</p>
+<h3 id="reject-features-not-in-the-criteria">Reject Features Not in the Criteria</h3>
+<p>Often overlooked, but this is effective.</p>
+<p><strong>&quot;I made it convenient while I was at it&quot; means unreviewed changes are entering main.</strong>
+Features not in the acceptance criteria have no basis for judgment.</p>
+<p>The countermeasure is to ask the author to split that part into a separate Issue. We are not discarding it.</p>
+<h2 id="how-to-write-rejections">How to Write Rejections</h2>
+<p>When rejecting, include three things:</p>
+<ol>
+<li><strong>What is the problem</strong> — Relevant file and line</li>
+<li><strong>Why it is a problem</strong> — Which acceptance criterion or scope it violates</li>
+<li><strong>What needs to happen to pass</strong> — In a judgable form</li>
+</ol>
+<p>&quot;Please clean this up more&quot; is not a rejection. Since you cannot judge what needs to be done to pass, the next submission will also fail.</p>
+<h2 id="delegate-state-management-to-machines">Delegate State Management to Machines</h2>
+<p>To focus on judgment during reviews, I delegate label management to GitHub Actions.</p>
+<pre><code class="language-yaml">on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, closed]
+  pull_request_review:
+    types: [submitted]
+</code></pre>
+<p>Identify the Issue from <code>Closes #&lt;number&gt;</code> in the PR description and swap labels (<code>status:review</code> / <code>status:changes-requested</code> / <code>status:done</code>) based on PR activity.</p>
+<p>Leaving label management to a persona inevitably leads to missed updates.
+It is more stable for machines to hold state, while personas focus only on &quot;what was done.&quot;</p>
+<h2 id="acknowledging-limitations">Acknowledging Limitations</h2>
+<p><strong>The reviewer uses the same model as the implementer.</strong></p>
+<p>Even with separated context, they are fundamentally the same model. <strong>Systematic errors inherent to the model cannot be caught by the reviewer.</strong> If a library's API is consistently misremembered, the implementer will make a mistake, and the reviewer will judge it as correct.</p>
+<p>This cannot be solved by configuration. The countermeasure is to include <strong>executable verification</strong> in the acceptance criteria.</p>
+<pre><code>- [ ] Logging in with an unregistered email returns 401 and USER_NOT_FOUND
+      → Verify that a test exists for this
+</code></pre>
+<p>&quot;Tests passing&quot; is one of the few ways to externally verify the model's assumptions.
+Therefore, write acceptance criteria in a form that can be converted into tests as much as possible.</p>
+<h2 id="summary">Summary</h2>
+<ul>
+<li>Write judgable acceptance criteria before implementation</li>
+<li>Do not give reviewers context about the implementation process</li>
+<li>Check scope violations first. Judging via file lists is cheap</li>
+<li>Reject features not in the criteria. Split them into separate Issues</li>
+<li>Delegate state management to machines to focus on judgment</li>
+<li>Cannot catch model-common errors. Convert acceptance criteria into executable verification</li>
+</ul>
+<p>I have documented this judgment procedure as a definition for the reviewer persona and distributed a configuration combining it with implementer and designer personas. The free version for 4 personas is available under MIT license.</p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

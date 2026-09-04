@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What to Delegate and What Not to Delegate to Local LLMs (with Benchmarks) | Quartet / Quintet</title>
+<meta name="description" content="When using cloud-based LLMs, token costs become a concern. It is natural to think, &quot;Can I offload light tasks to a local LLM to save money?&quot;">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/local-llm-delegation.html">
+<link rel="alternate" type="application/rss+xml" title="What to Delegate and What Not to Delegate to Local LLMs (with Benchmarks) | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="What to Delegate and What Not to Delegate to Local LLMs (with Benchmarks) | Quartet / Quintet">
+<meta property="og:description" content="When using cloud-based LLMs, token costs become a concern. It is natural to think, &quot;Can I offload light tasks to a local LLM to save money?&quot;">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/local-llm-delegation.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-04 &nbsp;·&nbsp; llm · ollama · ai · claudecode</p>
+  <h1>What to Delegate and What Not to Delegate to Local LLMs (with Benchmarks)</h1>
+<p>When using cloud-based LLMs, token costs become a concern.
+It is natural to think, &quot;Can I offload light tasks to a local LLM to save money?&quot;</p>
+<p>I ran Ollama on my local machine and tested task delegation in practice.
+<strong>The conclusion is that there is a clear divide between tasks that benefit from this approach and those that actually cost more.</strong>
+I will outline these boundaries with measured data.</p>
+<h2 id="environment-used">Environment Used</h2>
+<ul>
+<li>Ollama on a local GPU machine (called via HTTP API)</li>
+<li><code>qwen3.6:35b</code> (MoE) — Bulk processing of long texts</li>
+<li><code>qwen3.6:27b</code> (dense) — Short text and templates</li>
+<li><code>bge-m3</code> — Embeddings</li>
+</ul>
+<p>The caller side consisted of a thin Node wrapper script.</p>
+<pre><code class="language-ts">const HOST = process.env.OLLAMA_HOST ?? &quot;http://192.168.x.x:11434&quot;;
+
+export async function chat(prompt: string, opts: ChatOptions = {}) {
+  const res = await fetch(`${HOST}/api/chat`, {
+    method: &quot;POST&quot;,
+    headers: { &quot;content-type&quot;: &quot;application/json&quot; },
+    body: JSON.stringify({
+      model: resolveModel(opts.model),
+      messages: [...(opts.system ? [{ role: &quot;system&quot;, content: opts.system }] : []),
+                 { role: &quot;user&quot;, content: prompt }],
+      stream: false,
+      think: opts.think ?? false,          // Reasoning tokens are generally unnecessary
+      options: { temperature: opts.temperature ?? 0.7 },
+    }),
+  });
+  const data = await res.json();
+  return { text: data.message.content.trim(), tokens: data.eval_count };
+}
+</code></pre>
+<p>Do not forget to set <code>think: false</code>. Models that output reasoning by default will endlessly emit unnecessary reasoning tokens.</p>
+<hr />
+<h2 id="tasks-that-worked-well">Tasks That Worked Well</h2>
+<h3 id="1-bulk-translation-of-long-texts-the-main-use-case">1. Bulk Translation of Long Texts — The Main Use Case</h3>
+<p>I translated 10 chapters (882 lines) of a technical document into English.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Metric</th>
+  <th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Time per chapter</td>
+  <td>~35 seconds</td>
+</tr>
+<tr>
+  <td>Heading consistency</td>
+  <td>Perfect match in all 10/10 chapters</td>
+</tr>
+<tr>
+  <td>Code block count consistency</td>
+  <td>Perfect match in all 10/10 chapters</td>
+</tr>
+<tr>
+  <td>Table row count consistency</td>
+  <td>Perfect match in all 10/10 chapters</td>
+</tr>
+<tr>
+  <td>Preservation of relative links</td>
+  <td>All 11 links preserved</td>
+</tr>
+<tr>
+  <td>Inclusion of hype words</td>
+  <td>0 instances</td>
+</tr>
+<tr>
+  <td>Residual Japanese text</td>
+  <td>0 instances</td>
+</tr>
+</tbody>
+</table></div>
+<p>For a single article (217 lines, 2030 output tokens), it took 32.6 seconds.</p>
+<p><strong>The key benefit is the complete preservation of structure.</strong> I constrained the prompt as follows:</p>
+<pre><code>- Preserve the markdown structure exactly: headings, tables, code blocks, lists.
+- Do NOT translate content inside code blocks. Keep code identical.
+- Keep relative markdown links exactly as they are (e.g. [text](03-architect.md)).
+- Keep the tone factual and plain. No hype words
+  (revolutionary, seamless, supercharge, unlock, effortless).
+- Output ONLY the translated markdown. No preamble.
+</code></pre>
+<p><strong>Explicitly listing prohibited words was effective.</strong> Without this, words like &quot;revolutionary&quot; or &quot;seamless&quot; tend to appear.</p>
+<p>Verification is done mechanically by comparing the count of structural elements in the source and target texts.</p>
+<pre><code class="language-python">def stats(t):
+    return (len(re.findall(r'^#{1,3} ', t, re.M)),   # Headings
+            t.count(&quot;```&quot;) // 2,                      # Code blocks
+            len(re.findall(r'^\|', t, re.M)),         # Table rows
+            len(re.findall(r'\[[^\]]+\]\([^)]+\)', t)))  # Links
+</code></pre>
+<p>If the counts do not match, it indicates missing translations or unauthorized additions.</p>
+<h3 id="2-article-duplicate-detection-embeddings">2. Article Duplicate Detection (Embeddings)</h3>
+<p>As you write more articles, you tend to repeat previous content.
+I use <code>bge-m3</code> for embeddings and mechanically filter duplicates using cosine similarity.</p>
+<pre><code>0.945  a.md &lt;&gt; b.md   ← Paraphrased repetition. Detected.
+0.805  Article 1 &lt;&gt; Article 3  ← Similar topics. Acceptable range.
+0.591  Article 2 &lt;&gt; Article 3  ← Distinct content.
+</code></pre>
+<p>I have a rule not to publish if the similarity exceeds a threshold of 0.85.
+In practice, one article was caught at 0.855, prompting me to restructure it.
+<strong>To the author, it may seem like they are writing about something different, so machine judgment is necessary.</strong></p>
+<h3 id="3-generating-headlines-and-title-options">3. Generating Headlines and Title Options</h3>
+<p>It is sufficient for generating 10 options and selecting one.</p>
+<hr />
+<h2 id="tasks-that-cost-more-when-delegated">Tasks That Cost More When Delegated</h2>
+<h3 id="writing-new-sales-copy-or-article-body">Writing New Sales Copy or Article Body</h3>
+<p>This was the biggest lesson. <strong>Rewriting based on a draft costs more than writing from scratch.</strong></p>
+<p>Here is an actual output example:</p>
+<pre><code>* Five AI Agent Roles with Claude Code: How to Complete 10 Indie Apps in 3 Months
+* Accelerating Development Efficiency with Parallel Processing: Releasing 10 Apps in 3 Months Using Claude Code and Role Division
+* The Speed Revolution of Indie Dev: Why the 5-Person Workflow Built with Claude Code Produced 10 Practical Apps in 3 Months
+</code></pre>
+<p>&quot;Speed revolution,&quot; &quot;leveraged,&quot; &quot;completed.&quot; <strong>Japanese hype expressions are mixed in.</strong>
+While a Japanese prohibited word list would reduce this, fundamentally this task requires judgment on &quot;what not to say,&quot; which is difficult to convey via instructions.</p>
+<p>Economically, it also does not make sense. You must read the entire draft (input tokens) and rewrite it (output tokens).
+If you write from scratch, you only pay for output tokens. <strong>Instead of reducing costs, they increase.</strong></p>
+<h3 id="short-texts">Short Texts</h3>
+<p>With the 27b model, generating 147 tokens took 12.3 seconds. <strong>For short texts, latency dominates</strong>, making the wait time the primary cost factor.
+For dozens of tokens, it is faster to write them yourself.</p>
+<hr />
+<h2 id="the-boundary-line">The Boundary Line</h2>
+<p>Criteria derived from benchmarks.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Delegate</th>
+  <th>Do Not Delegate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Bulk conversion of long texts (translation, formatting)</td>
+  <td>Writing new text from scratch</td>
+</tr>
+<tr>
+  <td>Tasks where you don't need to read the full output</td>
+  <td>Text where quality directly impacts sales or reputation</td>
+</tr>
+<tr>
+  <td>Tasks verifiable mechanically</td>
+  <td>Tasks requiring judgment on &quot;what not to say&quot;</td>
+</tr>
+<tr>
+  <td>Embeddings, classification, duplicate detection</td>
+  <td>Short texts (loses to latency)</td>
+</tr>
+</tbody>
+</table></div>
+<p>In one line: <strong>Can you pipe the output directly into a file without reading it?</strong></p>
+<p>If you don't need to read it, delegation is effective. If you need to read and correct the full text, writing it yourself from the start is cheaper.
+Translation falls into the former category. Since there is a mechanical pass/fail criterion for structural consistency, there is no need to visually scan the entire text.</p>
+<h2 id="implementation-notes-to-avoid-failure">Implementation Notes to Avoid Failure</h2>
+<p><strong>Do not run background processes using <code>nohup</code>.</strong> If the parent process ends, the child process dies, leaving only empty logs behind.
+I once failed to notice for several minutes that a 10-chapter translation had not run due to this issue. Let the calling side handle job management.</p>
+<p><strong>Set timeouts generously.</strong> Bulk processing of long texts takes dozens of seconds.
+If you abort after the default few seconds, the model is still running, but the result is discarded.</p>
+<p><strong>Use aliases for models.</strong> Resolving aliases like <code>fast</code>, <code>big</code>, <code>coder</code>, or <code>embed</code> on the wrapper side allows you to swap models without touching the calling code.</p>
+<h2 id="summary">Summary</h2>
+<ul>
+<li>Bulk translation of long texts is effective. The ability to verify structure mechanically is key.</li>
+<li>Duplicate detection via embeddings finds issues invisible to the author.</li>
+<li>Do not delegate new text writing. It costs more to read and rewrite than to write from scratch.</li>
+<li>Short texts lose to latency.</li>
+<li>The decision criterion is &quot;Can you pipe the output into a file without reading it?&quot;</li>
+</ul>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

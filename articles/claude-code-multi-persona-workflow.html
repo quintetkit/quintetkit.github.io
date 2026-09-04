@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code に5人格を分担させて並列開発する | Quartet / Quintet</title>
+<meta name="description" content="Claude Code に大きめの依頼をすると、こうなりませんか。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/claude-code-multi-persona-workflow.html">
+<link rel="alternate" type="application/rss+xml" title="Claude Code に5人格を分担させて並列開発する | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Claude Code に5人格を分担させて並列開発する | Quartet / Quintet">
+<meta property="og:description" content="Claude Code に大きめの依頼をすると、こうなりませんか。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/claude-code-multi-persona-workflow.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-04 &nbsp;·&nbsp; claudecode · ai · github · 個人開発</p>
+  <h1>Claude Code に5人格を分担させて並列開発する</h1>
+<p>Claude Code に大きめの依頼をすると、こうなりませんか。</p>
+<ul>
+<li>認証まわりを頼んだのに、ついでにエラーハンドリングの共通化まで入っている</li>
+<li>差分が 40 ファイルあり、全部読む気力が湧かないので雰囲気で承認する</li>
+<li>3 日後、なぜこの実装になっているのか自分でも説明できない</li>
+<li>並列で走らせたいが、競合が怖くて結局 1 本ずつ回している</li>
+</ul>
+<p>3 ヶ月で個人アプリを 10 本作り、うち 2 本を App Store に出す過程で、
+この問題に一通りぶつかりました。その結果たどり着いた構成を書きます。</p>
+<p>結論から言うと、<strong>能力の問題ではなく権限設計の問題</strong>でした。</p>
+<h2 id="何が起きているのか">何が起きているのか</h2>
+<p>1 つの人格に、設計も実装もレビューもマージもやらせているからです。</p>
+<p>自分で決めた設計を自分で実装し、自分でレビューして自分でマージする。
+どこにも歯止めがありません。人間のチームなら、この構成は誰も許可しません。</p>
+<h2 id="責務を分けて-権限を落とす">責務を分けて、権限を落とす</h2>
+<div class="scroll"><table><thead>
+<tr>
+  <th>人格</th>
+  <th>できること</th>
+  <th>できないこと</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Architect</td>
+  <td>Issue の作成・分割</td>
+  <td>コードを書く</td>
+</tr>
+<tr>
+  <td>UI Designer</td>
+  <td>UI 仕様書を書く</td>
+  <td>コードを書く</td>
+</tr>
+<tr>
+  <td>Coder</td>
+  <td>担当 Issue の scope 内だけ変更</td>
+  <td>scope 外を触る、マージする、造形を決める</td>
+</tr>
+<tr>
+  <td>Reviewer</td>
+  <td>レビューとマージ</td>
+  <td>実装する、コンフリクトを解消する</td>
+</tr>
+<tr>
+  <td>Conflict Resolver</td>
+  <td>コンフリクト解消</td>
+  <td>マージする、呼ばれる前に動く</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>どれも同じモデルです。</strong> 賢さに差はありません。違うのは何をしてよいかだけ。</p>
+<p>なぜそれで結果が変わるのか。AI は与えられた文脈の中で、もっともらしい次の手を
+選びます。「ログイン機能を作って」とだけ言われたら、関係しそうなことを全部やるのが
+もっともらしい。「<code>src/auth/**</code> の中だけを変更して、この 3 つの受け入れ条件を満たせ」
+と言われたら、もっともらしい次の手はまったく別のものになります。</p>
+<p><strong>制約が文脈を作り、文脈が出力を決めます。</strong></p>
+<h2 id="全体の流れ">全体の流れ</h2>
+<pre><code>依頼 → [Architect] Issue に分割（scope が重ならない組を作る）
+         │
+         ├─ [Coder] issue/12-xxx ─┐
+         ├─ [Coder] issue/13-yyy ─┤ 並列
+         └─ [Coder] issue/14-zzz ─┘
+                                   │ PR ごとに1件ずつ
+                                   ▼
+                            [Reviewer] 受け入れ条件と scope を確認 → マージ
+                                   │
+                                   └─ コンフリクト → [Conflict Resolver] → Reviewer
+</code></pre>
+<h2 id="実際の設定">実際の設定</h2>
+<p><code>.claude/agents/architect.md</code> はこうです。</p>
+<pre><code class="language-markdown">---
+name: architect
+description: Use to turn a feature request into GitHub issues for
+  issue-driven parallel development. Defines per-issue scope (owned paths),
+  dependencies, branch names, and acceptance criteria. Never implements code.
+tools: Bash, Read, Grep, Glob
+model: inherit
+---
+
+あなたは **設計者（Architect）** です。コードは書きません。
+あなたの仕事は「安全に並列実行できる単位に Issue を分割すること」です。
+
+## 呼ばれたときにすること
+
+1. 依頼内容を読み、必要な作業を洗い出す。
+2. 作業を **1 Issue = 1 scope = 1 ブランチ** に分割する。
+   - scope はできるだけ狭く、他の Issue と重ならないようにする。
+   - 重ならない Issue 同士は「並列着手グループ」としてまとめる。
+3. gh issue create で以下を必ず含める。
+   - Scope: 担当してよいファイル/ディレクトリのパス
+   - Branch: issue/&lt;番号&gt;-&lt;slug&gt;
+   - Depends on: 依存 Issue 番号（なければ「なし」）
+   - 受け入れ条件: Reviewer が判定に使えるレベルで具体的に
+
+## 守ること
+
+- 実装コードやテストコードを書かない。
+- scope が重複する Issue を同じ並列グループに入れない。
+</code></pre>
+<p>Coder 側には、これを書いています。</p>
+<pre><code class="language-markdown">- 自分が担当していない Issue のファイルやブランチには触れない。
+- 自分で main にマージしない（マージは Reviewer のみ）。
+- コンフリクトが起きても自己判断で解消しない。
+- Scope 外のファイルを変更しないと実装が成立しない場合は、変更を止めて
+  「Scope 外の変更が必要」という報告を返す。
+</code></pre>
+<p>最後の 1 行が肝です。Coder が黙って範囲を広げると、
+<strong>「Architect が分割を間違えた」というシグナルが消えます。</strong></p>
+<h2 id="結果の大半は-scope-の切り方で決まる">結果の大半は scope の切り方で決まる</h2>
+<p>正直に言うと、人格の設定より <strong>Issue の切り方</strong>のほうが効きます。</p>
+<h3 id="共有ファイルを-1-つの-issue-に集める">共有ファイルを 1 つの Issue に集める</h3>
+<p>実際に衝突するのは、たいてい次のファイルです。</p>
+<ul>
+<li>ルーティング定義</li>
+<li>型定義の集約ファイル</li>
+<li>DI コンテナ、エントリポイント</li>
+<li><code>package.json</code>、マイグレーションのインデックス</li>
+</ul>
+<p>複数の Issue がこれを触る設計にすると、必ずコンフリクトします。
+先に共有ファイルだけを変える Issue を立てて、他をそれに依存させます。</p>
+<pre><code>Issue #10  Scope: src/routes/index.ts        （ルート定義だけ先に追加）
+Issue #11  Scope: src/pages/settings/**      Depends on #10
+Issue #12  Scope: src/pages/billing/**       Depends on #10
+</code></pre>
+<p>これで #11 と #12 は並列に走れます。#10 は小さいので早く終わります。</p>
+<h3 id="受け入れ条件は判定可能な形で書く">受け入れ条件は判定可能な形で書く</h3>
+<p>Reviewer は受け入れ条件だけを根拠に判定します。判定できない書き方をすると、
+レビューが素通りになります。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>書き方</th>
+  <th>判定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>「ログイン機能が正しく動くこと」</td>
+  <td>判定不能</td>
+</tr>
+<tr>
+  <td>「未登録メールでログインすると 401 と <code>USER_NOT_FOUND</code> を返す」</td>
+  <td>判定可能</td>
+</tr>
+<tr>
+  <td>「パフォーマンスを改善すること」</td>
+  <td>判定不能</td>
+</tr>
+<tr>
+  <td>「一覧の初期表示が 200 件で 500ms 以内」</td>
+  <td>判定可能</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="機能で縦に切る">機能で縦に切る</h3>
+<p>「モデル層の Issue」「ビュー層の Issue」という切り方は、依存が一直線になるので
+並列に走りません。</p>
+<h2 id="並列実行でハマった-2-点">並列実行でハマった 2 点</h2>
+<h3 id="1-メッセージで同時に起動しないと並列にならない">1 メッセージで同時に起動しないと並列にならない</h3>
+<pre><code>（NG）「coder で Issue 12 をやって」→ 完了を待つ →「13 をやって」
+（OK）「Issue 12, 13, 14 を coder で並列に実装して。
+       1 メッセージ内で 3 つの Agent 呼び出しを同時に発行すること」
+</code></pre>
+<p>呼び出しを分けた時点で直列です。ここは最初かなりの時間を無駄にしました。</p>
+<h3 id="マージは直列にする">マージは直列にする</h3>
+<p>実装は並列でも、マージは 1 件ずつです。3 つ同時にマージすると、
+それぞれ単体では正しくても組み合わせで壊れたときに切り分けができません。
+結局 3 つとも調べ直すことになり、直列より遅くなります。</p>
+<p>並列数は <strong>3〜4 本が実用的な上限</strong>でした。制約は AI 側ではなくレビュー側にあります。</p>
+<h2 id="作業ツリーを分ける">作業ツリーを分ける</h2>
+<p>scope を守っていても、同じディレクトリで複数の Coder を動かすと事故が起きます。
+ビルド成果物が混ざり、片方の <code>git checkout</code> がもう片方を巻き込みます。</p>
+<p><code>git worktree</code> でファイルシステムのレベルから分離します。</p>
+<pre><code class="language-bash">git worktree add -b issue/12-upload ../worktrees/issue-12 main
+git worktree add -b issue/13-profile ../worktrees/issue-13 main
+</code></pre>
+<p><code>.git</code> は共有されるので、ディスクはブランチ 1 本ぶんしか増えません。</p>
+<h2 id="このやり方が向かないとき">このやり方が向かないとき</h2>
+<p>正直に書いておきます。<strong>これはオーバーヘッドです。</strong></p>
+<ul>
+<li>探索・プロトタイプ（受け入れ条件を書けない段階）</li>
+<li>1 ファイルで完結する変更（タイポ修正に PR を通す意味はない）</li>
+<li>依存が本質的に一直線の作業（分割しても並列にならない）</li>
+<li>30 分で終わる作業</li>
+</ul>
+<p>見合うのは、3 本以上を同時に走らせたいときと、後から履歴を追えることに
+価値があるときだけです。</p>
+<p>そしてもう 1 つ限界があります。<strong>Reviewer は同じモデルです。</strong>
+モデルが体系的に持っている誤り、たとえばあるライブラリの API を一貫して
+間違えて覚えている場合、Coder が間違え、Reviewer も正しいと判定します。</p>
+<p>対処は、受け入れ条件に<strong>実行可能な検証</strong>を入れることです。
+「テストが通ること」は、モデルの思い込みを外部から検証できる数少ない手段です。</p>
+<h2 id="設定一式">設定一式</h2>
+<p>4 人格ぶんの設定を MIT で公開しています。</p>
+<ul>
+<li><strong>Quartet</strong> — Architect / Coder / Reviewer / Conflict Resolver の 4 人格。
+<code>CLAUDE.md</code>、<code>.claude/agents/</code>、Issue テンプレート、ラベル作成スクリプト</li>
+</ul>
+<p>コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
+<p>UI を含む開発では、実装より先に UI 仕様を確定させる 5 人格目（UI Designer）を
+挟むと、生成 AI にありがちな既定の画面（全画面中央揃えのヒーロー、
+アイコン付き 3 カラムカード、紫のグラデーション）を避けられます。
+そちらと、並列実行スクリプト・レビュー基準・実践ガイドをまとめたものは
+別途配布しています。</p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

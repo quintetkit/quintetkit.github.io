@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>並列開発を殺すのは、いつも共有ファイル | Quartet / Quintet</title>
+<meta name="description" content="複数の作業を並列で走らせようとして、こうなったことはありませんか。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/shared-files-kill-parallelism.html">
+<link rel="alternate" type="application/rss+xml" title="並列開発を殺すのは、いつも共有ファイル | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="並列開発を殺すのは、いつも共有ファイル | Quartet / Quintet">
+<meta property="og:description" content="複数の作業を並列で走らせようとして、こうなったことはありませんか。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/shared-files-kill-parallelism.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-04 &nbsp;·&nbsp; git · githubactions · 設計 · claudecode</p>
+  <h1>並列開発を殺すのは、いつも共有ファイル</h1>
+<p>複数の作業を並列で走らせようとして、こうなったことはありませんか。</p>
+<ul>
+<li>3つの機能を別ブランチで進めたら、全部が同じファイルでコンフリクトした</li>
+<li>解消してマージしたら、別のブランチがまた同じ場所で衝突した</li>
+<li>結局1本ずつ回すことにした</li>
+</ul>
+<p><strong>原因はたいてい共有ファイルです。</strong> そして、これは分割の仕方で避けられます。</p>
+<p>AI に並列で実装させる文脈で何度も踏んだので、パターンと対処を書きます。
+人間のチームでも同じことが起きるので、AI に限った話ではありません。</p>
+<h2 id="犯人はだいたい決まっている">犯人はだいたい決まっている</h2>
+<p>実際に衝突するファイルは、ほぼこの5種類でした。</p>
+<ul>
+<li><strong>ルーティング定義</strong> — <code>routes/index.ts</code>、<code>App.tsx</code> の <code>&lt;Route&gt;</code> 一覧</li>
+<li><strong>型の集約ファイル</strong> — <code>types/index.ts</code> のような re-export の束</li>
+<li><strong>DI コンテナ・エントリポイント</strong> — 依存を1箇所に登録する場所</li>
+<li><strong><code>package.json</code></strong> — 依存追加が重なる</li>
+<li><strong>マイグレーションのインデックス</strong> — 順序を持つ一覧</li>
+</ul>
+<p>共通点があります。<strong>「一覧」であること。</strong> 新機能を足すたびに1行増える構造は、
+複数人（複数エージェント）が同時に触ると必ず同じ場所を編集します。</p>
+<p>さらに悪いのは、<strong>ここでのコンフリクトは意味的には無害</strong>なことです。
+Aさんが1行足し、Bさんが1行足しただけ。両方残せば正しい。
+なのに Git は自動で解決できず、人間が止まります。</p>
+<h2 id="対処1-共有ファイルだけを先に片付ける">対処1: 共有ファイルだけを先に片付ける</h2>
+<p>一番効きます。<strong>共有ファイルを触る作業を1つだけ切り出して、先に通します。</strong></p>
+<pre><code>Issue #10  ルート定義に3つのエントリを追加       Scope: src/routes/index.ts
+Issue #11  設定画面の実装                      Scope: src/pages/settings/**   Depends on #10
+Issue #12  請求画面の実装                      Scope: src/pages/billing/**    Depends on #10
+Issue #13  通知画面の実装                      Scope: src/pages/notifications/**  Depends on #10
+</code></pre>
+<p><code>#10</code> は「まだ存在しない画面へのルートを先に足す」だけなので、数分で終わります。
+その後 <code>#11</code> <code>#12</code> <code>#13</code> は<strong>共有ファイルを一切触らない</strong>ので、完全に並列で走ります。</p>
+<p>順序が逆だと成立しません。<code>#11</code> を実装しながらルートも足す形にすると、
+3つが同じファイルを取り合います。</p>
+<h3 id="まだ無い画面へのルートを足す-のは変か">「まだ無い画面へのルートを足す」のは変か</h3>
+<p>一時的にビルドが壊れるのでは、と思うかもしれません。実際には、
+プレースホルダのコンポーネントを置いておけば通ります。</p>
+<pre><code class="language-tsx">// src/pages/settings/index.tsx  ← #11 が中身を実装する
+export default function Settings() {
+  return null;
+}
+</code></pre>
+<p><strong>空の箱を先に置く。</strong> これだけで並列化できます。</p>
+<h2 id="対処2-一覧を持たない構造にする">対処2: 一覧を持たない構造にする</h2>
+<p>そもそも「一覧ファイル」を無くせるなら、そのほうが根本的です。</p>
+<ul>
+<li>ルーティング → ディレクトリ規約からの自動収集（ファイルベースルーティング）</li>
+<li>型の集約 → <code>types/index.ts</code> を作らず、各モジュールから直接 import する</li>
+<li>マイグレーション → ファイル名のタイムスタンプで順序を決め、インデックスを持たない</li>
+</ul>
+<p>これ自体を1つの作業として切り出す価値があります。<strong>一度やれば、以後の並列化が
+ずっと楽になります。</strong></p>
+<p>ただし既存プロジェクトで急にやると影響範囲が広いので、
+「衝突が3回起きたら構造を変える」くらいの基準を持っておくといいです。</p>
+<h2 id="対処3-触れないものは-触れないと決めておく">対処3: 触れないものは、触れないと決めておく</h2>
+<p>AI に実装させる場合、これが効きます。担当範囲を明示し、
+<strong>範囲外に出たら止めて報告させる。</strong></p>
+<pre><code class="language-markdown">- 担当している作業の Scope に書かれたパス以外を変更しない
+- Scope 外の変更が必要になったら、実装を止めて報告する
+</code></pre>
+<p>黙って範囲を広げられると、<strong>分割が間違っていたという情報が消えます。</strong>
+止まってくれれば、そこで分割を直せます。</p>
+<p>実例です。ある作業で、実装者から報告が上がってきました。</p>
+<blockquote>
+<p><code>tsc --noEmit</code> が <code>node:path</code> の型を解決できません。<code>devDependencies</code> に
+<code>@types/node</code> が無いためです。<code>package.json</code> は Scope 外なので変更していません。
+別作業として切り出すか判断をお願いします。</p>
+</blockquote>
+<p>これは<strong>土台の不足</strong>であって、その作業のせいではありません。
+勝手に <code>package.json</code> を触られていたら、その PR に無関係な変更が混ざり、
+レビューの基準がぼやけていました。別作業として切り出して、独立した PR で直しました。</p>
+<h2 id="対処4-マージは直列にする">対処4: マージは直列にする</h2>
+<p>分割が正しくても、マージまで並列にすると台無しです。</p>
+<p>3つの PR を同時にマージすると、それぞれ単体ではテストが通るのに、
+3つ入れた後で壊れることがあります。そして<strong>どれが原因か切り分けられません。</strong>
+結局3つとも調べ直すことになり、直列にマージするより遅くなります。</p>
+<p>1件ずつマージすれば、<code>main</code> が進むたびに次の PR はその状態に対して判定されます。
+壊れたら直前の1件が原因だと確定します。</p>
+<p><strong>実装は並列、マージは直列。</strong> これが実務的な結論でした。</p>
+<h2 id="衝突は症状であって原因ではない">衝突は症状であって原因ではない</h2>
+<p>コンフリクトが繰り返し起きるとき、解消のやり方を改善しても意味がありません。
+<strong>分割の仕方が間違っています。</strong></p>
+<p>コンフリクトの頻度は、分割の質を測る指標として使えます。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>頻度</th>
+  <th>読み取れること</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>ほぼ起きない</td>
+  <td>分割が効いている</td>
+</tr>
+<tr>
+  <td>たまに起きる</td>
+  <td>想定外の依存がある。その回だけ解消すればよい</td>
+</tr>
+<tr>
+  <td>毎回起きる</td>
+  <td><strong>共有ファイルを複数の作業が取り合っている。分割を見直す</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>毎回起きているのに、その場その場で解消して回ると、症状は消えますが原因は残り、
+コストは増え続けます。</p>
+<h2 id="まとめ">まとめ</h2>
+<ul>
+<li>並列開発を止めるのは、たいてい「一覧」の構造を持つ共有ファイル</li>
+<li>共有ファイルを触る作業を<strong>1つだけ先に</strong>通す。空の箱を先に置けばよい</li>
+<li>一覧を持たない構造（規約ベースの自動収集）にできるなら、そのほうが根本的</li>
+<li>担当範囲の外に出たら止めて報告させる。黙って広げられると分割ミスが見えなくなる</li>
+<li>実装は並列、マージは直列</li>
+<li>コンフリクトの頻度は分割の質を測る指標。毎回起きるなら分割を疑う</li>
+</ul>
+<p>この分割の考え方を、Claude Code のサブエージェント構成として明文化したものを
+MIT で公開しています。</p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+  <title>Quartet / Quintet — Articles</title>
+  <link>https://quintetkit.github.io/index.en.html</link>
+  <atom:link href="https://quintetkit.github.io/en/feed.xml" rel="self" type="application/rss+xml"/>
+  <description>Notes on running parallel development with Claude Code by splitting it into separate personas — the configuration actually in use, and the failures behind it.</description>
+  <language>en</language>
+  <item>
+    <title>What Kills Parallel Development Is Always Shared Files</title>
+    <link>https://quintetkit.github.io/en/articles/shared-files-kill-parallelism.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/shared-files-kill-parallelism.html</guid>
+    <description>Has this ever happened to you when trying to run multiple tasks in parallel?</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
+    <title>What to Delegate and What Not to Delegate to Local LLMs (with Benchmarks)</title>
+    <link>https://quintetkit.github.io/en/articles/local-llm-delegation.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/local-llm-delegation.html</guid>
+    <description>When using cloud-based LLMs, token costs become a concern. It is natural to think, &quot;Can I offload light tasks to a local LLM to save money?&quot;</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
+    <title>Automatically Update Issue Labels Based on PR Activity</title>
+    <link>https://quintetkit.github.io/en/articles/issue-label-automation.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/issue-label-automation.html</guid>
+    <description>When tracking progress by adding labels like status:in-progress or status:review to Issues, you will inevitably forget to apply them.</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
+    <title>Distribute Custom Tools as Composite GitHub Actions (Without npm Publishing)</title>
+    <link>https://quintetkit.github.io/en/articles/composite-github-action.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/composite-github-action.html</guid>
+    <description>When you create a small CLI tool, it is common to consider publishing it on npm for others to use. However, there is a distribution path that require…</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
+    <title>What Works and What Doesn&#x27;t in CLAUDE.md</title>
+    <link>https://quintetkit.github.io/en/articles/claude-md-what-works.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/claude-md-what-works.html</guid>
+    <description>Writing &quot;Write clean code&quot; in CLAUDE.md changes nothing.</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
+    <title>Running Claude Code in True Parallelism - git worktree and Serial Steps</title>
+    <link>https://quintetkit.github.io/en/articles/claude-code-parallel-worktree.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/claude-code-parallel-worktree.html</guid>
+    <description>This article is for those who encountered issues when running multiple tasks simultaneously with Claude Code.</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
+    <title>Assigning 5 Personas to Claude Code for Parallel Development</title>
+    <link>https://quintetkit.github.io/en/articles/claude-code-multi-persona-workflow.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/claude-code-multi-persona-workflow.html</guid>
+    <description>When you give a large request to Claude Code, doesn&#x27;t this happen?</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
+    <title>Why AI-Generated Screens Look &#x27;AI-Like&#x27; Isn&#x27;t a Taste Issue</title>
+    <link>https://quintetkit.github.io/en/articles/ai-generated-ui-fix.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/ai-generated-ui-fix.html</guid>
+    <description>When you ask generative AI to create a screen, these patterns appear every time.</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
+    <title>Is Your AI-Generated Code Review Just a Formality?</title>
+    <link>https://quintetkit.github.io/en/articles/ai-code-review-not-theater.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/ai-code-review-not-theater.html</guid>
+    <description>I have a question for those who are using AI to write code.</description>
+    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+</channel>
+</rss>

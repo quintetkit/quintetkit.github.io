@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>自作ツールを composite GitHub Action で配る（npm 公開なし） | Quartet / Quintet</title>
+<meta name="description" content="小さな CLI を作ったとき、他の人に使ってもらう方法として npm 公開を考えがちです。 でもアカウントも公開手続きも要らない配布経路があります。GitHub Action です。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/composite-github-action.html">
+<link rel="alternate" type="application/rss+xml" title="自作ツールを composite GitHub Action で配る（npm 公開なし） | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="自作ツールを composite GitHub Action で配る（npm 公開なし） | Quartet / Quintet">
+<meta property="og:description" content="小さな CLI を作ったとき、他の人に使ってもらう方法として npm 公開を考えがちです。 でもアカウントも公開手続きも要らない配布経路があります。GitHub Action です。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/composite-github-action.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-04 &nbsp;·&nbsp; githubactions · cli · ci · typescript</p>
+  <h1>自作ツールを composite GitHub Action で配る（npm 公開なし）</h1>
+<p>小さな CLI を作ったとき、他の人に使ってもらう方法として npm 公開を考えがちです。
+でも<strong>アカウントも公開手続きも要らない配布経路</strong>があります。GitHub Action です。</p>
+<pre><code class="language-yaml">- uses: あなたの名前/ツール名@v1
+</code></pre>
+<p>この1行で使えるようになります。実際にやったので、手順とハマりどころを書きます。</p>
+<h2 id="composite-か-docker-か">composite か Docker か</h2>
+<p>Action には3種類（JavaScript / Docker / composite）ありますが、
+<strong>Node で動くツールなら composite 一択でした。</strong></p>
+<div class="scroll"><table><thead>
+<tr>
+  <th></th>
+  <th>composite</th>
+  <th>Docker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>起動</td>
+  <td>速い</td>
+  <td>イメージのビルド or 取得が要る</td>
+</tr>
+<tr>
+  <td>実行環境</td>
+  <td>ランナーのもの</td>
+  <td>隔離される</td>
+</tr>
+<tr>
+  <td>書き方</td>
+  <td>シェルのステップを並べるだけ</td>
+  <td>Dockerfile が要る</td>
+</tr>
+</tbody>
+</table></div>
+<p>Docker の隔離が要るのは、システムに手を入れるツールや、
+特殊な依存を固めたい場合です。<strong>Node だけで完結するツールに Docker を使うと、
+起動時間を払うだけで見返りがありません。</strong></p>
+<h2 id="全文">全文</h2>
+<p><code>action.yml</code> をリポジトリの直下に置きます。</p>
+<pre><code class="language-yaml">name: 'mdlinkcheck'
+description: 'Find broken relative links in Markdown files.'
+author: 'your-name'
+branding:
+  icon: 'link-2'
+  color: 'orange'
+
+inputs:
+  path:
+    description: 'Directory or file to check.'
+    required: false
+    default: '.'
+  format:
+    description: 'Output format: text or json.'
+    required: false
+    default: 'text'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+
+    - name: Build
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: |
+        npm ci --no-audit --no-fund
+        npm run build
+
+    - name: Check links
+      shell: bash
+      run: |
+        node &quot;${{ github.action_path }}/bin/mdlinkcheck.js&quot; \
+          &quot;${{ inputs.path }}&quot; --format &quot;${{ inputs.format }}&quot;
+</code></pre>
+<p>これだけです。</p>
+<h2 id="ハマりどころ">ハマりどころ</h2>
+<h3 id="shell-は毎ステップ必須"><code>shell:</code> は毎ステップ必須</h3>
+<p>composite の <code>run</code> ステップは、<strong>1つずつ <code>shell:</code> を書かないとエラーになります。</strong>
+通常のワークフローだと省略できるので、忘れます。</p>
+<h3 id="github-action_path-を使う"><code>${{ github.action_path }}</code> を使う</h3>
+<p>action が置かれたディレクトリの絶対パスです。<strong>利用者のリポジトリで実行されるので、
+カレントディレクトリは利用者側</strong>になります。</p>
+<pre><code class="language-yaml"># NG: 利用者のリポジトリで npm ci しようとする
+run: npm ci
+
+# OK
+working-directory: ${{ github.action_path }}
+run: npm ci
+</code></pre>
+<p>ツールの実行も同様に絶対パスで指定します。</p>
+<pre><code class="language-yaml">run: node &quot;${{ github.action_path }}/bin/tool.js&quot; &quot;${{ inputs.path }}&quot;
+</code></pre>
+<h3 id="終了コードはそのまま伝わる">終了コードはそのまま伝わる</h3>
+<p>シェルステップが非ゼロで終われば、ステップが失敗します。
+<code>|| true</code> を付けたり <code>continue-on-error</code> を書いたりしなければ、
+<strong>ツールの終了コードがそのまま CI の合否になります。</strong></p>
+<p>これが効くので、ツール側で終了コードをちゃんと設計しておく価値があります。</p>
+<pre><code>0  問題なし
+1  検出した（CI を落としたい）
+2  使い方が間違っている（パスが無い、オプションが不正）
+</code></pre>
+<h3 id="dist-をコミットするかどうか"><code>dist/</code> をコミットするかどうか</h3>
+<p>JavaScript action だと <code>dist/</code> をコミットする必要がありますが、
+composite なら <strong>action 側で <code>npm ci &amp;&amp; npm run build</code> すればいいので不要</strong>です。</p>
+<p>そのぶん実行のたびにビルドが走ります。数秒なので許容しました。
+気になるなら <code>actions/cache</code> を挟めます。</p>
+<h2 id="バージョンタグを打つ">バージョンタグを打つ</h2>
+<p><code>@main</code> を案内すると、<strong>利用者は壊れる変更を勝手に取り込むことになります。</strong></p>
+<pre><code class="language-bash">git tag -a v1.0.0 -m &quot;v1.0.0&quot;
+git push origin v1.0.0
+
+# v1 は「動くタグ」。最新の 1.x を指し続ける
+git tag -f v1
+git push -f origin v1
+</code></pre>
+<p>利用者には <code>@v1</code> を案内し、固定したい人には <code>@v1.0.0</code> があると伝えます。
+リリースのたびに <code>v1</code> を進めます。</p>
+<pre><code class="language-bash">git tag -f v1 &amp;&amp; git push -f origin v1
+</code></pre>
+<h2 id="公開タグが本当に動くかを-ci-で確かめる">公開タグが本当に動くかを CI で確かめる</h2>
+<p><strong>ここが一番効きました。</strong></p>
+<p>自分のリポジトリで <code>uses: ./</code> として動作確認するのは簡単ですが、
+それが通っても<strong>タグが指すコミットが壊れていれば利用者は動きません。</strong>
+<code>./</code> はローカルのチェックアウトを見ているだけだからです。</p>
+<p>そこで、CI に「公開しているタグを参照して実行する」ジョブを足します。</p>
+<pre><code class="language-yaml">jobs:
+  use-the-action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./                      # ローカル
+        with:
+          path: .
+
+  published-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: your-name/your-tool@v1  # 公開タグ
+        with:
+          path: .
+</code></pre>
+<p>これで、<strong>タグの張り替えを間違えた瞬間に自分の CI が落ちます。</strong>
+利用者のリポジトリで落ちる前に気づけます。</p>
+<p>自作ツールを自分自身に対して実行できる種類のもの（linter、フォーマッタ、
+リンクチェッカーなど）なら、この形が特に相性がいいです。
+「使える」が主張ではなく、毎回検査されている状態になります。</p>
+<h2 id="marketplace-に出すかどうか">Marketplace に出すかどうか</h2>
+<p><code>action.yml</code> に <code>branding</code> を書いておくと、GitHub の UI から
+Marketplace への公開を案内されます。出さなくても <code>uses:</code> では使えるので、
+急ぐ必要はありません。</p>
+<p>出すと検索経路が1つ増えるので、リポジトリの説明とトピックを整えたうえで
+出しておく価値はあります。</p>
+<h2 id="まとめ">まとめ</h2>
+<ul>
+<li>Node で動くツールなら composite。Docker の隔離が要らないなら払う理由がない</li>
+<li><code>shell:</code> は毎ステップ必須。忘れる</li>
+<li>パスは <code>${{ github.action_path }}</code>。カレントは利用者側のリポジトリ</li>
+<li>終了コードがそのまま CI の合否になる。ツール側で設計しておく</li>
+<li><code>@main</code> を案内しない。<code>v1</code> の動くタグと <code>v1.0.0</code> の固定タグを打つ</li>
+<li><strong>公開タグを参照するジョブを CI に置く。</strong> <code>uses: ./</code> が通っても、
+タグが壊れていれば利用者は動かない</li>
+</ul>
+<p>この形で配っている小さな CLI（Markdown のリンク切れ検出）を MIT で公開しています。</p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

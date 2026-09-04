@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What Works and What Doesn&#x27;t in CLAUDE.md | Quartet / Quintet</title>
+<meta name="description" content="Writing &quot;Write clean code&quot; in CLAUDE.md changes nothing.">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/claude-md-what-works.html">
+<link rel="alternate" type="application/rss+xml" title="What Works and What Doesn&#x27;t in CLAUDE.md | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<meta property="og:type" content="article">
+<meta property="og:title" content="What Works and What Doesn&#x27;t in CLAUDE.md | Quartet / Quintet">
+<meta property="og:description" content="Writing &quot;Write clean code&quot; in CLAUDE.md changes nothing.">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/claude-md-what-works.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-04 &nbsp;·&nbsp; claudecode · ai · claude · personaldev</p>
+  <h1>What Works and What Doesn&#x27;t in CLAUDE.md</h1>
+<p>Writing &quot;Write clean code&quot; in <code>CLAUDE.md</code> changes nothing.</p>
+<p>During the process of building 10 personal apps in three months, I rewrote <code>CLAUDE.md</code> many times.
+Since it became clear what worked and what didn't, I will outline that distinction.</p>
+<h2 id="what-doesn-t-work">What Doesn't Work</h2>
+<h3 id="giving-instructions-with-adjectives">Giving instructions with adjectives</h3>
+<pre><code class="language-markdown">- Write clean code
+- Design for maintainability
+- Handle errors appropriately
+- Consider performance
+</code></pre>
+<p><strong>None of these work.</strong> Because &quot;clean&quot; and &quot;appropriate&quot; cannot be objectively judged.
+Instructions that cannot be judged cannot even be verified by yourself as to whether they are followed.</p>
+<p>And the person who wrote them cannot verify later if they were followed.
+Rules that cannot be verified are the same as non-existent.</p>
+<h3 id="writing-general-best-practices">Writing general best practices</h3>
+<pre><code class="language-markdown">- Follow the DRY principle
+- Adhere to the Single Responsibility Principle
+- Do not use magic numbers
+</code></pre>
+<p>The model already knows these. Writing them adds no information.
+<strong>The role of <code>CLAUDE.md</code> is to convey what the model does not know (project-specific circumstances).</strong></p>
+<h3 id="writing-things-that-can-be-understood-by-reading-the-code">Writing things that can be understood by reading the code</h3>
+<pre><code class="language-markdown">- We use Zustand for state management
+- We use Vitest for testing
+</code></pre>
+<p>You can see this in <code>package.json</code>. If you write anything, it should be &quot;why we chose it&quot; or &quot;what not to do&quot;.</p>
+<pre><code class="language-markdown">- State management is Zustand. Migration to Redux was considered but rejected due to boilerplate increase. Do not suggest it.
+</code></pre>
+<p>This is worth writing. You will stop receiving the same suggestions every time.</p>
+<hr />
+<h2 id="what-works">What Works</h2>
+<h3 id="writing-prohibitions-in-a-verifiable-format">Writing prohibitions in a verifiable format</h3>
+<pre><code class="language-markdown">- Do not use pure black `#000000` or pure white `#ffffff`
+- Do not use gradient backgrounds or gradient heading text
+- Limit to 3 types of motion per screen
+</code></pre>
+<p>You can verify this with <code>grep '#000000'</code>. <strong>Because it is verifiable, you can mechanically inspect if it is followed.</strong></p>
+<p>&quot;Make the UI clean&quot; does not work, but &quot;Do not use pure black&quot; does. The difference lies not in the model's comprehension, but in <strong>whether the instruction is verifiable</strong>.</p>
+<h3 id="reducing-permissions">Reducing permissions</h3>
+<p>This was the most effective.</p>
+<pre><code class="language-markdown">- Do not modify paths outside the scope described in the assigned Issue
+- If changes outside the scope are needed, stop implementation and report it
+- Only Reviewers may merge to main
+</code></pre>
+<p><strong>&quot;Cannot do ~&quot; is more effective than &quot;Do ~&quot;.</strong>
+Instructions that increase what you can do have a wide range of interpretation, while prohibitions are narrow.</p>
+<p>Especially the phrase &quot;<strong>stop implementation and report it</strong>&quot; was effective. Without this,
+when the model hits constraints, it tries to push forward somehow.
+Providing an exit allows it to retreat there.</p>
+<h3 id="explicitly-stating-exceptions">Explicitly stating exceptions</h3>
+<p>When writing prohibitions, cases of &quot;but what about this exception?&quot; always arise. Write them in advance.</p>
+<pre><code class="language-markdown">Things not treated as out-of-scope:
+- Automatic updates of lock files due to dependency additions
+- Test files corresponding to modified files
+</code></pre>
+<p>If you don't write them, judgments will vary each time. <strong>Inconsistent judgments hollow out the rules.</strong></p>
+<h3 id="writing-order-and-dependencies">Writing order and dependencies</h3>
+<pre><code class="language-markdown">- Do not start issues involving UI until the UI specification status is:done
+- Coders in the parallel execution group must be launched simultaneously within one message
+</code></pre>
+<p>The second point actually worked. <strong>Separating calls makes them serial</strong>, so
+without explicit instruction, they will not run in parallel.</p>
+<h3 id="using-tables">Using tables</h3>
+<p>For lists of states or labels, I have the impression that tables are referenced more often than bullet points.</p>
+<pre><code class="language-markdown">| Label | Meaning | When to assign |
+|---|---|---|
+| `status:planned` | Issue created, not started | When Architect creates the Issue |
+| `status:review` | PR created, waiting for review | When Coder creates the PR |
+</code></pre>
+<p>Writing &quot;when to assign&quot; is important. If you only write the meaning, you will forget to assign them
+(in the end, I shifted this to GitHub Actions, but that's a different story).</p>
+<hr />
+<h2 id="regarding-length">Regarding Length</h2>
+<p>Shorter is better.</p>
+<p>I once wrote a <code>CLAUDE.md</code> that swelled to 74KB, but <strong>the latter half was followed less.</strong>
+I haven't verified this definitively, but the experience was clear.</p>
+<p>The one I use now is around 7KB. The breakdown is as follows:</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Section</th>
+  <th>Proportion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Permissions by role (what can and cannot be done)</td>
+  <td>40%</td>
+</tr>
+<tr>
+  <td>Overall flow (who receives what from whom)</td>
+  <td>30%</td>
+</tr>
+<tr>
+  <td>State management (labels and when to assign them)</td>
+  <td>20%</td>
+</tr>
+<tr>
+  <td>Explicit exceptions</td>
+  <td>10%</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>It contains zero general knowledge.</strong></p>
+<p>The cause of the swelling was &quot;just in case I write it.&quot; Lines written &quot;just in case&quot; tend to become unjudgable instructions. Unjudgable instructions don't work, so writing them only dilutes the file.</p>
+<h2 id="how-to-verify">How to Verify</h2>
+<p>Whether a written rule works is judged by <strong>whether you can notice when it is broken</strong>.</p>
+<ul>
+<li>Scope violation → Can be seen with <code>gh pr diff --name-only</code></li>
+<li>Hardcoded colors → Can be seen with <code>grep</code></li>
+<li>Missing labels → Can be seen by checking the Issue list</li>
+<li>&quot;Clean code&quot; → <strong>Cannot be seen</strong></li>
+</ul>
+<p>There is no verification method for the last one. That's why it doesn't work.
+Before writing, asking &quot;can I notice if this is broken?&quot; helps you avoid writing ineffective lines.</p>
+<h2 id="summary">Summary</h2>
+<ul>
+<li>Do not give instructions with adjectives. Unjudgable instructions don't work.</li>
+<li>Do not write general best practices. The model already knows them.</li>
+<li>Do not write things that can be understood by reading the code. If writing, include &quot;why&quot; and &quot;what not to do&quot;.</li>
+<li>Write prohibitions in a mechanically inspectable format.</li>
+<li>&quot;Cannot do ~&quot; is better than &quot;Do ~&quot;. And always <strong>provide an exit (stop and report)</strong>.</li>
+<li>Explicitly state exceptions in advance. Inconsistent judgments hollow out rules.</li>
+<li>Keep it short. Lines written &quot;just in case&quot; tend to be ineffective.</li>
+<li>Before writing, verify &quot;can I notice if it is broken?&quot;</li>
+</ul>
+<p>I have published the <code>CLAUDE.md</code> written with this approach and sub-agent definitions for four personas under the MIT license.</p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>
