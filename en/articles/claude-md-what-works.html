@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>What Works and What Doesn&#x27;t in CLAUDE.md | Quartet / Quintet</title>
 <meta name="description" content="Writing &quot;Write clean code&quot; in CLAUDE.md changes nothing.">
-<link rel="canonical" href="https://quintetkit.github.io/en/articles/claude-md-what-works.html">
+<link rel="canonical" href="https://dev.to/quintetkit/what-works-and-what-doesnt-in-claudemd-d22">
 <link rel="alternate" type="application/rss+xml" title="What Works and What Doesn&#x27;t in CLAUDE.md | Quartet / Quintet" href="../feed.xml">
 <link rel="stylesheet" href="../../assets/site.css">
 <link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
@@ -14,7 +14,7 @@
 <meta property="og:type" content="article">
 <meta property="og:title" content="What Works and What Doesn&#x27;t in CLAUDE.md | Quartet / Quintet">
 <meta property="og:description" content="Writing &quot;Write clean code&quot; in CLAUDE.md changes nothing.">
-<meta property="og:url" content="https://quintetkit.github.io/en/articles/claude-md-what-works.html">
+<meta property="og:url" content="https://dev.to/quintetkit/what-works-and-what-doesnt-in-claudemd-d22">
 </head>
 <body>
 <div class="topbar"><div class="wrap">
@@ -60,7 +60,11 @@ Rules that cannot be verified are the same as non-existent.</p>
 - Do not use gradient backgrounds or gradient heading text
 - Limit to 3 types of motion per screen
 </code></pre>
-<p>You can verify this with <code>grep '#000000'</code>. <strong>Because it is verifiable, you can mechanically inspect if it is followed.</strong></p>
+<p>You can verify this with <code>grep '#000000'</code>. <strong>Because it is verifiable, you can mechanically inspect if it is followed.</strong>
+The shape of a UI belongs in a UI specification, not in <code>CLAUDE.md</code>. What goes here
+is the <strong>floor beneath the specification</strong> — the line you do not want crossed even
+when no specification exists. The principle does not change: the persona that writes
+the code does not decide how it looks.</p>
 <p>&quot;Make the UI clean&quot; does not work, but &quot;Do not use pure black&quot; does. The difference lies not in the model's comprehension, but in <strong>whether the instruction is verifiable</strong>.</p>
 <h3 id="reducing-permissions">Reducing permissions</h3>
 <p>This was the most effective.</p>
