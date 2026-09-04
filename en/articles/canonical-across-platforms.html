@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Publishing the Same Article in Three Places Splits Its Search Value | Quartet / Quintet</title>
+<meta name="description" content="I publish technical articles to Zenn, to dev.to, and to my own site. Same content. Done naively, that leaves Google looking at the same article three…">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/canonical-across-platforms.html">
+<link rel="alternate" type="application/rss+xml" title="Publishing the Same Article in Three Places Splits Its Search Value | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Publishing the Same Article in Three Places Splits Its Search Value | Quartet / Quintet">
+<meta property="og:description" content="I publish technical articles to Zenn, to dev.to, and to my own site. Same content. Done naively, that leaves Google looking at the same article three…">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/canonical-across-platforms.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-05 &nbsp;·&nbsp; seo · webdev · python · softwaredevelopment</p>
+  <h1>Publishing the Same Article in Three Places Splits Its Search Value</h1>
+<p>I publish technical articles to Zenn, to dev.to, and to my own site. Same content.
+Done naively, that leaves Google looking at <strong>the same article three times</strong>.</p>
+<p>Which of the three appears in search results is then Google's decision, not mine.
+Left to itself, that decision usually goes the way I do not want.</p>
+<h2 id="what-the-actual-problem-is">What the actual problem is</h2>
+<p>&quot;Duplicate content is penalised&quot; is a common phrasing and not quite right. When
+Google finds duplicates it <strong>picks one and drops the rest</strong> from results. That is
+selection, not punishment.</p>
+<p>The problem is that I had not decided which one wins.</p>
+<p>Suppose my own site wins. It is a new domain with no authority. Zenn and dev.to
+will outrank it on any query. <strong>If the weakest copy is chosen as canonical, nothing
+shows up at all.</strong></p>
+<p>And if a stronger one wins while I do nothing, my own page is treated as the
+duplicate, and whatever value would have accrued to it goes nowhere.</p>
+<h2 id="declare-the-original-with-canonical">Declare the original with canonical</h2>
+<p><code>&lt;link rel=&quot;canonical&quot;&gt;</code> states where a page's original lives.</p>
+<pre><code class="language-html">&lt;link rel=&quot;canonical&quot; href=&quot;https://zenn.dev/user/articles/slug&quot;&gt;
+</code></pre>
+<p>You can point it at a different domain. It means: this page is a copy, please
+consolidate onto that one.</p>
+<p><strong>Point from the weak domain to the strong one</strong> — from my own site to Zenn or dev.to.</p>
+<p>It feels like giving something away, and it is the opposite. Value split three ways
+consolidates into one place, which is the only version with a chance of ranking.
+<strong>Owning three pages that never appear is not better than owning one that does.</strong></p>
+<h2 id="managing-it-in-practice">Managing it in practice</h2>
+<p>The catch is that the canonical target only exists <strong>after</strong> publishing. A Zenn URL
+is not knowable until the article is live there.</p>
+<p>So it does not live in the article's frontmatter. It lives in a separate file:</p>
+<pre><code class="language-json">{
+  &quot;ja&quot;: {
+    &quot;multi-persona-workflow&quot;: &quot;https://zenn.dev/user/articles/multi-persona-workflow&quot;
+  },
+  &quot;en&quot;: {
+    &quot;multi-persona-workflow&quot;: &quot;https://dev.to/user/some-slug-with-hash&quot;
+  }
+}
+</code></pre>
+<p>Keeping it out of frontmatter is deliberate. <strong>That frontmatter is handed verbatim
+to Zenn and dev.to.</strong> I did not want to add keys of my own to a structure that
+another platform parses and may reject.</p>
+<p>The generator reads the table and decides per article:</p>
+<pre><code class="language-python"># An article whose original lives elsewhere does not claim to be the original
+self.canonical_override = CANONICAL.get(lang, {}).get(self.slug)
+
+@property
+def canonical(self) -&gt; str:
+    return self.canonical_override or BASE_URL + self.url_path
+</code></pre>
+<h2 id="drop-them-from-the-sitemap-too">Drop them from the sitemap too</h2>
+<p>Pointing canonical elsewhere was not enough on its own.</p>
+<p>A sitemap is a request to index a page. Asking for indexing while simultaneously
+declaring &quot;the original is over there&quot; is saying two different things.</p>
+<pre><code class="language-python"># An article whose original is elsewhere stays out of the sitemap.
+# Asking to index something you have declared a copy of only splits the signal.
+urls += [(BASE_URL + p.url_path, p.date) for p in all_posts
+         if p.canonical_override is None]
+</code></pre>
+<p><strong>An article not yet published anywhere else genuinely is original on my site</strong>, so
+it stays in the sitemap until the day it is not. The rule follows publication state
+automatically.</p>
+<h2 id="why-publish-to-your-own-site-first">Why publish to your own site first</h2>
+<p>One point about ordering.</p>
+<p>Waiting for a platform to be ready leaves a window where the article exists and is
+visible nowhere. <strong>Indexing takes weeks, so every day of waiting pushes the payoff
+back by a day.</strong></p>
+<p>So it goes to my own site the moment it is written, and at that point my site is the
+original. When the platform is ready, the canonical is repointed — which is
+<strong>a one-line data change</strong>, not a code change.</p>
+<h2 id="delete-the-old-page-when-you-rename">Delete the old page when you rename</h2>
+<p>One more hole in the generator.</p>
+<p>Renaming an article's slug produces the new page and <strong>leaves the old one in place</strong>.
+Nothing tells it to go.</p>
+<p>The result is two live URLs with identical content. Duplicate content I created myself.</p>
+<pre><code class="language-python"># Remove generated pages that no longer have a source
+for lang, d in ((&quot;ja&quot;, SITE / &quot;articles&quot;), (&quot;en&quot;, SITE / &quot;en&quot; / &quot;articles&quot;)):
+    keep = {f&quot;{q.slug}.html&quot; for q in posts if q.lang == lang} | {&quot;index.html&quot;}
+    for f in d.glob(&quot;*.html&quot;):
+        if f.name not in keep:
+            f.unlink()
+</code></pre>
+<p>A generator that wipes its output directory each run never has this problem.
+One that writes incrementally always will.</p>
+<h2 id="summary">Summary</h2>
+<ul>
+<li>Duplication is selection, not a penalty. <strong>The problem is not choosing which copy wins</strong></li>
+<li>Point canonical from the weak domain to the strong one. One page that ranks beats
+three that do not</li>
+<li>The canonical target is only known after publishing, so keep it in a separate file —
+frontmatter is handed to other platforms and should not carry your own keys</li>
+<li>Drop canonicalised pages from the sitemap. Say one thing, not two</li>
+<li>Publish to your own site first. Indexing takes weeks and waiting only costs you them</li>
+<li>Delete stale output when a slug changes. Incremental generators always miss this</li>
+</ul>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

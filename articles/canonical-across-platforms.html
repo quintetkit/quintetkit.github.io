@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>同じ記事を3か所に出すと検索評価が割れる。canonical をどこに寄せるか | Quartet / Quintet</title>
+<meta name="description" content="技術記事を Zenn と dev.to と自分のサイトに出しています。同じ内容です。 これをそのままやると、Google から見て同じ記事が3つある状態になります。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/canonical-across-platforms.html">
+<link rel="alternate" type="application/rss+xml" title="同じ記事を3か所に出すと検索評価が割れる。canonical をどこに寄せるか | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="同じ記事を3か所に出すと検索評価が割れる。canonical をどこに寄せるか | Quartet / Quintet">
+<meta property="og:description" content="技術記事を Zenn と dev.to と自分のサイトに出しています。同じ内容です。 これをそのままやると、Google から見て同じ記事が3つある状態になります。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/canonical-across-platforms.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-05 &nbsp;·&nbsp; seo · githubactions · typescript · 設計 · 個人開発</p>
+  <h1>同じ記事を3か所に出すと検索評価が割れる。canonical をどこに寄せるか</h1>
+<p>技術記事を Zenn と dev.to と自分のサイトに出しています。同じ内容です。
+これをそのままやると、<strong>Google から見て同じ記事が3つある</strong>状態になります。</p>
+<p>3つのうちどれを検索結果に出すかは、Google が勝手に決めます。
+決めさせると、たいてい望まない結果になります。</p>
+<h2 id="何が問題なのか">何が問題なのか</h2>
+<p>「重複コンテンツはペナルティを受ける」とよく言われますが、正確ではありません。
+Google は重複を見つけると<strong>どれか1つを選んで、残りを結果から落とす</strong>だけです。
+罰ではなく、選別です。</p>
+<p>問題は、選ばれる先をこちらが決めていない点にあります。</p>
+<p>自分のサイトが選ばれた場合を考えます。ドメインの評価がゼロの新しいサイトです。
+Zenn や dev.to のほうが、検索順位では確実に上に来ます。
+<strong>弱いほうが正典として選ばれると、そもそも誰にも表示されません。</strong></p>
+<p>逆に強いほうが選ばれた場合も、放っておくと自分のサイトのページが
+「重複」として扱われ、そこに集まるはずだった評価が宙に浮きます。</p>
+<h2 id="canonical-で-これが原本です-と宣言する">canonical で「これが原本です」と宣言する</h2>
+<p><code>&lt;link rel=&quot;canonical&quot;&gt;</code> は、そのページの原本がどこにあるかを示すタグです。</p>
+<pre><code class="language-html">&lt;link rel=&quot;canonical&quot; href=&quot;https://zenn.dev/user/articles/slug&quot;&gt;
+</code></pre>
+<p>自分のページに、別ドメインの URL を指す canonical を書けます。
+意味は「このページは複製です。評価は向こうに集めてください」です。</p>
+<p><strong>弱いドメイン側から、強いドメイン側へ寄せる</strong>のが基本です。
+自分のサイトのページに、Zenn や dev.to の URL を書きます。</p>
+<p>一見もったいなく見えますが、逆です。3つに割れた評価が1つに集まるほうが、
+検索結果に出る確率は上がります。<strong>出ないページを3つ持っていても意味がない。</strong></p>
+<h2 id="実際にどう管理するか">実際にどう管理するか</h2>
+<p>問題は、canonical 先が「記事を公開した後」にしか決まらないことです。
+Zenn の URL は公開してみないと確定しません。</p>
+<p>そこで、記事の frontmatter には書かず、別のファイルに持たせました。</p>
+<pre><code class="language-json">{
+  &quot;ja&quot;: {
+    &quot;multi-persona-workflow&quot;: &quot;https://zenn.dev/user/articles/multi-persona-workflow&quot;
+  },
+  &quot;en&quot;: {
+    &quot;multi-persona-workflow&quot;: &quot;https://dev.to/user/some-slug-with-hash&quot;
+  }
+}
+</code></pre>
+<p>frontmatter に書かなかったのには理由があります。<strong>その frontmatter は
+Zenn と dev.to にもそのまま渡るからです。</strong> 知らないキーで壊れる可能性がある場所に、
+自分の都合のキーを足したくありませんでした。</p>
+<p>サイト生成側は、この表を見て canonical を出し分けます。</p>
+<pre><code class="language-python"># 他所が正典の記事は、自分を原本だと主張しない
+self.canonical_override = CANONICAL.get(lang, {}).get(self.slug)
+
+@property
+def canonical(self) -&gt; str:
+    return self.canonical_override or BASE_URL + self.url_path
+</code></pre>
+<h2 id="sitemap-からも外す">sitemap からも外す</h2>
+<p>canonical を向けるだけでは足りませんでした。</p>
+<p>sitemap.xml は「このページを登録してほしい」という申告です。
+canonical で「原本は別にある」と言いながら sitemap で登録を求めるのは、
+矛盾したことを言っています。</p>
+<pre><code class="language-python"># 正典が他所にある記事は sitemap に載せない。
+# 自分で「原本ではない」と言っているものを登録させても、評価が割れるだけ
+urls += [(BASE_URL + p.url_path, p.date) for p in all_posts
+         if p.canonical_override is None]
+</code></pre>
+<p><strong>まだどこにも公開していない記事は、自分のサイトが原本です。</strong>
+その状態では sitemap に載ります。他所に出した時点で外れます。
+公開の進み方に合わせて、自動でそうなる形にしました。</p>
+<h2 id="先に自分のサイトに出す理由">先に自分のサイトに出す理由</h2>
+<p>順番の話を1つ。</p>
+<p>プラットフォーム側の準備が整うのを待っていると、記事は書けているのに
+どこにも出ていない期間ができます。<strong>検索のインデックスは数週間かかるので、
+待つほど後ろにずれます。</strong></p>
+<p>なので、書けた時点でまず自分のサイトに出します。この時点では自分が原本です。
+プラットフォーム側に出せるようになったら、canonical をそちらへ向け直す。
+これは<strong>データの1行を書き換えるだけ</strong>で済むようにしてあります。</p>
+<h2 id="改名したら古いページを消す">改名したら古いページを消す</h2>
+<p>もう1つ、生成器に穴がありました。</p>
+<p>記事の slug を変えたとき、新しいページは生成されますが、
+<strong>古いページがそのまま残ります。</strong> 消える理由がないからです。</p>
+<p>結果、内容の同じページが2つ、両方とも生きた URL として残ります。
+自分で重複を作っていることになります。</p>
+<pre><code class="language-python"># 生成対象に無い .html は消す
+for lang, d in ((&quot;ja&quot;, SITE / &quot;articles&quot;), (&quot;en&quot;, SITE / &quot;en&quot; / &quot;articles&quot;)):
+    keep = {f&quot;{q.slug}.html&quot; for q in posts if q.lang == lang} | {&quot;index.html&quot;}
+    for f in d.glob(&quot;*.html&quot;):
+        if f.name not in keep:
+            f.unlink()
+</code></pre>
+<p>出力ディレクトリを毎回作り直す作りなら起きませんが、
+差分で書き足す作りだと必ず踏みます。</p>
+<h2 id="まとめ">まとめ</h2>
+<ul>
+<li>重複はペナルティではなく選別。<strong>どれが選ばれるかを自分で決めていないことが問題</strong></li>
+<li>canonical は弱いドメインから強いドメインへ寄せる。
+出ないページを3つ持つより、出るページを1つ持つほうがよい</li>
+<li>canonical 先は公開後に決まるので、frontmatter ではなく別ファイルで持つ。
+frontmatter は他のプラットフォームにもそのまま渡るので汚さない</li>
+<li>canonical を向けたページは sitemap からも外す。言っていることを一致させる</li>
+<li>まず自分のサイトに出す。インデックスは数週間かかるので、待つほど損をする</li>
+<li>slug を変えたら古い生成物を消す。差分で書き足す生成器は必ずここを踏む</li>
+</ul>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

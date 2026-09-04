@@ -21,6 +21,13 @@
     <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>同じ記事を3か所に出すと検索評価が割れる。canonical をどこに寄せるか</title>
+    <link>https://quintetkit.github.io/articles/canonical-across-platforms.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/canonical-across-platforms.html</guid>
+    <description>技術記事を Zenn と dev.to と自分のサイトに出しています。同じ内容です。 これをそのままやると、Google から見て同じ記事が3つある状態になります。</description>
+    <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>CLAUDE.md に何を書くと効いて、何を書いても効かないのか</title>
     <link>https://quintetkit.github.io/articles/what-belongs-in-claude-md.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/articles/what-belongs-in-claude-md.html</guid>

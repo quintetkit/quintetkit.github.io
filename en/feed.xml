@@ -21,6 +21,13 @@
     <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>Publishing the Same Article in Three Places Splits Its Search Value</title>
+    <link>https://quintetkit.github.io/en/articles/canonical-across-platforms.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/canonical-across-platforms.html</guid>
+    <description>I publish technical articles to Zenn, to dev.to, and to my own site. Same content. Done naively, that leaves Google looking at the same article three…</description>
+    <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>What Works and What Doesn&#x27;t in CLAUDE.md</title>
     <link>https://quintetkit.github.io/en/articles/what-belongs-in-claude-md.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/en/articles/what-belongs-in-claude-md.html</guid>
