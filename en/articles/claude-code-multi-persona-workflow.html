@@ -195,7 +195,11 @@ Build artifacts mix, and one <code>git checkout</code> affects the other.</p>
 <pre><code class="language-bash">git worktree add -b issue/12-upload ../worktrees/issue-12 main
 git worktree add -b issue/13-profile ../worktrees/issue-13 main
 </code></pre>
-<p>Since <code>.git</code> is shared, disk usage increases by only the size of one branch.</p>
+<p>What is shared is only the objects in <code>.git</code>. <strong>The working tree is copied.</strong>
+Measured locally: adding one worktree to a repository with 5,600KB of source
+added 5,608KB, while <code>.git</code> itself grew by 44KB. <code>node_modules</code> is not shared
+either. So each parallel branch costs you a full copy of the source and its
+dependencies.</p>
 <h2 id="when-this-approach-is-not-suitable">When This Approach Is Not Suitable</h2>
 <p>To be honest, <strong>this adds overhead.</strong></p>
 <ul>

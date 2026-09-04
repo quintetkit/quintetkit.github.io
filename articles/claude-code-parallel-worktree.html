@@ -62,9 +62,12 @@
 git worktree add -b issue/13-profile ../worktrees/issue-13  main
 git worktree add -b issue/14-export  ../worktrees/issue-14  main
 </code></pre>
-<p>これで3つの独立した作業ディレクトリができます。<code>.git</code> は共有されるので、
-ディスク使用量はブランチ1本ぶんしか増えません。各担当には、
+<p>これで3つの独立した作業ディレクトリができます。各担当には、
 自分のディレクトリで作業させます。</p>
+<p>ディスクの話を正確に書いておきます。共有されるのは <code>.git</code> のオブジェクトだけで、
+<strong>作業ツリーは複製されます。</strong> 手元で測ると、ソース 5,600KB のリポジトリに
+作業ツリーを1つ足して増えたのは 5,608KB、<code>.git</code> 側の増分は 44KB でした。
+<code>node_modules</code> も共有されません（後述）。3本並列なら、ソースと依存関係が3つぶん要ります。</p>
 <h3 id="片付けで気をつけること">片付けで気をつけること</h3>
 <p>終わったら消すのですが、ここに落とし穴があります。</p>
 <pre><code class="language-bash"># 危ない書き方
@@ -93,9 +96,30 @@ case &quot;$state&quot; in
   OPEN|CLOSED) echo &quot;残す&quot; ;;
 esac
 </code></pre>
-<p>squash merge にも対応できます。squashだとブランチ先端はmainの祖先にならないので、
-git だけで判定するなら <code>git cherry main &quot;$branch&quot;</code> を見て、
-全行が <code>-</code>（同等物がmain側にある）かどうかで判断します。</p>
+<p>squash merge は、<strong>git だけでは判定できません。</strong></p>
+<p><code>git cherry main &quot;$branch&quot;</code> の全行が <code>-</code> かで判断する方法をよく見かけますが、
+これは誤りです。<code>git cherry</code> は patch-id の一致で見るので、複数のコミットを
+1つに潰した squash では原理的に一致しません。手元で確かめると、こうなります。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>ブランチ</th>
+  <th>squash 後の <code>git cherry</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>コミット1個</td>
+  <td><code>-</code>（一致する）</td>
+</tr>
+<tr>
+  <td><strong>コミット2個</strong></td>
+  <td><strong><code>+ +</code>（一致しない）</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>1コミットのときだけ偶然動く</strong>ので、試して動いたと思い込みやすい落とし穴です。
+当てにならない推測でブランチを消すより、<code>gh</code> が使えるなら PR の状態を見るほうが確実です。
+使えないなら、squash の判定はあきらめて手で消します。</p>
 <h2 id="3-他の3つは別記事に分けました">3. 他の3つは別記事に分けました</h2>
 <p>worktree以外にも踏んだ落とし穴がありますが、性質が違うので分けます。</p>
 <ul>
@@ -126,7 +150,8 @@ pnpm のようにグローバルストアを持つツールを使うかの判断
 <h2 id="まとめ">まとめ</h2>
 <ul>
 <li>担当範囲を分けても、作業ディレクトリが同じなら物理的に衝突する</li>
-<li><code>git worktree</code> で分ける。<code>.git</code> は共有されるのでディスクはほぼ増えない</li>
+<li><code>git worktree</code> で分ける。共有されるのは <code>.git</code> のオブジェクトだけで、
+<strong>作業ツリーと <code>node_modules</code> は本数ぶん増える</strong></li>
 <li><strong>片付けの自動化が危ない。</strong> 「mainの祖先か」だけで判定すると、
 作業がまだ入っていないブランチを消す</li>
 <li>「分岐点から見て自前のコミットがあるか」を先に見る</li>

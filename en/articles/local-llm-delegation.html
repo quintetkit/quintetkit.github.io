@@ -176,8 +176,16 @@ For dozens of tokens, it is faster to write them yourself.</p>
 <p>If you don't need to read it, delegation is effective. If you need to read and correct the full text, writing it yourself from the start is cheaper.
 Translation falls into the former category. Since there is a mechanical pass/fail criterion for structural consistency, there is no need to visually scan the entire text.</p>
 <h2 id="implementation-notes-to-avoid-failure">Implementation Notes to Avoid Failure</h2>
-<p><strong>Do not run background processes using <code>nohup</code>.</strong> If the parent process ends, the child process dies, leaving only empty logs behind.
-I once failed to notice for several minutes that a 10-chapter translation had not run due to this issue. Let the calling side handle job management.</p>
+<p><strong>Do not fire and forget.</strong> Once, ten chapters of translation were not running and
+I did not notice for several minutes. The log sat there empty, so the failure was
+invisible.</p>
+<p>I nearly wrote that <code>nohup</code> was the cause. That would have been wrong. <code>nohup</code> exists
+precisely to keep a child alive when the parent or terminal goes away, so it is not a
+reason for anything to die. The real cause was elsewhere: a missing <code>&amp;</code>, a kill sent
+to the whole process group, cleanup by the execution environment.</p>
+<p>The lesson is simpler than the diagnosis. <strong>Do not use a form of invocation whose
+completion you cannot confirm.</strong> Leave job management to the caller, which can wait
+for the result.</p>
 <p><strong>Set timeouts generously.</strong> Bulk processing of long texts takes dozens of seconds.
 If you abort after the default few seconds, the model is still running, but the result is discarded.</p>
 <p><strong>Use aliases for models.</strong> Resolving aliases like <code>fast</code>, <code>big</code>, <code>coder</code>, or <code>embed</code> on the wrapper side allows you to swap models without touching the calling code.</p>

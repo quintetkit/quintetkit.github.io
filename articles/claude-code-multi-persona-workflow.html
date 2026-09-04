@@ -199,7 +199,10 @@ Issue #12  Scope: src/pages/billing/**       Depends on #10
 <pre><code class="language-bash">git worktree add -b issue/12-upload ../worktrees/issue-12 main
 git worktree add -b issue/13-profile ../worktrees/issue-13 main
 </code></pre>
-<p><code>.git</code> は共有されるので、ディスクはブランチ 1 本ぶんしか増えません。</p>
+<p>共有されるのは <code>.git</code> のオブジェクトだけです。<strong>作業ツリーは複製されます。</strong>
+手元で測ると、ソース 5,600KB のリポジトリに作業ツリーを1つ足したとき、
+増えたのは 5,608KB でした（<code>.git</code> 側の増分は 44KB）。<code>node_modules</code> も共有されません。
+つまり並列させる本数だけ、ソースと依存関係のぶんディスクを使います。</p>
 <h2 id="このやり方が向かないとき">このやり方が向かないとき</h2>
 <p>正直に書いておきます。<strong>これはオーバーヘッドです。</strong></p>
 <ul>

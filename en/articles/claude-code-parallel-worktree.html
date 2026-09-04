@@ -60,7 +60,12 @@ Here is what I learned.</p>
 git worktree add -b issue/13-profile ../worktrees/issue-13  main
 git worktree add -b issue/14-export  ../worktrees/issue-14  main
 </code></pre>
-<p>This creates three independent working directories. Since <code>.git</code> is shared, disk usage increases by only the size of one branch. Assign each task to its own directory.</p>
+<p>This creates three independent working directories. Assign each task to its own directory.</p>
+<p>To be precise about disk: what is shared is only the objects in <code>.git</code>, and <strong>the
+working tree is copied.</strong> Measured locally, adding one worktree to a repository with
+5,600KB of source added 5,608KB, while <code>.git</code> grew by 44KB. <code>node_modules</code> is not
+shared either (see below). Three parallel branches means three copies of the source
+and its dependencies.</p>
 <h3 id="things-to-watch-out-for-during-cleanup">Things to Watch Out For During Cleanup</h3>
 <p>You need to delete them when finished, but there are pitfalls here.</p>
 <pre><code class="language-bash"># Dangerous approach
@@ -88,7 +93,31 @@ case &quot;$state&quot; in
   OPEN|CLOSED) echo &quot;Keep&quot; ;;
 esac
 </code></pre>
-<p>This also supports squash merges. With squash, the branch tip does not become an ancestor of main. If judging solely via git, check <code>git cherry main &quot;$branch&quot;</code> and determine if all lines are <code>-</code> (meaning equivalents exist on the main side).</p>
+<p>Squash merges, however, <strong>cannot be detected with git alone.</strong></p>
+<p>You often see the advice to check whether every line of <code>git cherry main &quot;$branch&quot;</code>
+is <code>-</code>. That advice is wrong. <code>git cherry</code> matches on patch-id, so a squash that
+collapses several commits into one can never match. Measured:</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Branch</th>
+  <th><code>git cherry</code> after squash</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>1 commit</td>
+  <td><code>-</code> (matches)</td>
+</tr>
+<tr>
+  <td><strong>2 commits</strong></td>
+  <td><strong><code>+ +</code> (does not match)</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>It <strong>only works by accident when the branch has a single commit</strong>, which is exactly
+why people try it, see it work, and ship it. Rather than deleting branches on an
+unreliable guess, read the PR state through <code>gh</code> when it is available. When it is
+not, give up on detecting squashes and remove them by hand.</p>
 <h2 id="3-the-other-three-are-in-a-separate-article">3. The Other Three Are in a Separate Article</h2>
 <p>There are other pitfalls encountered besides worktree, but since their nature is different, I will cover them separately.</p>
 <ul>
@@ -113,7 +142,8 @@ git worktree prune              # Clean up management info
 <h2 id="summary">Summary</h2>
 <ul>
 <li>Even if responsibilities are separated, physical conflicts occur if the working directory is the same.</li>
-<li>Separate using <code>git worktree</code>. Since <code>.git</code> is shared, disk usage increases negligibly.</li>
+<li>Separate using <code>git worktree</code>. Only the objects in <code>.git</code> are shared;
+<strong>the working tree and <code>node_modules</code> grow with the number of branches</strong></li>
 <li><strong>Automating cleanup is dangerous.</strong> Judging solely by &quot;is it an ancestor of main&quot; will delete branches that have no work yet.</li>
 <li>First check if there are own commits relative to the fork point.</li>
 <li>After merging, <code>merge-base</code> matches the branch tip, so record the fork point at creation time.</li>
