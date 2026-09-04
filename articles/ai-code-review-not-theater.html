@@ -8,6 +8,9 @@
 <link rel="canonical" href="https://quintetkit.github.io/articles/ai-code-review-not-theater.html">
 <link rel="alternate" type="application/rss+xml" title="AIに書かせたコードのレビューが、形だけになっていないか | Quartet / Quintet" href="../feed.xml">
 <link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
 <meta property="og:type" content="article">
 <meta property="og:title" content="AIに書かせたコードのレビューが、形だけになっていないか | Quartet / Quintet">
 <meta property="og:description" content="AIにコードを書かせている人に聞きたいことがあります。">
@@ -139,6 +142,18 @@
 </ul>
 <p>この判定手順をレビュアー人格の定義として明文化し、実装者・設計者と組み合わせた構成を
 配布しています。4人格の無料版はMITで公開しています。</p>
+<hr />
+<!-- product-links -->
+
+<p>Claude Code に設計・実装・レビューを別々の人格として分担させ、GitHub Issue と
+ブランチを軸に並列開発を回すための設定一式を MIT で公開しています。
+コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>このワークフローだけで実際にツールを 1 つ作りました。Issue の分割から PR、
+レビュー、マージまで記録が全部残っています。<strong>うまくいかなかった箇所も消していません。</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>UI 設計人格・レビュー基準・Issue 単位の並列実行スクリプト・実践ガイド 10 章を
+足したものは<a href="https://quintetkit.github.io">製品ページ</a>にあります。</p>
 
 <div class="after">
   <h2>この運用そのものを配っています</h2>

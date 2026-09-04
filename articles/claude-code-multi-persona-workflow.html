@@ -5,13 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Claude Code に5人格を分担させて並列開発する | Quartet / Quintet</title>
 <meta name="description" content="Claude Code に大きめの依頼をすると、こうなりませんか。">
-<link rel="canonical" href="https://quintetkit.github.io/articles/claude-code-multi-persona-workflow.html">
+<link rel="canonical" href="https://zenn.dev/quintetkit/articles/claude-code-multi-persona-workflow">
 <link rel="alternate" type="application/rss+xml" title="Claude Code に5人格を分担させて並列開発する | Quartet / Quintet" href="../feed.xml">
 <link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Claude Code に5人格を分担させて並列開発する | Quartet / Quintet">
 <meta property="og:description" content="Claude Code に大きめの依頼をすると、こうなりませんか。">
-<meta property="og:url" content="https://quintetkit.github.io/articles/claude-code-multi-persona-workflow.html">
+<meta property="og:url" content="https://zenn.dev/quintetkit/articles/claude-code-multi-persona-workflow">
 </head>
 <body>
 <div class="topbar"><div class="wrap">
@@ -212,18 +215,18 @@ git worktree add -b issue/13-profile ../worktrees/issue-13 main
 間違えて覚えている場合、Coder が間違え、Reviewer も正しいと判定します。</p>
 <p>対処は、受け入れ条件に<strong>実行可能な検証</strong>を入れることです。
 「テストが通ること」は、モデルの思い込みを外部から検証できる数少ない手段です。</p>
-<h2 id="設定一式">設定一式</h2>
-<p>4 人格ぶんの設定を MIT で公開しています。</p>
-<ul>
-<li><strong>Quartet</strong> — Architect / Coder / Reviewer / Conflict Resolver の 4 人格。
-<code>CLAUDE.md</code>、<code>.claude/agents/</code>、Issue テンプレート、ラベル作成スクリプト</li>
-</ul>
-<p>コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
-<p>UI を含む開発では、実装より先に UI 仕様を確定させる 5 人格目（UI Designer）を
-挟むと、生成 AI にありがちな既定の画面（全画面中央揃えのヒーロー、
-アイコン付き 3 カラムカード、紫のグラデーション）を避けられます。
-そちらと、並列実行スクリプト・レビュー基準・実践ガイドをまとめたものは
-別途配布しています。</p>
+<hr />
+<!-- product-links -->
+
+<p>Claude Code に設計・実装・レビューを別々の人格として分担させ、GitHub Issue と
+ブランチを軸に並列開発を回すための設定一式を MIT で公開しています。
+コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>このワークフローだけで実際にツールを 1 つ作りました。Issue の分割から PR、
+レビュー、マージまで記録が全部残っています。<strong>うまくいかなかった箇所も消していません。</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>UI 設計人格・レビュー基準・Issue 単位の並列実行スクリプト・実践ガイド 10 章を
+足したものは<a href="https://quintetkit.github.io">製品ページ</a>にあります。</p>
 
 <div class="after">
   <h2>この運用そのものを配っています</h2>

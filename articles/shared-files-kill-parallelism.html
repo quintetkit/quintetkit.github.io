@@ -8,6 +8,9 @@
 <link rel="canonical" href="https://quintetkit.github.io/articles/shared-files-kill-parallelism.html">
 <link rel="alternate" type="application/rss+xml" title="並列開発を殺すのは、いつも共有ファイル | Quartet / Quintet" href="../feed.xml">
 <link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
 <meta property="og:type" content="article">
 <meta property="og:title" content="並列開発を殺すのは、いつも共有ファイル | Quartet / Quintet">
 <meta property="og:description" content="複数の作業を並列で走らせようとして、こうなったことはありませんか。">
@@ -138,6 +141,18 @@ export default function Settings() {
 </ul>
 <p>この分割の考え方を、Claude Code のサブエージェント構成として明文化したものを
 MIT で公開しています。</p>
+<hr />
+<!-- product-links -->
+
+<p>Claude Code に設計・実装・レビューを別々の人格として分担させ、GitHub Issue と
+ブランチを軸に並列開発を回すための設定一式を MIT で公開しています。
+コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>このワークフローだけで実際にツールを 1 つ作りました。Issue の分割から PR、
+レビュー、マージまで記録が全部残っています。<strong>うまくいかなかった箇所も消していません。</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>UI 設計人格・レビュー基準・Issue 単位の並列実行スクリプト・実践ガイド 10 章を
+足したものは<a href="https://quintetkit.github.io">製品ページ</a>にあります。</p>
 
 <div class="after">
   <h2>この運用そのものを配っています</h2>

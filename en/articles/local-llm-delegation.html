@@ -8,6 +8,9 @@
 <link rel="canonical" href="https://quintetkit.github.io/en/articles/local-llm-delegation.html">
 <link rel="alternate" type="application/rss+xml" title="What to Delegate and What Not to Delegate to Local LLMs (with Benchmarks) | Quartet / Quintet" href="../feed.xml">
 <link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
 <meta property="og:type" content="article">
 <meta property="og:title" content="What to Delegate and What Not to Delegate to Local LLMs (with Benchmarks) | Quartet / Quintet">
 <meta property="og:description" content="When using cloud-based LLMs, token costs become a concern. It is natural to think, &quot;Can I offload light tasks to a local LLM to save money?&quot;">
@@ -186,6 +189,19 @@ If you abort after the default few seconds, the model is still running, but the 
 <li>Short texts lose to latency.</li>
 <li>The decision criterion is &quot;Can you pipe the output into a file without reading it?&quot;</li>
 </ul>
+<hr />
+<!-- product-links -->
+
+<p>I publish the configuration for splitting Claude Code into separate personas —
+Architect, Coder, Reviewer, Conflict Resolver — under MIT. Copy it, run
+<code>./setup.sh</code>, and it works. It does not depend on your tech stack.</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>I built one real tool using nothing but this workflow. Every Issue, PR, review
+and merge is still there. <strong>The parts that went wrong were not deleted.</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>The version that adds a UI Designer persona, review criteria, a per-Issue
+parallel execution script and a 10-chapter guide is on the
+<a href="https://quintetkit.github.io/index.en.html">product page</a>.</p>
 
 <div class="after">
   <h2>The workflow itself is available</h2>
