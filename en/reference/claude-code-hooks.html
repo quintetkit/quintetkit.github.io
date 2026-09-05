@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code Hook Events — Where matcher and if Actually Apply</title>
+<meta name="description" content="All 33 Claude Code hook events in one table: what each matcher is tested against, which events silently discard a matcher, and which ones evaluate the if field. Compiled from the official documentation.">
+<link rel="canonical" href="https://quintetkit.github.io/en/reference/claude-code-hooks.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/reference/claude-code-hooks.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/reference/claude-code-hooks.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/reference/claude-code-hooks.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Claude Code Hook Events — Where matcher and if Actually Apply">
+<meta property="og:description" content="All 33 Claude Code hook events in one table: what each matcher is tested against, which events silently discard a matcher, and which ones evaluate the if field. Compiled from the official documentation.">
+<meta property="og:url" content="https://quintetkit.github.io/en/reference/claude-code-hooks.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="en_US">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><a href="../../en/articles/index.html">Articles</a></nav>
+</div></div>
+<div class="wrap">
+<article>
+<h1>Claude Code Hook Events — Where matcher and if Actually Apply</h1>
+<p>The official documentation lists the events, what each matcher matches, and where <code>if</code> applies in separate places. <strong>What you need while writing a config is one table you can scan</strong>, so here it is.</p>
+
+<h2>Events and matchers</h2>
+<div class="scroll"><table>
+<thead><tr><th>Event</th><th>What the matcher is tested against</th><th>Example values</th></tr></thead>
+<tbody>
+<tr><td><code>PreToolUse</code></td><td>tool name</td><td><code>Edit|Write, Bash, mcp__server__.*</code></td></tr>
+<tr><td><code>PostToolUse</code></td><td>tool name</td><td><code>Edit|Write, Bash</code></td></tr>
+<tr><td><code>PostToolUseFailure</code></td><td>tool name</td><td><code>Bash</code></td></tr>
+<tr><td><code>PermissionRequest</code></td><td>tool name</td><td><code>Bash</code></td></tr>
+<tr><td><code>PermissionDenied</code></td><td>tool name</td><td><code>Bash</code></td></tr>
+<tr><td><code>SessionStart</code></td><td>how the session started</td><td><code>startup, resume, clear, compact, fork</code></td></tr>
+<tr><td><code>Setup</code></td><td>which CLI flag triggered setup</td><td><code>init, maintenance</code></td></tr>
+<tr><td><code>SessionEnd</code></td><td>why the session ended</td><td><code>clear, resume, logout, prompt_input_exit, other</code></td></tr>
+<tr><td><code>Notification</code></td><td>notification type</td><td><code>permission_prompt, idle_prompt, auth_success, agent_completed</code></td></tr>
+<tr><td><code>SubagentStart</code></td><td>agent type</td><td><code>general-purpose, Explore, Plan, custom names</code></td></tr>
+<tr><td><code>SubagentStop</code></td><td>agent type</td><td><code>same as SubagentStart</code></td></tr>
+<tr><td><code>PreCompact</code></td><td>what triggered compaction</td><td><code>manual, auto</code></td></tr>
+<tr><td><code>PostCompact</code></td><td>what triggered compaction</td><td><code>manual, auto</code></td></tr>
+<tr><td><code>PreModelSwitch</code></td><td>canonical name of the target model</td><td><code>claude-opus-5, .*opus.*</code></td></tr>
+<tr><td><code>PostModelSwitch</code></td><td>canonical name of the target model</td><td><code>claude-opus-5</code></td></tr>
+<tr><td><code>ConfigChange</code></td><td>configuration source</td><td><code>user_settings, project_settings, local_settings, policy_settings, skills</code></td></tr>
+<tr><td><code>DirectoryAdded</code></td><td>how the directory was added</td><td><code>slash_command, register_repo_root</code></td></tr>
+<tr><td><code>FileChanged</code></td><td>literal filenames to watch</td><td><code>.envrc|.env</code></td></tr>
+<tr><td><code>StopFailure</code></td><td>error type</td><td><code>rate_limit, overloaded, authentication_failed, server_error</code></td></tr>
+<tr><td><code>InstructionsLoaded</code></td><td>load reason</td><td><code>session_start, nested_traversal, path_glob_match, include, compact</code></td></tr>
+<tr><td><code>UserPromptExpansion</code></td><td>command name</td><td><code>your skill or command names</code></td></tr>
+<tr><td><code>Elicitation</code></td><td>MCP server name</td><td><code>your configured MCP server names</code></td></tr>
+<tr><td><code>ElicitationResult</code></td><td>MCP server name</td><td><code>same as Elicitation</code></td></tr>
+</tbody></table></div>
+
+<h2>Events that silently discard a matcher</h2>
+<p>The documentation states it outright: <em>&ldquo;If you add a <code>matcher</code> field to an event without matcher support, it is silently ignored.&rdquo;</em><br><strong>No error appears.</strong> The handler you thought was narrowed runs every time.</p>
+<p><code>CwdChanged</code>, <code>UserPromptSubmit</code>, <code>PostToolBatch</code>, <code>Stop</code>, <code>TeammateIdle</code>, <code>TaskCreated</code>, <code>TaskCompleted</code>, <code>WorktreeCreate</code>, <code>WorktreeRemove</code>, <code>MessageDisplay</code></p>
+
+<h2>Events where <code>if</code> is evaluated</h2>
+<p><code>if</code> matches the tool name and its arguments together, and <strong>it is only evaluated on the five tool events.</strong> Written anywhere else, that handler never runs.</p>
+<p><code>PreToolUse</code>, <code>PostToolUse</code>, <code>PostToolUseFailure</code>, <code>PermissionRequest</code>, <code>PermissionDenied</code></p>
+
+<h2>Required handler fields</h2>
+<p>Each <code>type</code> requires different fields. <strong>The old field surviving a type change</strong> is the common shape.</p>
+<div class="scroll"><table>
+<thead><tr><th>type</th><th>Required</th></tr></thead>
+<tbody>
+<tr><td><code>command</code></td><td><code>command</code></td></tr>
+<tr><td><code>http</code></td><td><code>url</code></td></tr>
+<tr><td><code>mcp_tool</code></td><td><code>server</code>, <code>tool</code></td></tr>
+<tr><td><code>prompt</code></td><td><code>prompt</code></td></tr>
+<tr><td><code>agent</code></td><td><code>prompt</code></td></tr>
+</tbody></table></div>
+
+<p class="note">Source: <a href="https://code.claude.com/docs/en/hooks">Hooks</a>, as of 2026-09-04. This table is compiled from that documentation and is not the documentation itself. Where they disagree, the official page is correct.</p>
+
+<div class="after">
+<p>There is an MIT tool that checks exactly this. It reads <code>.claude/</code> and reports the settings that are ignored and the deprecated spellings, citing the documentation behind each finding.</p>
+<a class="btn" href="https://github.com/quintetkit/ccheck">ccheck</a>
+</div>
+</article>
+</div>
+</body>
+</html>

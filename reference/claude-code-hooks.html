@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code の hook イベント一覧 — matcher と if が効く場所</title>
+<meta name="description" content="Claude Code の hook イベント33種を1つの表にまとめた対照表。matcher が何に当たるか、matcher を書いても無視されるのはどれか、if が評価されるのはどれかを、公式ドキュメントの記述から起こしている。">
+<link rel="canonical" href="https://quintetkit.github.io/reference/claude-code-hooks.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/reference/claude-code-hooks.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/reference/claude-code-hooks.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/reference/claude-code-hooks.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Claude Code の hook イベント一覧 — matcher と if が効く場所">
+<meta property="og:description" content="Claude Code の hook イベント33種を1つの表にまとめた対照表。matcher が何に当たるか、matcher を書いても無視されるのはどれか、if が評価されるのはどれかを、公式ドキュメントの記述から起こしている。">
+<meta property="og:url" content="https://quintetkit.github.io/reference/claude-code-hooks.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="ja_JP">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><a href="../articles/index.html">記事</a></nav>
+</div></div>
+<div class="wrap">
+<article>
+<h1>Claude Code の hook イベント一覧 — matcher と if が効く場所</h1>
+<p>公式ドキュメントは、イベントの一覧・matcher の対象・<code>if</code> の適用範囲を別々の節に書いています。<strong>設定を書くときに必要なのは、それを1行で見比べた表</strong>なので、ここに作りました。</p>
+
+<h2>イベントと matcher</h2>
+<div class="scroll"><table>
+<thead><tr><th>イベント</th><th>matcher が当たる対象</th><th>値の例</th></tr></thead>
+<tbody>
+<tr><td><code>PreToolUse</code></td><td>tool name</td><td><code>Edit|Write, Bash, mcp__server__.*</code></td></tr>
+<tr><td><code>PostToolUse</code></td><td>tool name</td><td><code>Edit|Write, Bash</code></td></tr>
+<tr><td><code>PostToolUseFailure</code></td><td>tool name</td><td><code>Bash</code></td></tr>
+<tr><td><code>PermissionRequest</code></td><td>tool name</td><td><code>Bash</code></td></tr>
+<tr><td><code>PermissionDenied</code></td><td>tool name</td><td><code>Bash</code></td></tr>
+<tr><td><code>SessionStart</code></td><td>how the session started</td><td><code>startup, resume, clear, compact, fork</code></td></tr>
+<tr><td><code>Setup</code></td><td>which CLI flag triggered setup</td><td><code>init, maintenance</code></td></tr>
+<tr><td><code>SessionEnd</code></td><td>why the session ended</td><td><code>clear, resume, logout, prompt_input_exit, other</code></td></tr>
+<tr><td><code>Notification</code></td><td>notification type</td><td><code>permission_prompt, idle_prompt, auth_success, agent_completed</code></td></tr>
+<tr><td><code>SubagentStart</code></td><td>agent type</td><td><code>general-purpose, Explore, Plan, custom names</code></td></tr>
+<tr><td><code>SubagentStop</code></td><td>agent type</td><td><code>same as SubagentStart</code></td></tr>
+<tr><td><code>PreCompact</code></td><td>what triggered compaction</td><td><code>manual, auto</code></td></tr>
+<tr><td><code>PostCompact</code></td><td>what triggered compaction</td><td><code>manual, auto</code></td></tr>
+<tr><td><code>PreModelSwitch</code></td><td>canonical name of the target model</td><td><code>claude-opus-5, .*opus.*</code></td></tr>
+<tr><td><code>PostModelSwitch</code></td><td>canonical name of the target model</td><td><code>claude-opus-5</code></td></tr>
+<tr><td><code>ConfigChange</code></td><td>configuration source</td><td><code>user_settings, project_settings, local_settings, policy_settings, skills</code></td></tr>
+<tr><td><code>DirectoryAdded</code></td><td>how the directory was added</td><td><code>slash_command, register_repo_root</code></td></tr>
+<tr><td><code>FileChanged</code></td><td>literal filenames to watch</td><td><code>.envrc|.env</code></td></tr>
+<tr><td><code>StopFailure</code></td><td>error type</td><td><code>rate_limit, overloaded, authentication_failed, server_error</code></td></tr>
+<tr><td><code>InstructionsLoaded</code></td><td>load reason</td><td><code>session_start, nested_traversal, path_glob_match, include, compact</code></td></tr>
+<tr><td><code>UserPromptExpansion</code></td><td>command name</td><td><code>your skill or command names</code></td></tr>
+<tr><td><code>Elicitation</code></td><td>MCP server name</td><td><code>your configured MCP server names</code></td></tr>
+<tr><td><code>ElicitationResult</code></td><td>MCP server name</td><td><code>same as Elicitation</code></td></tr>
+</tbody></table></div>
+
+<h2>matcher を書いても無視されるイベント</h2>
+<p>公式にこう書かれています。<em>&ldquo;If you add a <code>matcher</code> field to an event without matcher support, it is silently ignored.&rdquo;</em><br><strong>エラーは出ません。</strong>絞ったつもりのハンドラが毎回走ります。</p>
+<p><code>CwdChanged</code>, <code>UserPromptSubmit</code>, <code>PostToolBatch</code>, <code>Stop</code>, <code>TeammateIdle</code>, <code>TaskCreated</code>, <code>TaskCompleted</code>, <code>WorktreeCreate</code>, <code>WorktreeRemove</code>, <code>MessageDisplay</code></p>
+
+<h2><code>if</code> が評価されるイベント</h2>
+<p><code>if</code> はツール名と引数をまとめて見る絞り込みで、<strong>ツール系の5イベントでしか評価されません。</strong>それ以外で書くと、そのハンドラは一度も走りません。</p>
+<p><code>PreToolUse</code>, <code>PostToolUse</code>, <code>PostToolUseFailure</code>, <code>PermissionRequest</code>, <code>PermissionDenied</code></p>
+
+<h2>ハンドラの必須フィールド</h2>
+<p><code>type</code> ごとに要るものが違います。<strong>type を変えたときに前のフィールドが残る</strong>のがよくある形です。</p>
+<div class="scroll"><table>
+<thead><tr><th>type</th><th>必須</th></tr></thead>
+<tbody>
+<tr><td><code>command</code></td><td><code>command</code></td></tr>
+<tr><td><code>http</code></td><td><code>url</code></td></tr>
+<tr><td><code>mcp_tool</code></td><td><code>server</code>, <code>tool</code></td></tr>
+<tr><td><code>prompt</code></td><td><code>prompt</code></td></tr>
+<tr><td><code>agent</code></td><td><code>prompt</code></td></tr>
+</tbody></table></div>
+
+<p class="note">出典は <a href="https://code.claude.com/docs/en/hooks">Hooks</a>（2026-09-04 時点）。この表は公式の記述から起こしたもので、公式そのものではありません。食い違いがあれば公式が正です。</p>
+
+<div class="after">
+<p>この一覧をそのまま検査するツールを MIT で公開しています。<code>.claude/</code> を読んで、無視される設定と非推奨の書き方を、根拠になっている公式ドキュメントへのリンク付きで指摘します。</p>
+<a class="btn" href="https://github.com/quintetkit/ccheck">ccheck</a>
+</div>
+</article>
+</div>
+</body>
+</html>
