@@ -180,6 +180,27 @@ head -5 /tmp/out.log
 </ul>
 <p>このスクリプトは有料で配っているものです。<strong>出荷済みのものにバグを見つけたら、
 直した経緯ごと書くほうが、黙って差し替えるより信用が残ると考えています。</strong></p>
+<hr />
+<!-- related -->
+
+<p><strong>あわせて読む</strong></p>
+<ul>
+<li><a href="https://quintetkit.github.io/articles/linter-false-positives.html">linter を作るとき、何を検査しないかで品質が決まる</a></li>
+<li><a href="https://zenn.dev/quintetkit/articles/ai-code-review-not-theater">AIに書かせたコードのレビューが、形だけになっていないか</a></li>
+<li><a href="https://quintetkit.github.io/articles/claude-code-worktree-isolation.html">Claude Codeを本当に並列で走らせる - git worktree と、直列にすべき工程</a></li>
+</ul>
+<hr />
+<!-- product-links -->
+
+<p>Claude Code に設計・実装・レビューを別々の人格として分担させ、GitHub Issue と
+ブランチを軸に並列開発を回すための設定一式を MIT で公開しています。
+コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>このワークフローだけで実際にツールを 1 つ作りました。Issue の分割から PR、
+レビュー、マージまで記録が全部残っています。<strong>うまくいかなかった箇所も消していません。</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>UI 設計人格・レビュー基準・Issue 単位の並列実行スクリプト・実践ガイド 10 章を
+足したものは<a href="https://quintetkit.github.io">製品ページ</a>にあります。</p>
 
 <div class="after">
   <h2>この運用そのものを配っています</h2>

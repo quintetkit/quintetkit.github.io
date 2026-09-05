@@ -119,6 +119,27 @@ frontmatter は他のプラットフォームにもそのまま渡るので汚�
 <li>まず自分のサイトに出す。インデックスは数週間かかるので、待つほど損をする</li>
 <li>slug を変えたら古い生成物を消す。差分で書き足す生成器は必ずここを踏む</li>
 </ul>
+<hr />
+<!-- related -->
+
+<p><strong>あわせて読む</strong></p>
+<ul>
+<li><a href="https://quintetkit.github.io/articles/composite-github-action.html">自作ツールを composite GitHub Action で配る（npm 公開なし）</a></li>
+<li><a href="https://quintetkit.github.io/articles/local-llm-delegation.html">ローカルLLMに何を任せて、何を任せないか（実測つき）</a></li>
+<li><a href="https://zenn.dev/quintetkit/articles/claude-code-multi-persona-workflow">Claude Code に5人格を分担させて並列開発する</a></li>
+</ul>
+<hr />
+<!-- product-links -->
+
+<p>Claude Code に設計・実装・レビューを別々の人格として分担させ、GitHub Issue と
+ブランチを軸に並列開発を回すための設定一式を MIT で公開しています。
+コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>このワークフローだけで実際にツールを 1 つ作りました。Issue の分割から PR、
+レビュー、マージまで記録が全部残っています。<strong>うまくいかなかった箇所も消していません。</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>UI 設計人格・レビュー基準・Issue 単位の並列実行スクリプト・実践ガイド 10 章を
+足したものは<a href="https://quintetkit.github.io">製品ページ</a>にあります。</p>
 
 <div class="after">
   <h2>この運用そのものを配っています</h2>
