@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Write the Same Decision in Two Places and Only One of Them Gets Fixed | Quartet / Quintet</title>
+<meta name="description" content="There are two storefronts, one domestic and one international, and the international one is not open yet.">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/one-decision-two-places.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/articles/one-decision-two-places.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/articles/one-decision-two-places.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/articles/one-decision-two-places.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Write the Same Decision in Two Places and Only One of Them Gets Fixed | Quartet / Quintet">
+<meta property="og:description" content="There are two storefronts, one domestic and one international, and the international one is not open yet.">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/one-decision-two-places.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-09-05">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-05 &nbsp;·&nbsp; programming · python · webdev · softwaredevelopment</p>
+  <h1>Write the Same Decision in Two Places and Only One of Them Gets Fixed</h1>
+<p>There are two storefronts, one domestic and one international, and <strong>the
+international one is not open yet.</strong></p>
+<p>So I made a rule: if the international store is not open, send the reader to the
+domestic one. It has an English interface and takes international cards.
+<strong>Being sent somewhere you can actually buy beats being sent nowhere.</strong></p>
+<p>I wrote that rule into the function that generates the footer of each article.</p>
+<pre><code class="language-python">if store.get(&quot;gumroad&quot;):
+    parts.append(f&quot;The full kit is available here.\n\n{store['gumroad']}&quot;)
+elif store.get(&quot;booth&quot;):
+    # until the international store opens, send readers to the domestic one
+    parts.append(f&quot;The full kit is on BOOTH ...\n\n{store['booth']}&quot;)
+</code></pre>
+<p>It went out to 24 articles. All of them say you can buy it.</p>
+<h2 id="the-page-they-link-to-said-quot-coming-soon-quot">The page they link to said &quot;Coming soon&quot;</h2>
+<p>The function that rewrites the button on the product page lives somewhere else.</p>
+<pre><code class="language-python">url = store.get(&quot;booth&quot;) if name == &quot;index.html&quot; else store.get(&quot;gumroad&quot;)
+new_btn = off if not url else f'&lt;a class=&quot;btn&quot; href=&quot;{url}&quot;&gt;{label}&lt;/a&gt;'
+</code></pre>
+<p>The English button only looks at <code>gumroad</code>. <strong>It is not open, so that is <code>None</code>.</strong></p>
+<pre><code class="language-html">&lt;a class=&quot;btn&quot; href=&quot;#&quot; aria-disabled=&quot;true&quot;&gt;Purchase Quintet (Coming soon)&lt;/a&gt;
+</code></pre>
+<p>Which left the site saying this:</p>
+<pre><code>24 articles   &quot;you can buy it here&quot; -&gt; link to the product page
+product page  &quot;Coming soon&quot;
+</code></pre>
+<p><strong>Readers arrive at the product page from the articles.</strong> The order could not be
+worse. Only the people who read a whole article, got interested, and clicked
+were told to come back later. <strong>The readers most likely to buy were the only
+ones turned away.</strong></p>
+<h2 id="i-did-not-recognize-it-as-the-same-decision">I did not recognize it as the same decision</h2>
+<p>In hindsight the two pieces of code decide the same thing:</p>
+<blockquote>
+<p><strong>Which storefront do we send a reader of this language to?</strong></p>
+</blockquote>
+<p>So why did it not register? <strong>Because one builds a paragraph of text and the
+other rewrites an HTML attribute.</strong></p>
+<pre><code class="language-python">def buy_line(store, lang) -&gt; str:      # returns a Markdown paragraph
+def rewrite_lp(store) -&gt; int:          # regex-replaces HTML
+</code></pre>
+<p>Different arguments, different return types, different output formats. When code
+does not look alike, <strong>the fact that it implements the same policy does not
+surface.</strong></p>
+<p>Duplication is usually described as the same code written twice. <strong>The dangerous
+kind is the same decision written twice in two different shapes.</strong> The first kind
+you can grep for. The second kind you cannot.</p>
+<h2 id="what-caught-it-was-reading-the-diff-before-pushing">What caught it was reading the diff before pushing</h2>
+<p>Not a test. <strong>I read the diff before pushing.</strong></p>
+<pre><code class="language-diff">-&lt;a class=&quot;btn&quot; href=&quot;https://quartet-dev.booth.pm/items/...&quot;&gt;Purchase Quintet&lt;/a&gt;
++&lt;a class=&quot;btn&quot; href=&quot;#&quot; aria-disabled=&quot;true&quot;&gt;Purchase Quintet (Coming soon)&lt;/a&gt;
+</code></pre>
+<p>The generated site is committed to a repository, so regenerating it produces a
+diff. <strong>Checking that nothing came along besides the change you meant</strong> is what
+works against this class of bug.</p>
+<p>What I meant to do was add a fifteenth article. A button had no business being
+disabled. <strong>The mismatch between intent and diff is the only signal there was.</strong>
+A workflow that does not read diffs ships this.</p>
+<h2 id="one-place-for-the-decision-separate-places-for-the-presentation">One place for the decision, separate places for the presentation</h2>
+<p>There is a range of possible fixes. <strong>Merging the two functions is too far.</strong> One
+returns Markdown, the other rewrites HTML. Merging them only moves the branching
+inside.</p>
+<p><strong>Share the decision, nothing else.</strong></p>
+<pre><code class="language-python">def destination(store: dict, lang: str) -&gt; str | None:
+    &quot;&quot;&quot;Which storefront this language's readers go to, or None if none is open.
+
+    This used to be written in two places. A fallback was added to the article
+    footer and not to the landing page, so the articles said &quot;you can buy it&quot;
+    while the page they linked to said &quot;coming soon&quot;. The destination is decided
+    here; how it is presented is up to the caller.
+    &quot;&quot;&quot;
+    order = (&quot;booth&quot;,) if lang == &quot;ja&quot; else (&quot;gumroad&quot;, &quot;booth&quot;)
+    for key in order:
+        if store.get(key):
+            return key
+    return None
+</code></pre>
+<p><strong>It returns the name of the store, not the URL.</strong> The callers do not need to know
+where to send people so much as <strong>which store ended up being chosen</strong>:</p>
+<ul>
+<li>the article wording differs by store (sending readers abroad needs an explanation)</li>
+<li>the landing page only disables its button when there is no store at all</li>
+</ul>
+<p>The presentation stays different. Only the decision is shared.</p>
+<pre><code class="language-python"># article
+where = destination(store, &quot;en&quot;)
+if where == &quot;gumroad&quot;:
+    ...
+elif where == &quot;booth&quot;:
+    ...
+
+# landing page
+where = destination(store, &quot;ja&quot; if name == &quot;index.html&quot; else &quot;en&quot;)
+url = store[where] if where else None
+</code></pre>
+<h2 id="run-every-combination">Run every combination</h2>
+<p>Two stores, each open or not, is <strong>four cases.</strong> I ran all four and checked that
+the articles and the landing pages say the same thing.</p>
+<pre><code>booth=no  gumroad=no  -&gt; EN page=#        JA page=#        EN article=none
+booth=yes gumroad=no  -&gt; EN page=BOOTH    JA page=BOOTH    EN article=booth
+booth=no  gumroad=yes -&gt; EN page=Gumroad  JA page=#        EN article=gumroad
+booth=yes gumroad=yes -&gt; EN page=Gumroad  JA page=BOOTH    EN article=gumroad
+</code></pre>
+<p>The second row is the bug. <strong>Before the fix, the English page was <code>#</code> there.</strong></p>
+<p>Four cases is few enough to run all of them. <strong>While the combinations are still
+countable, running all of them is faster than arguing about which one is
+representative.</strong></p>
+<p>I also checked that restoring the original settings produces a zero diff. The
+test rewrites configuration, and <strong>forgetting to restore it breaks the live
+links.</strong></p>
+<h2 id="takeaways">Takeaways</h2>
+<ul>
+<li>The dangerous duplication is not the same code twice — it is <strong>the same
+decision twice, in two different shapes.</strong> grep does not find that</li>
+<li>When code does not look alike, <strong>the shared policy does not surface</strong></li>
+<li>Commit the generated output and <strong>read the diff before pushing.</strong> The mismatch
+between what you meant and what changed is the signal</li>
+<li>Share <strong>only the decision.</strong> Sharing the presentation pushes the branching back inside</li>
+<li>Have the decision return <strong>which option was chosen</strong>, not the final value, so
+callers can present it differently</li>
+<li><strong>While the combinations are countable, run all of them</strong> — and verify that a
+test which rewrites configuration puts it back</li>
+</ul>
+<hr />
+<!-- related -->
+
+<p><strong>Related</strong></p>
+<ul>
+<li><a href="https://quintetkit.github.io/en/articles/handwritten-page-stops-improving.html">The Page You Wrote by Hand Is the One That Stops Improving</a></li>
+<li><a href="https://quintetkit.github.io/en/articles/safe-default-destructive-update.html">A Default That Is Safe on Create Is Destructive on Update</a></li>
+<li><a href="https://dev.to/quintetkit/treating-it-worked-as-verification-ships-code-that-only-works-with-one-commit-2bk3">Treating &quot;It Worked&quot; as Verification Ships Code That Only Works With One Commit</a></li>
+</ul>
+<hr />
+<!-- product-links -->
+
+<p>I publish the configuration for splitting Claude Code into separate personas —
+Architect, Coder, Reviewer, Conflict Resolver — under MIT. Copy it, run
+<code>./setup.sh</code>, and it works. It does not depend on your tech stack.</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>I built one real tool using nothing but this workflow. Every Issue, PR, review
+and merge is still there. <strong>The parts that went wrong were not deleted.</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>The version that adds a UI Designer persona, review criteria, a per-Issue
+parallel execution script and a 10-chapter guide is on the
+<a href="https://quintetkit.github.io/index.en.html">product page</a>.</p>
+<p>The full kit — five personas, the scripts and the complete guide in English and Japanese — is on BOOTH, a Japanese store with an English interface that takes international cards.</p>
+<p><a href="https://quartet-dev.booth.pm/items/8807156">https://quartet-dev.booth.pm/items/8807156</a></p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

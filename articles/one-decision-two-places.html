@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>同じ判断を2か所に書くと、片方だけが直る | Quartet / Quintet</title>
+<meta name="description" content="売り場が2つあります。国内向けと海外向けで、海外向けはまだ開いていません。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/one-decision-two-places.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/articles/one-decision-two-places.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/articles/one-decision-two-places.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/articles/one-decision-two-places.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="同じ判断を2か所に書くと、片方だけが直る | Quartet / Quintet">
+<meta property="og:description" content="売り場が2つあります。国内向けと海外向けで、海外向けはまだ開いていません。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/one-decision-two-places.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="ja_JP">
+<meta property="article:published_time" content="2026-09-05">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-05 &nbsp;·&nbsp; 設計 · リファクタリング · python · 個人開発 · 保守</p>
+  <h1>同じ判断を2か所に書くと、片方だけが直る</h1>
+<p>売り場が2つあります。国内向けと海外向けで、<strong>海外向けはまだ開いていません。</strong></p>
+<p>そこで「海外向けが開いていなければ、国内の店へ送る」という方針を決めました。
+国内の店には英語の UI があり、海外のカードも通ります。
+<strong>買える場所がゼロであるより、日本の店でも繋がっているほうがよい。</strong></p>
+<p>この方針を、記事の末尾を生成する関数に書きました。</p>
+<pre><code class="language-python">if store.get(&quot;gumroad&quot;):
+    parts.append(f&quot;The full kit is available here.\n\n{store['gumroad']}&quot;)
+elif store.get(&quot;booth&quot;):
+    # 海外の売り場が開くまでは国内へ送る
+    parts.append(f&quot;The full kit is on BOOTH ...\n\n{store['booth']}&quot;)
+</code></pre>
+<p>記事24本に反映されました。全部「ここで買えます」と書いてあります。</p>
+<h2 id="リンク先が-準備中-と言っていた">リンク先が「準備中」と言っていた</h2>
+<p>製品ページのボタンを書き換える関数は、別のところにありました。</p>
+<pre><code class="language-python">url = store.get(&quot;booth&quot;) if name == &quot;index.html&quot; else store.get(&quot;gumroad&quot;)
+new_btn = off if not url else f'&lt;a class=&quot;btn&quot; href=&quot;{url}&quot;&gt;{label}&lt;/a&gt;'
+</code></pre>
+<p>英語版のボタンは <code>gumroad</code> しか見ていません。<strong>まだ開いていないので <code>None</code> です。</strong></p>
+<pre><code class="language-html">&lt;a class=&quot;btn&quot; href=&quot;#&quot; aria-disabled=&quot;true&quot;&gt;Purchase Quintet (Coming soon)&lt;/a&gt;
+</code></pre>
+<p>つまり、こうなっていました。</p>
+<pre><code>記事24本  「ここで買えます」→ 製品ページへリンク
+製品ページ 「準備中」
+</code></pre>
+<p><strong>読者は記事から製品ページへ来ます。</strong> 順番が最悪です。
+記事を読んで、興味を持って、リンクを踏んだ人だけが「準備中」と言われる。
+<strong>いちばん買う気のある読者を、買える店の手前で追い返していました。</strong></p>
+<h2 id="同じ判断-だと気づいていなかった">「同じ判断」だと気づいていなかった</h2>
+<p>後から見れば、この2つは同じことを決めています。</p>
+<blockquote>
+<p><strong>この言語の読者を、どの売り場へ送るか。</strong></p>
+</blockquote>
+<p>なぜ気づかなかったか。<strong>片方は文章を組み立てる関数で、片方は HTML の属性を
+書き換える関数だったからです。</strong></p>
+<pre><code class="language-python">def buy_line(store, lang) -&gt; str:      # Markdown の段落を返す
+def rewrite_lp(store) -&gt; int:          # HTML を正規表現で置換する
+</code></pre>
+<p>引数も、戻り値も、扱うフォーマットも違います。
+コードの見た目が違うと、<strong>同じ方針を実装しているという事実が意識に上りません。</strong></p>
+<p>重複は「同じコードが2回書いてある」ことだと思われがちですが、
+**実際に危ないのは「同じ判断が別々の書き方で2回書いてある」**ほうです。
+前者は grep で見つかります。後者は見つかりません。</p>
+<h2 id="捕まえたのは-push-直前の-diff-だった">捕まえたのは push 直前の diff だった</h2>
+<p>テストではありません。<strong>push する前に差分を読んだ</strong>からです。</p>
+<pre><code class="language-diff">-&lt;a class=&quot;btn&quot; href=&quot;https://quartet-dev.booth.pm/items/...&quot;&gt;Purchase Quintet&lt;/a&gt;
++&lt;a class=&quot;btn&quot; href=&quot;#&quot; aria-disabled=&quot;true&quot;&gt;Purchase Quintet (Coming soon)&lt;/a&gt;
+</code></pre>
+<p>生成物をリポジトリに入れていて、生成し直すと差分が出ます。
+<strong>「意図した変更以外が混ざっていないか」を毎回見る</strong>のが、
+この種のバグに対しては一番効きました。</p>
+<p>意図していたのは記事15本目の追加です。ボタンが無効化されるはずがありません。
+<strong>意図と差分が食い違ったときだけ気づけます。</strong> 差分を見ない運用なら通っていました。</p>
+<h2 id="行き先は1か所-見せ方は分けたまま">行き先は1か所、見せ方は分けたまま</h2>
+<p>直し方には幅があります。<strong>2つの関数を1つに統合するのは行き過ぎです。</strong>
+片方は Markdown を返し、片方は HTML を置換します。統合すると分岐が増えるだけです。</p>
+<p><strong>共通化するのは「判断」だけにします。</strong></p>
+<pre><code class="language-python">def destination(store: dict, lang: str) -&gt; str | None:
+    &quot;&quot;&quot;その言語の読者を送る売り場の名前。開いていなければ None。
+
+    以前は2か所に書いていて、フッタだけにフォールバックを足した結果、
+    記事は「買える」と言い、LP は「準備中」と言う状態になった。
+    行き先を決めるのはここ1か所。見せ方は呼ぶ側が決める。
+    &quot;&quot;&quot;
+    order = (&quot;booth&quot;,) if lang == &quot;ja&quot; else (&quot;gumroad&quot;, &quot;booth&quot;)
+    for key in order:
+        if store.get(key):
+            return key
+    return None
+</code></pre>
+<p><strong>返すのは URL ではなく売り場の名前</strong>です。
+呼ぶ側は、どこへ送るかではなく<strong>どこへ送ることになったか</strong>を知る必要があります。</p>
+<ul>
+<li>記事は、売り場によって文面が違う（国内の店へ送るときは、その説明が要る）</li>
+<li>LP は、売り場が無いときだけボタンを無効にする</li>
+</ul>
+<p>見せ方の違いは残したまま、判断だけが1か所になります。</p>
+<pre><code class="language-python"># 記事側
+where = destination(store, &quot;en&quot;)
+if where == &quot;gumroad&quot;:
+    ...
+elif where == &quot;booth&quot;:
+    ...
+
+# LP 側
+where = destination(store, &quot;ja&quot; if name == &quot;index.html&quot; else &quot;en&quot;)
+url = store[where] if where else None
+</code></pre>
+<h2 id="分岐を全部通す">分岐を全部通す</h2>
+<p>売り場は2つ、それぞれ開いているかいないかで<strong>4通り</strong>です。
+全部回して、記事と LP が同じことを言うか確かめました。</p>
+<pre><code>booth=無 gumroad=無 -&gt; 英LP=#            日LP=#            英記事=なし
+booth=有 gumroad=無 -&gt; 英LP=BOOTH        日LP=BOOTH        英記事=booth
+booth=無 gumroad=有 -&gt; 英LP=Gumroad      日LP=#            英記事=gumroad
+booth=有 gumroad=有 -&gt; 英LP=Gumroad      日LP=BOOTH        英記事=gumroad
+</code></pre>
+<p>2行目が今回のバグです。<strong>修正前はここで英 LP だけが <code>#</code> になっていました。</strong></p>
+<p>4通りしかないので全部回せます。<strong>組み合わせが数えられるうちは、
+代表値を1つ選ぶのではなく全部通したほうが速い。</strong></p>
+<p>最後に、元の状態へ戻して差分がゼロになることも確認しました。
+検査のために設定を書き換えるので、<strong>戻し忘れると本番のリンクが壊れます。</strong></p>
+<h2 id="まとめ">まとめ</h2>
+<ul>
+<li><strong>重複で危ないのは「同じコード」ではなく「同じ判断が別の書き方で2回」</strong>。grep で見つからない</li>
+<li>書き方が違うと、<strong>同じ方針を実装している事実が意識に上らない</strong></li>
+<li>生成物をリポジトリに入れ、<strong>push 前に差分を読む</strong>。意図と差分の食い違いだけが手がかりになる</li>
+<li>統合するのは<strong>判断だけ</strong>。見せ方まで共通化すると、分岐が中に戻ってくる</li>
+<li>判断を返す関数は、<strong>URL ではなく「どれが選ばれたか」を返す</strong>と、呼ぶ側が見せ方を変えられる</li>
+<li><strong>組み合わせが数えられるうちは全部通す</strong>。設定を書き換える検査は、戻したことまで確認する</li>
+</ul>
+<hr />
+<!-- related -->
+
+<p><strong>あわせて読む</strong></p>
+<ul>
+<li><a href="https://quintetkit.github.io/articles/handwritten-page-stops-improving.html">テンプレートを通らない1枚が、改善から取り残される</a></li>
+<li><a href="https://quintetkit.github.io/articles/safe-default-destructive-update.html">作成時に安全だった既定値が、更新時には破壊的になる</a></li>
+<li><a href="https://quintetkit.github.io/articles/verification-that-verifies-nothing.html">「動いた」を検証と見なすと、1コミットでだけ通るコードが出荷される</a></li>
+</ul>
+<hr />
+<!-- product-links -->
+
+<p>Claude Code に設計・実装・レビューを別々の人格として分担させ、GitHub Issue と
+ブランチを軸に並列開発を回すための設定一式を MIT で公開しています。
+コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>このワークフローだけで実際にツールを 1 つ作りました。Issue の分割から PR、
+レビュー、マージまで記録が全部残っています。<strong>うまくいかなかった箇所も消していません。</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>UI 設計人格・レビュー基準・Issue 単位の並列実行スクリプト・実践ガイド 10 章を
+足したものは<a href="https://quintetkit.github.io">製品ページ</a>にあります。</p>
+<p>実践ガイド全10章は Zenn Book で読めます（¥1,500・2章まで無料）。</p>
+<p><a href="https://zenn.dev/quintetkit/books/claude-code-parallel-workflow">https://zenn.dev/quintetkit/books/claude-code-parallel-workflow</a></p>
+<p>設定一式（5人格・スクリプト・ガイド全文）の配布はこちらです。</p>
+<p><a href="https://quartet-dev.booth.pm/items/8807156">https://quartet-dev.booth.pm/items/8807156</a></p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

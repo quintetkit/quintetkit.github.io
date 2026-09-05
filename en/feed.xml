@@ -21,6 +21,13 @@
     <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>Write the Same Decision in Two Places and Only One of Them Gets Fixed</title>
+    <link>https://quintetkit.github.io/en/articles/one-decision-two-places.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/one-decision-two-places.html</guid>
+    <description>There are two storefronts, one domestic and one international, and the international one is not open yet.</description>
+    <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>What You Refuse to Check Decides the Quality of a Linter</title>
     <link>https://quintetkit.github.io/en/articles/linter-false-positives.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/en/articles/linter-false-positives.html</guid>
