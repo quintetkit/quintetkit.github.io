@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>二分法で正しく詰めても答えに届かなかった。失敗の理由が手元に返ってこない系のデバッグ | Quartet / Quintet</title>
+<meta name="description" content="Zenn の GitHub 連携を使って、記事を git push で公開する仕組みを作りました。 12本まとめて push しました。 2本だけ公開され、残り10本は何も起きませんでした。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/failures-that-dont-come-back.html">
+<link rel="alternate" type="application/rss+xml" title="二分法で正しく詰めても答えに届かなかった。失敗の理由が手元に返ってこない系のデバッグ | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="二分法で正しく詰めても答えに届かなかった。失敗の理由が手元に返ってこない系のデバッグ | Quartet / Quintet">
+<meta property="og:description" content="Zenn の GitHub 連携を使って、記事を git push で公開する仕組みを作りました。 12本まとめて push しました。 2本だけ公開され、残り10本は何も起きませんでした。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/failures-that-dont-come-back.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-05 &nbsp;·&nbsp; githubactions · zenn · 設計 · 個人開発 · デバッグ</p>
+  <h1>二分法で正しく詰めても答えに届かなかった。失敗の理由が手元に返ってこない系のデバッグ</h1>
+<p>Zenn の GitHub 連携を使って、記事を <code>git push</code> で公開する仕組みを作りました。
+12本まとめて push しました。
+<strong>2本だけ公開され、残り10本は何も起きませんでした。</strong></p>
+<p>エラーはありません。連携は正常。push は届いている。デプロイの結果も「成功」。
+それでも記事が出ない。</p>
+<p>原因にたどり着くまで丸一日かかりました。<strong>技術的には難しくない話でした。</strong>
+難しかったのは、失敗の理由がこちら側に一切返ってこなかったことです。</p>
+<h2 id="最初にやったこと-全部外れ">最初にやったこと（全部外れ）</h2>
+<p>まず「壊れているファイルがあるはずだ」と考えました。1本だけなら何かが違うのだろうと。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>試したこと</th>
+  <th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>push が届いているか確認</td>
+  <td>届いている</td>
+</tr>
+<tr>
+  <td>BOM / CRLF / 制御文字</td>
+  <td>正常。公開できた記事と同じ構造</td>
+</tr>
+<tr>
+  <td>frontmatter の差分</td>
+  <td>差なし</td>
+</tr>
+<tr>
+  <td>空コミットで再デプロイ</td>
+  <td>変化なし</td>
+</tr>
+<tr>
+  <td>本文を変えて再デプロイ</td>
+  <td>変化なし</td>
+</tr>
+<tr>
+  <td>slug の改名（2記事で）</td>
+  <td>変化なし</td>
+</tr>
+<tr>
+  <td>時間を4.5時間空けて1本だけ push</td>
+  <td>変化なし</td>
+</tr>
+<tr>
+  <td><strong>一度も保存されたことのない新記事を単独 push</strong></td>
+  <td><strong>変化なし</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>最後の1行で、「特定のファイルが壊れている」という仮説は死にました。
+<strong>新品のファイルでも保存されない。</strong> つまり個々のファイルの問題ではない。</p>
+<p>ここまでで半日使っています。全部<strong>推測を1つずつ潰す</strong>やり方でした。</p>
+<h2 id="二分法に切り替えた">二分法に切り替えた</h2>
+<p>推測をやめて、範囲を機械的に狭めることにしました。</p>
+<p>リポジトリには記事12本と、本（10章＋設定）が入っています。まず本を丸ごと削除。</p>
+<ul>
+<li>本を削除 → <strong>変化なし</strong></li>
+</ul>
+<p>次に記事も削り、公開済み2本と候補1本の、<strong>計3ファイルだけ</strong>にしました。</p>
+<ul>
+<li>ファイル3つだけ → <strong>変化なし</strong></li>
+</ul>
+<p>ここで結論が出ます。</p>
+<blockquote>
+<p><strong>リポジトリの中身は原因ではない。</strong></p>
+</blockquote>
+<p>これは正しい結論でした。二分法は機能しています。仮説を潰す速度も、
+最初の総当たりより桁違いに速い。</p>
+<p><strong>それでも、答えには届きませんでした。</strong></p>
+<h2 id="なぜ届かなかったか">なぜ届かなかったか</h2>
+<p>手元でできる実験は、突き詰めると「入力を変えて、出力を見る」ことです。
+二分法もその一種で、<strong>入力の範囲を半分ずつ削って、出力の変化を見る</strong>技法です。</p>
+<p>この技法は、<strong>出力が観測できること</strong>を前提にしています。</p>
+<p>私の場合、出力は「記事が出るか、出ないか」の1ビットしかありませんでした。
+そして実際の失敗の理由は、<strong>push の応答にも、API にも、リポジトリにも返ってきません。</strong>
+Zenn のデプロイ画面にだけ表示されていました。</p>
+<p>つまり、<strong>理由が置かれている場所を、私は一度も見ていなかった。</strong></p>
+<p>入力をどれだけ削っても、出力が1ビットのままなら、得られる情報も1ビットです。
+<strong>観測できない場所に理由がある系では、手元の実験は原理的に足りません。</strong></p>
+<h2 id="実際の理由">実際の理由</h2>
+<p>デプロイ画面にはこう出ていました。</p>
+<blockquote>
+<p>次の記事は投稿数の上限に達したためデプロイされませんでした:
+（記事名が4つ）</p>
+</blockquote>
+<p><strong>投稿レート制限でした。</strong> デプロイは毎回成功していて、その中で記事だけが弾かれていた。</p>
+<p><a href="https://zenn.dev/faq/rate-limit">Zenn の FAQ</a> を読むと、こうなっています。</p>
+<ul>
+<li>上限のロジックは<strong>非公開</strong>（不正防止のため開示しないと明記されている）</li>
+<li><strong>記事は直近24時間以内の投稿数</strong>で判定される</li>
+<li>本は直近1週間以内。記事とは独立した上限</li>
+<li>上限に達しても、時間が経てば再び投稿できる</li>
+</ul>
+<p>実測では、24時間で2本が通り、残りは全滅していました。</p>
+<p><strong>「12本を一度に push した」という、最初にやったことがそのまま原因でした。</strong></p>
+<h2 id="順番が逆だった">順番が逆だった</h2>
+<p>反省点は、二分法を使ったことではありません。順番です。</p>
+<p>やるべきだったのは、<strong>切り分けを始める前に「失敗の理由はどこに出るのか」を探すこと</strong>でした。</p>
+<ul>
+<li>push の応答に出るか → 出ない</li>
+<li>API から取れるか → 取れない</li>
+<li>リポジトリに何か書かれるか → 書かれない</li>
+<li><strong>デプロイ画面に出るか → 出る</strong></li>
+</ul>
+<p>この確認は5分で終わります。私は代わりに半日、<strong>返ってこない出力を見つめて</strong>いました。</p>
+<p>「エラーが出ていないから正常」ではありません。
+<strong>「エラーの出る場所を見ていない」だけかもしれない。</strong> この2つは全く違います。</p>
+<h3 id="同じ日に-もう1回同じ穴を踏んだ">同じ日に、もう1回同じ穴を踏んだ</h3>
+<p>dev.to で、公開済み記事9本を API から一括更新したときです。
+3秒間隔で回したら、3本が <code>500 Internal Server Error</code> で落ちました。</p>
+<p>500 はサーバ内部のエラーです。普通に読めば「向こうが壊れている」。
+10秒空けて再実行したら、3本とも通りました。</p>
+<p><strong>レート制限が 500 として返ってきていました。</strong> 429 ではなく。</p>
+<p>返ってきたエラーが、起きたことを正しく表しているとは限りません。
+<strong>「500 が返った」は「サーバが壊れた」ではなく、「500 が返った」という事実だけです。</strong></p>
+<h2 id="自動化すると-意図せず-乱造-の形になる">自動化すると、意図せず「乱造」の形になる</h2>
+<p>もう1つ、技術とは別の話です。</p>
+<p>12本を一度に投稿する行為は、<strong>人間には物理的にできません。</strong>
+プラットフォームから見れば、それは機械が大量投稿している形そのものです。</p>
+<p>実際、Zenn は <a href="https://info.zenn.dev/2026-03-10-ai-contents-guideline">AI によるコンテンツ執筆に関する方針</a>を出しています。</p>
+<ul>
+<li>機械により自動生成された文章の投稿は禁止</li>
+<li>AI 生成による投稿の乱造行為は、アカウント凍結の対象</li>
+<li>ただし <strong>AI の利用自体は禁止していない</strong></li>
+<li>求めているのは「人が主体となって情報を発信すること」＝<strong>著者が内容を検証していること</strong></li>
+</ul>
+<p>私の記事は、実際に踏んだバグと実測値だけで書いています。中身は方針に反していません。
+<strong>しかし出し方が、違反の形をしていました。</strong></p>
+<p>レート制限は、罰ではなく<strong>警告として働いた</strong>と考えるべきです。
+だから、回避策を探すのは間違いです。<strong>ペースを落とすのが正しい対処です。</strong></p>
+<h2 id="直したこと">直したこと</h2>
+<pre><code>公開待ちの記事を、常に1本だけにする
+</code></pre>
+<p>それだけです。公開されたら、次の1本を公開待ちにする。</p>
+<p>自動化されたパイプラインは、<strong>放っておくと持っている分を全部出そうとします。</strong>
+出せる量ではなく、<strong>出してよい量</strong>で律速をかける必要がありました。</p>
+<h2 id="まとめ">まとめ</h2>
+<ul>
+<li>二分法は「出力が観測できる」ことを前提にした技法。
+<strong>出力が1ビットしか返ってこない系では、範囲を絞れても答えには届かない</strong></li>
+<li><strong>切り分けを始める前に、失敗の理由がどこに出るのかを探す。</strong> これは5分で終わる</li>
+<li>「エラーが出ていない」と「エラーの出る場所を見ていない」は違う</li>
+<li>返ってきたエラーコードが、起きたことを表しているとは限らない
+（レート制限が 500 で返ってくることがある）</li>
+<li>自動化した公開は、意図せず機械的な大量投稿の形になる。
+<strong>出せる量ではなく、出してよい量で律速をかける</strong></li>
+</ul>
+<p>半日使った切り分けは、結論そのものは正しかったです。
+ただ、<strong>ログを1行見れば5分で終わっていました。</strong></p>
+<hr />
+<!-- related -->
+
+<p><strong>あわせて読む</strong></p>
+<ul>
+<li><a href="https://quintetkit.github.io/articles/verification-that-verifies-nothing.html">「動いた」を検証と見なすと、1コミットでだけ通るコードが出荷される</a></li>
+<li><a href="https://quintetkit.github.io/articles/canonical-across-platforms.html">同じ記事を3か所に出すと検索評価が割れる。canonical をどこに寄せるか</a></li>
+<li><a href="https://zenn.dev/quintetkit/articles/claude-code-multi-persona-workflow">Claude Code に5人格を分担させて並列開発する</a></li>
+</ul>
+<hr />
+<!-- product-links -->
+
+<p>Claude Code に設計・実装・レビューを別々の人格として分担させ、GitHub Issue と
+ブランチを軸に並列開発を回すための設定一式を MIT で公開しています。
+コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>このワークフローだけで実際にツールを 1 つ作りました。Issue の分割から PR、
+レビュー、マージまで記録が全部残っています。<strong>うまくいかなかった箇所も消していません。</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>UI 設計人格・レビュー基準・Issue 単位の並列実行スクリプト・実践ガイド 10 章を
+足したものは<a href="https://quintetkit.github.io">製品ページ</a>にあります。</p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

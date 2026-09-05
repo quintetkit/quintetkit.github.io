@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bisection Narrowed It Correctly and Still Never Reached the Answer | Quartet / Quintet</title>
+<meta name="description" content="I built a pipeline that publishes articles to Zenn by git push, using its GitHub integration. I pushed twelve at once. Two went live. The other ten d…">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/failures-that-dont-come-back.html">
+<link rel="alternate" type="application/rss+xml" title="Bisection Narrowed It Correctly and Still Never Reached the Answer | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Bisection Narrowed It Correctly and Still Never Reached the Answer | Quartet / Quintet">
+<meta property="og:description" content="I built a pipeline that publishes articles to Zenn by git push, using its GitHub integration. I pushed twelve at once. Two went live. The other ten d…">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/failures-that-dont-come-back.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-05 &nbsp;·&nbsp; debugging · githubactions · webdev · softwaredevelopment</p>
+  <h1>Bisection Narrowed It Correctly and Still Never Reached the Answer</h1>
+<p>I built a pipeline that publishes articles to Zenn by <code>git push</code>, using its GitHub
+integration. I pushed twelve at once.
+<strong>Two went live. The other ten did nothing.</strong></p>
+<p>No errors. The integration was fine. The push arrived. The deploy reported success.
+And the articles did not appear.</p>
+<p>It took me a full day to find the cause. <strong>The cause itself was not difficult.</strong>
+What was difficult is that the reason for the failure was never returned to me.</p>
+<h2 id="what-i-tried-first-all-wrong">What I tried first (all wrong)</h2>
+<p>My first assumption was that one file was malformed.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Tried</th>
+  <th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Confirm the push arrived</td>
+  <td>It did</td>
+</tr>
+<tr>
+  <td>BOM / CRLF / control characters</td>
+  <td>Clean. Identical in shape to the articles that worked</td>
+</tr>
+<tr>
+  <td>Diff the frontmatter</td>
+  <td>No difference</td>
+</tr>
+<tr>
+  <td>Empty commit, redeploy</td>
+  <td>No change</td>
+</tr>
+<tr>
+  <td>Change the body, redeploy</td>
+  <td>No change</td>
+</tr>
+<tr>
+  <td>Rename the slug (twice)</td>
+  <td>No change</td>
+</tr>
+<tr>
+  <td>Wait 4.5 hours, push a single file</td>
+  <td>No change</td>
+</tr>
+<tr>
+  <td><strong>Push a brand new article the platform had never stored</strong></td>
+  <td><strong>No change</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>That last row killed the hypothesis. <strong>A brand new file was not saved either</strong>, so
+this was not about any individual file.</p>
+<p>Half a day gone, spent knocking down guesses one at a time.</p>
+<h2 id="switching-to-bisection">Switching to bisection</h2>
+<p>I stopped guessing and started cutting the input in half.</p>
+<p>The repository held twelve articles plus a book (ten chapters and a config). I deleted
+the book outright.</p>
+<ul>
+<li>Book removed → <strong>no change</strong></li>
+</ul>
+<p>Then I deleted articles too, down to the two live ones plus one candidate —
+<strong>three files total.</strong></p>
+<ul>
+<li>Three files → <strong>no change</strong></li>
+</ul>
+<p>That yields a conclusion:</p>
+<blockquote>
+<p><strong>The repository contents are not the cause.</strong></p>
+</blockquote>
+<p>This was a correct conclusion. Bisection worked. It killed hypotheses far faster than
+the exhaustive approach that preceded it.</p>
+<p><strong>And it still did not reach the answer.</strong></p>
+<h2 id="why-it-could-not">Why it could not</h2>
+<p>Any experiment you run locally reduces to: change the input, observe the output.
+Bisection is one such method — <strong>halve the input range, watch the output change.</strong></p>
+<p>It assumes <strong>the output is observable.</strong></p>
+<p>In my case the output was a single bit: the article appeared, or it did not. And the
+actual reason for the failure <strong>is not returned in the push response, not exposed
+through the API, and not written anywhere in the repository.</strong> It is displayed only
+on Zenn's deploy dashboard.</p>
+<p>Which is to say: <strong>I had never once looked at the place where the reason lived.</strong></p>
+<p>However far you narrow the input, if the output stays one bit wide, one bit is all you
+get. <strong>When the reason sits somewhere unobservable, local experiments cannot reach it
+in principle.</strong></p>
+<h2 id="the-actual-reason">The actual reason</h2>
+<p>The deploy dashboard said:</p>
+<blockquote>
+<p>The following articles were not deployed because the posting limit was reached:
+(four article names)</p>
+</blockquote>
+<p><strong>A posting rate limit.</strong> The deploy had succeeded every single time; the articles
+were rejected inside it.</p>
+<p><a href="https://zenn.dev/faq/rate-limit">Zenn's FAQ</a> states:</p>
+<ul>
+<li>The limit logic is <strong>not disclosed</strong> — explicitly, to prevent gaming</li>
+<li><strong>Articles are judged on the number posted in the previous 24 hours</strong></li>
+<li>Books have a separate weekly limit</li>
+<li>Hitting the limit is temporary; posting resumes after enough time passes</li>
+</ul>
+<p>Measured: two got through in 24 hours, and everything after that was dropped.</p>
+<p><strong>The very first thing I did — pushing twelve at once — was the cause.</strong></p>
+<h2 id="i-had-the-order-backwards">I had the order backwards</h2>
+<p>The mistake was not using bisection. It was the order.</p>
+<p>What I should have done, <strong>before starting to narrow anything, is find out where the
+failure reason is reported.</strong></p>
+<ul>
+<li>In the push response? → no</li>
+<li>Through the API? → no</li>
+<li>Written back into the repository? → no</li>
+<li><strong>On the deploy dashboard? → yes</strong></li>
+</ul>
+<p>That check takes five minutes. Instead I spent half a day <strong>staring at an output that
+was never going to say anything.</strong></p>
+<p>&quot;No error appeared&quot; is not the same as working. <strong>It may only mean you are not looking
+where the errors appear.</strong> Those two states are entirely different.</p>
+<h3 id="i-fell-into-the-same-hole-again-the-same-day">I fell into the same hole again the same day</h3>
+<p>On dev.to, updating nine published articles through the API. Spaced three seconds
+apart, three of them failed with <code>500 Internal Server Error</code>.</p>
+<p>500 is a server-side fault. Read plainly, it means the other end broke. I waited ten
+seconds and retried — all three succeeded.</p>
+<p><strong>The rate limit was arriving as a 500.</strong> Not a 429.</p>
+<p>The error you get back does not necessarily describe what happened. <strong>&quot;A 500 came
+back&quot; means a 500 came back. It does not mean the server broke.</strong></p>
+<h2 id="automation-makes-you-look-like-a-spammer-without-meaning-to">Automation makes you look like a spammer without meaning to</h2>
+<p>One more thing, and it is not technical.</p>
+<p>Publishing twelve articles at once is <strong>physically impossible for a person.</strong> From the
+platform's side, that shape is indistinguishable from a machine flooding the queue.</p>
+<p>Zenn does have a <a href="https://info.zenn.dev/2026-03-10-ai-contents-guideline">policy on AI-written content</a>:</p>
+<ul>
+<li>Posting machine-generated text is prohibited</li>
+<li>Mass-producing AI-generated posts is grounds for account suspension</li>
+<li>But <strong>using AI is not itself prohibited</strong></li>
+<li>What it asks for is that &quot;a human is the one publishing&quot; — that <strong>the author has
+verified the content</strong></li>
+</ul>
+<p>My articles are built from bugs I actually hit and numbers I actually measured. The
+substance is on the right side of that policy. <strong>The delivery was not.</strong></p>
+<p>The rate limit is better understood as a warning than a punishment. Which means
+looking for a workaround is the wrong move. <strong>Slowing down is the correct fix.</strong></p>
+<h2 id="what-i-changed">What I changed</h2>
+<pre><code>Keep exactly one article queued for publication at a time
+</code></pre>
+<p>That is the whole fix. When one goes live, queue the next.</p>
+<p>An automated pipeline, left alone, <strong>will try to emit everything it is holding.</strong> The
+limit had to come from what is acceptable to publish, not from what is available to
+publish.</p>
+<h2 id="summary">Summary</h2>
+<ul>
+<li>Bisection assumes the output is observable. <strong>When the output is one bit wide, you
+can narrow the range correctly and still never reach the answer</strong></li>
+<li><strong>Before you start narrowing, find out where failure reasons are reported.</strong> Five minutes</li>
+<li>&quot;No error appeared&quot; and &quot;I am not looking where errors appear&quot; are different states</li>
+<li>The error code you receive may not describe what happened — a rate limit can arrive
+as a 500</li>
+<li>Automated publishing takes the shape of machine flooding. <strong>Rate-limit yourself by
+what is acceptable to publish, not by what you have available</strong></li>
+</ul>
+<p>The bisection I spent half a day on reached a correct conclusion.
+<strong>One line of a log would have finished it in five minutes.</strong></p>
+<hr />
+<!-- related -->
+
+<p><strong>Related</strong></p>
+<ul>
+<li><a href="https://dev.to/quintetkit/treating-it-worked-as-verification-ships-code-that-only-works-with-one-commit-2bk3">Treating &quot;It Worked&quot; as Verification Ships Code That Only Works With One Commit</a></li>
+<li><a href="https://quintetkit.github.io/en/articles/canonical-across-platforms.html">Publishing the Same Article in Three Places Splits Its Search Value</a></li>
+<li><a href="https://dev.to/quintetkit/assigning-5-personas-to-claude-code-for-parallel-development-5abn">Assigning 5 Personas to Claude Code for Parallel Development</a></li>
+</ul>
+<hr />
+<!-- product-links -->
+
+<p>I publish the configuration for splitting Claude Code into separate personas —
+Architect, Coder, Reviewer, Conflict Resolver — under MIT. Copy it, run
+<code>./setup.sh</code>, and it works. It does not depend on your tech stack.</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>I built one real tool using nothing but this workflow. Every Issue, PR, review
+and merge is still there. <strong>The parts that went wrong were not deleted.</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>The version that adds a UI Designer persona, review criteria, a per-Issue
+parallel execution script and a 10-chapter guide is on the
+<a href="https://quintetkit.github.io/index.en.html">product page</a>.</p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

@@ -21,6 +21,13 @@
     <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>二分法で正しく詰めても答えに届かなかった。失敗の理由が手元に返ってこない系のデバッグ</title>
+    <link>https://quintetkit.github.io/articles/failures-that-dont-come-back.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/failures-that-dont-come-back.html</guid>
+    <description>Zenn の GitHub 連携を使って、記事を git push で公開する仕組みを作りました。 12本まとめて push しました。 2本だけ公開され、残り10本は何も起きませんでした。</description>
+    <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>同じ記事を3か所に出すと検索評価が割れる。canonical をどこに寄せるか</title>
     <link>https://quintetkit.github.io/articles/canonical-across-platforms.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/articles/canonical-across-platforms.html</guid>

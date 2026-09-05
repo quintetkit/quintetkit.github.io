@@ -21,6 +21,13 @@
     <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>Bisection Narrowed It Correctly and Still Never Reached the Answer</title>
+    <link>https://quintetkit.github.io/en/articles/failures-that-dont-come-back.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/failures-that-dont-come-back.html</guid>
+    <description>I built a pipeline that publishes articles to Zenn by git push, using its GitHub integration. I pushed twelve at once. Two went live. The other ten d…</description>
+    <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>Publishing the Same Article in Three Places Splits Its Search Value</title>
     <link>https://quintetkit.github.io/en/articles/canonical-across-platforms.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/en/articles/canonical-across-platforms.html</guid>
