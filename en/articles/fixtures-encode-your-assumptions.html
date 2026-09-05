@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Every Test Passed and It Could Not Read a Single Real Record | Quartet / Quintet</title>
+<meta name="description" content="I wrote a tool that reads GitHub Issues and reports the ones whose declared file scopes overlap.">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/fixtures-encode-your-assumptions.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/articles/fixtures-encode-your-assumptions.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/articles/fixtures-encode-your-assumptions.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/articles/fixtures-encode-your-assumptions.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Every Test Passed and It Could Not Read a Single Real Record | Quartet / Quintet">
+<meta property="og:description" content="I wrote a tool that reads GitHub Issues and reports the ones whose declared file scopes overlap.">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/fixtures-encode-your-assumptions.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-09-05">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-05 &nbsp;·&nbsp; testing · typescript · programming · webdev</p>
+  <h1>Every Test Passed and It Could Not Read a Single Real Record</h1>
+<p>I wrote a tool that reads GitHub Issues and reports the ones whose declared file
+scopes overlap.</p>
+<p>Eight fixtures, all six rules covered, every test green.</p>
+<p><strong>Run against a real repository, it read zero Issues.</strong></p>
+<h2 id="what-came-out">What came out</h2>
+<p>Eleven Issues, one identical complaint for each:</p>
+<pre><code>error #21  The scope section is present but declares no path.
+error #19  The scope section is present but declares no path.
+error #16  The scope section is present but declares no path.
+...
+</code></pre>
+<p>The section is there. The contents are not being read.</p>
+<p>Here is what a real Issue looks like:</p>
+<pre><code class="language-markdown">## Scope
+
+```
+README.md, .github/workflows/self-check.yml
+```
+</code></pre>
+<p><strong>Inside a code block, on one line, comma separated.</strong></p>
+<p>My parser treated each line inside a code block as one path, then discarded
+anything containing whitespace on the grounds that a path has none.
+<code>README.md, .github/...</code> contains a space, so every one of them was thrown away.</p>
+<h2 id="what-the-fixtures-said">What the fixtures said</h2>
+<pre><code class="language-markdown">## Scope
+
+- `src/auth/**`
+- `src/routes/login.tsx`
+</code></pre>
+<p><strong>A bullet list.</strong> One path per line, in backticks.</p>
+<p>Why did I write them that way? <strong>Because that is how I assumed people write them.</strong></p>
+<p>I also wrote the Issue template those real Issues came from. <strong>My tool could not
+read the format I designed myself.</strong></p>
+<h2 id="why-no-test-failed">Why no test failed</h2>
+<p>This is the part worth keeping.</p>
+<p>The fixtures were written by the same person who wrote the parser, on the same
+day, holding the same assumption.</p>
+<pre><code>parser      implemented assuming &quot;scopes are written as a bullet list&quot;
+fixtures    written assuming &quot;scopes are written as a bullet list&quot;
+test        the two agree, so it passes
+</code></pre>
+<p><strong>The assumption is duplicated on both sides, so the test cannot examine it.</strong>
+What it examines is that the implementation matches the fixtures.</p>
+<p>This is not an implementation bug. It is <strong>a bug in how the tests were designed</strong>,
+and no amount of coverage finds it. More coverage adds more paths — <strong>through the
+same wrong premise.</strong></p>
+<h2 id="the-fix-is-not-quot-write-more-tests-quot">The fix is not &quot;write more tests&quot;</h2>
+<p>Ten fixtures instead of eight would still be ten fixtures written by me, holding
+the same assumption.</p>
+<p><strong>Add one input you did not write.</strong></p>
+<pre><code class="language-bash">gh api &quot;repos/owner/name/issues?state=closed&amp;per_page=100&quot; \
+  --jq '[.[] | select(.pull_request|not) | {number,title,body}]' \
+  &gt; test/fixtures/real-issues.json
+</code></pre>
+<p>Then pin it as a regression test:</p>
+<pre><code class="language-ts">// The real Scope sections were a single line inside a code block. The parser
+// as written read none of them and called every Issue scope-empty.
+const real = JSON.parse(readFileSync(`${F}real-issues.json`, &quot;utf8&quot;))
+  .map((i) =&gt; ({ id: `#${i.number}`, title: i.title, body: i.body ?? &quot;&quot; }));
+
+ok(!check(real, { files }).some((f) =&gt; f.rule === &quot;scope-empty&quot;),
+   &quot;reads a Scope written inside a code block&quot;);
+</code></pre>
+<p><strong>That test sits outside my assumptions</strong>, because I did not author the data. Past
+reality did.</p>
+<p>The parser side:</p>
+<pre><code class="language-ts">if (inFence) {
+  // Inside a code block these are usually listed on one line, comma or space
+  // separated. Real Issues were written that way, and treating the line as a
+  // single path read none of them.
+  for (const tok of line.split(/[,\s]+/)) if (tok) out.push(tok);
+  continue;
+}
+</code></pre>
+<h2 id="the-same-shape-again-the-same-day">The same shape again, the same day</h2>
+<p>The README said:</p>
+<blockquote>
+<p>Requires Node 22.6 or newer</p>
+</blockquote>
+<p>CI failed.</p>
+<pre><code>SyntaxError: Cannot use import statement outside a module
+</code></pre>
+<p>Without <code>&quot;type&quot;: &quot;module&quot;</code>, Node loads a <code>.ts</code> file as CommonJS. <strong>It worked
+locally because the local Node is 25.</strong></p>
+<p>Same structure:</p>
+<pre><code>README    claims it runs on 22.6
+CI        verifies on 25
+verified      that it runs on 25
+not verified  that it runs on 22.6 — which is the claim
+</code></pre>
+<p><strong>The claim and the place it was checked were not the same place.</strong></p>
+<p>The fix is to test at the boundary you claim:</p>
+<pre><code class="language-yaml">strategy:
+  matrix:
+    node: [&quot;22.18&quot;, &quot;24&quot;]
+</code></pre>
+<p>(22.6 turned out to need a flag for type stripping, so the floor moved to 22.18.
+<strong>I only looked that up because CI failed.</strong> Had it passed, the claim would have
+shipped false.)</p>
+<h2 id="generalising">Generalising</h2>
+<p><strong>Data you produce yourself reproduces your assumptions along with it.</strong></p>
+<p>The exposure is highest here:</p>
+<ul>
+<li>anything that interprets input from outside (parsers, importers, webhook receivers)</li>
+<li>anything handling text other people wrote</li>
+<li><strong>any format you defined yourself</strong> — the worst case, because you believe people
+write it the way you specified</li>
+</ul>
+<p>One rule covers it:</p>
+<blockquote>
+<p><strong>Anything that interprets input gets one test with input you did not write.</strong></p>
+</blockquote>
+<p>Take one real record, freeze it, make it a regression test. That is one foothold
+outside your own assumptions.</p>
+<p>And for claims:</p>
+<blockquote>
+<p><strong>Verify at the boundary you claim.</strong> If it says &quot;N or newer&quot;, test on N.</p>
+</blockquote>
+<h2 id="takeaways">Takeaways</h2>
+<ul>
+<li>Fixtures <strong>carry the same assumptions as the implementation</strong>, so they cannot test
+those assumptions</li>
+<li>Coverage does not help. <strong>It adds paths through the wrong premise</strong></li>
+<li><strong>Add one input you did not write.</strong> Take it from production and freeze it</li>
+<li>The riskiest format is <strong>the one you defined</strong>, because you trust it is followed</li>
+<li>A README claim is <strong>unverified until it is tested at the boundary it claims</strong></li>
+<li>I only checked because CI broke. <strong>Had it stayed green, the false claim would have shipped</strong></li>
+</ul>
+<hr />
+<!-- related -->
+
+<p><strong>Related</strong></p>
+<ul>
+<li><a href="https://dev.to/quintetkit/treating-it-worked-as-verification-ships-code-that-only-works-with-one-commit-2bk3">Treating &quot;It Worked&quot; as Verification Ships Code That Only Works With One Commit</a></li>
+<li><a href="https://dev.to/quintetkit/what-you-refuse-to-check-decides-the-quality-of-a-linter-5dbb">What You Refuse to Check Decides the Quality of a Linter</a></li>
+<li><a href="https://quintetkit.github.io/en/articles/one-decision-two-places.html">Write the Same Decision in Two Places and Only One of Them Gets Fixed</a></li>
+</ul>
+<hr />
+<!-- product-links -->
+
+<p>I publish the configuration for splitting Claude Code into separate personas —
+Architect, Coder, Reviewer, Conflict Resolver — under MIT. Copy it, run
+<code>./setup.sh</code>, and it works. It does not depend on your tech stack.</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>I built one real tool using nothing but this workflow. Every Issue, PR, review
+and merge is still there. <strong>The parts that went wrong were not deleted.</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>The version that adds a UI Designer persona, review criteria, a per-Issue
+parallel execution script and a 10-chapter guide is on the
+<a href="https://quintetkit.github.io/index.en.html">product page</a>.</p>
+<p>The full kit — five personas, the scripts and the complete guide in English and Japanese — is on BOOTH, a Japanese store with an English interface that takes international cards.</p>
+<p><a href="https://quartet-dev.booth.pm/items/8807156">https://quartet-dev.booth.pm/items/8807156</a></p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

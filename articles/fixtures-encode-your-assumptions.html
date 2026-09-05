@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>テストが全部通るのに、本物のデータを1件も読めなかった | Quartet / Quintet</title>
+<meta name="description" content="GitHub の Issue を読んで、対象範囲が重なっている組を報告するツールを作りました。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/fixtures-encode-your-assumptions.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/articles/fixtures-encode-your-assumptions.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/articles/fixtures-encode-your-assumptions.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/articles/fixtures-encode-your-assumptions.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="テストが全部通るのに、本物のデータを1件も読めなかった | Quartet / Quintet">
+<meta property="og:description" content="GitHub の Issue を読んで、対象範囲が重なっている組を報告するツールを作りました。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/fixtures-encode-your-assumptions.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="ja_JP">
+<meta property="article:published_time" content="2026-09-05">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-05 &nbsp;·&nbsp; テスト · typescript · 設計 · 個人開発 · ci</p>
+  <h1>テストが全部通るのに、本物のデータを1件も読めなかった</h1>
+<p>GitHub の Issue を読んで、対象範囲が重なっている組を報告するツールを作りました。</p>
+<p>テストは fixtures を8本用意して、全部通っていました。
+ルールは6つあって、全部が期待どおりに出ます。</p>
+<p><strong>本物のリポジトリに掛けたら、Issue を1件も読めていませんでした。</strong></p>
+<h2 id="何が起きたか">何が起きたか</h2>
+<p>出力はこうでした。11件すべてが同じ指摘です。</p>
+<pre><code>error #21  対象範囲の節はありますが、パスが1つも書かれていません。
+error #19  対象範囲の節はありますが、パスが1つも書かれていません。
+error #16  対象範囲の節はありますが、パスが1つも書かれていません。
+...
+</code></pre>
+<p>節はある。中身が読めていない。</p>
+<p>実際の Issue はこう書かれていました。</p>
+<pre><code class="language-markdown">## Scope
+
+```
+README.md, .github/workflows/self-check.yml
+```
+</code></pre>
+<p><strong>コードブロックの中に、1行で、カンマ区切り。</strong></p>
+<p>私のパーサはコードブロックの中を<strong>1行=1パス</strong>として扱い、
+そのあと「空白を含むものはパスではない」と捨てていました。
+<code>README.md, .github/...</code> は空白を含むので、全部捨てられていました。</p>
+<h2 id="fixtures-はこう書いてありました">fixtures はこう書いてありました</h2>
+<pre><code class="language-markdown">## 対象範囲
+
+- `src/auth/**`
+- `src/routes/login.tsx`
+</code></pre>
+<p><strong>箇条書きです。</strong> 1行1パス。バッククォート付き。</p>
+<p>なぜこう書いたか。<strong>私がそう書くと思ったからです。</strong></p>
+<p>そして、そのテンプレートを作ったのも私です。
+<strong>自分のツールが、自分の作った形式を読めていませんでした。</strong></p>
+<h2 id="テストが失敗しなかった理由">テストが失敗しなかった理由</h2>
+<p>ここが本題です。</p>
+<p>fixtures は、パーサを書いた<strong>同じ人間が、同じ日に、同じ思い込みのまま</strong>書いています。</p>
+<pre><code>パーサ      「対象範囲は箇条書きで書かれる」という前提で実装
+fixtures    「対象範囲は箇条書きで書かれる」という前提で作成
+テスト      両者が一致するので、必ず通る
+</code></pre>
+<p><strong>前提が2か所に複製されているので、テストはその前提を検証できません。</strong>
+検証しているのは「実装が fixtures と一致すること」だけです。</p>
+<p>これは実装のバグではありません。<strong>テストの設計の問題</strong>です。
+どれだけカバレッジを上げても見つかりません。
+通る経路が増えるだけで、<strong>間違った前提の上を通る</strong>からです。</p>
+<h2 id="直し方は-もっとテストを書く-ではない">直し方は「もっとテストを書く」ではない</h2>
+<p>fixtures を10本に増やしても、私が書く限り同じ前提で書きます。</p>
+<p><strong>自分が書いていないデータを1本入れます。</strong></p>
+<pre><code class="language-bash">gh api &quot;repos/owner/name/issues?state=closed&amp;per_page=100&quot; \
+  --jq '[.[] | select(.pull_request|not) | {number,title,body}]' \
+  &gt; test/fixtures/real-issues.json
+</code></pre>
+<p>そのまま回帰テストにしました。</p>
+<pre><code class="language-ts">// 実データの Scope はコードブロックに1行で並んでいた。
+// 作りかけの parser はこれを1つも読めず、全部 scope-empty にしていた
+const real = JSON.parse(readFileSync(`${F}real-issues.json`, &quot;utf8&quot;))
+  .map((i) =&gt; ({ id: `#${i.number}`, title: i.title, body: i.body ?? &quot;&quot; }));
+
+ok(!check(real, { files }).some((f) =&gt; f.rule === &quot;scope-empty&quot;),
+   &quot;コードブロックの Scope を読めている&quot;);
+</code></pre>
+<p><strong>このテストは、私の思い込みの外側にあります。</strong>
+データを作ったのは私ではなく、過去の実際のやりとりだからです。</p>
+<p>パーサ側はこう直しました。</p>
+<pre><code class="language-ts">if (inFence) {
+  // コードブロックの中は、1行にカンマや空白で並べて書かれることが多い。
+  // 実際の Issue がこの形だったので、行のまま扱うと1つも読み取れない
+  for (const tok of line.split(/[,\s]+/)) if (tok) out.push(tok);
+  continue;
+}
+</code></pre>
+<h2 id="同じ日に-同じ形をもう1つ踏みました">同じ日に、同じ形をもう1つ踏みました</h2>
+<p>README にこう書きました。</p>
+<blockquote>
+<p>Requires Node 22.6 or newer</p>
+</blockquote>
+<p>CI が落ちました。</p>
+<pre><code>SyntaxError: Cannot use import statement outside a module
+</code></pre>
+<p><code>&quot;type&quot;: &quot;module&quot;</code> が無いと、Node は <code>.ts</code> を CommonJS として読みます。
+<strong>手元の Node が 25 だったので、動いていました。</strong></p>
+<p>これも同じ構造です。</p>
+<pre><code>README      「22.6 で動く」と主張
+CI          25 で検証
+検証されているもの   25 で動くこと
+検証されていないもの  22.6 で動くこと（= 主張そのもの）
+</code></pre>
+<p><strong>主張と、検証している場所がずれていました。</strong></p>
+<p>直し方は、主張している境界で試すことです。</p>
+<pre><code class="language-yaml">strategy:
+  matrix:
+    node: [&quot;22.18&quot;, &quot;24&quot;]
+</code></pre>
+<p>（22.6 では型注釈の除去に旗が要ることが分かったので、下限は 22.18 に直しました。
+<strong>「動く版はどこからか」を調べ直したのは、CI が落ちたからです。</strong>
+落ちなければ、嘘のまま出していました。）</p>
+<h2 id="一般化">一般化</h2>
+<p><strong>自分で用意したデータは、自分の思い込みまで一緒に再現します。</strong></p>
+<p>危ないのは、こういう場所です。</p>
+<ul>
+<li>外から来る入力を解釈するもの（パーサ、インポータ、Webhook の受け口）</li>
+<li>他人が書いたテキストを扱うもの</li>
+<li><strong>自分で決めた書式</strong>（これが一番危ない。「決めたとおりに書かれている」と信じてしまう）</li>
+</ul>
+<p>規則は1つで足ります。</p>
+<blockquote>
+<p><strong>入力を解釈するものは、自分が書いていない入力で1本テストする。</strong></p>
+</blockquote>
+<p>本番のデータを1件持ってきて、固定して、回帰テストにする。
+それだけで、思い込みの外側に足場が1つできます。</p>
+<p>そして主張については、もう1つ。</p>
+<blockquote>
+<p><strong>主張した境界で検証する。</strong> 「N 以降で動く」なら、N で試す。</p>
+</blockquote>
+<h2 id="まとめ">まとめ</h2>
+<ul>
+<li>fixtures は<strong>実装と同じ思い込みで書かれる</strong>ので、その思い込みは検証できない</li>
+<li>カバレッジを上げても見つからない。<strong>間違った前提の上を通る経路が増えるだけ</strong></li>
+<li><strong>自分が書いていないデータを1本入れる。</strong> 本番から取って固定する</li>
+<li>いちばん危ないのは<strong>自分で決めた書式</strong>。決めたとおりに書かれていると信じてしまう</li>
+<li>README の主張は、<strong>主張した境界で試さない限り検証されていない</strong></li>
+<li>CI が落ちて初めて調べ直した。<strong>落ちなければ嘘のまま出していた</strong></li>
+</ul>
+<hr />
+<!-- related -->
+
+<p><strong>あわせて読む</strong></p>
+<ul>
+<li><a href="https://quintetkit.github.io/articles/verification-that-verifies-nothing.html">「動いた」を検証と見なすと、1コミットでだけ通るコードが出荷される</a></li>
+<li><a href="https://quintetkit.github.io/articles/linter-false-positives.html">linter を作るとき、何を検査しないかで品質が決まる</a></li>
+<li><a href="https://quintetkit.github.io/articles/one-decision-two-places.html">同じ判断を2か所に書くと、片方だけが直る</a></li>
+</ul>
+<hr />
+<!-- product-links -->
+
+<p>Claude Code に設計・実装・レビューを別々の人格として分担させ、GitHub Issue と
+ブランチを軸に並列開発を回すための設定一式を MIT で公開しています。
+コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>このワークフローだけで実際にツールを 1 つ作りました。Issue の分割から PR、
+レビュー、マージまで記録が全部残っています。<strong>うまくいかなかった箇所も消していません。</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>UI 設計人格・レビュー基準・Issue 単位の並列実行スクリプト・実践ガイド 10 章を
+足したものは<a href="https://quintetkit.github.io">製品ページ</a>にあります。</p>
+<p>実践ガイド全10章は Zenn Book で読めます（¥1,500・2章まで無料）。</p>
+<p><a href="https://zenn.dev/quintetkit/books/claude-code-parallel-workflow">https://zenn.dev/quintetkit/books/claude-code-parallel-workflow</a></p>
+<p>設定一式（5人格・スクリプト・ガイド全文）の配布はこちらです。</p>
+<p><a href="https://quartet-dev.booth.pm/items/8807156">https://quartet-dev.booth.pm/items/8807156</a></p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

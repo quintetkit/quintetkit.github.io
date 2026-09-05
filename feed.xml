@@ -42,6 +42,13 @@
     <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>テストが全部通るのに、本物のデータを1件も読めなかった</title>
+    <link>https://quintetkit.github.io/articles/fixtures-encode-your-assumptions.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/fixtures-encode-your-assumptions.html</guid>
+    <description>GitHub の Issue を読んで、対象範囲が重なっている組を報告するツールを作りました。</description>
+    <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>二分法で正しく詰めても答えに届かなかった。失敗の理由が手元に返ってこない系のデバッグ</title>
     <link>https://quintetkit.github.io/articles/failures-that-dont-come-back.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/articles/failures-that-dont-come-back.html</guid>

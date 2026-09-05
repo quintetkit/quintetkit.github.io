@@ -42,6 +42,13 @@
     <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>Every Test Passed and It Could Not Read a Single Real Record</title>
+    <link>https://quintetkit.github.io/en/articles/fixtures-encode-your-assumptions.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/fixtures-encode-your-assumptions.html</guid>
+    <description>I wrote a tool that reads GitHub Issues and reports the ones whose declared file scopes overlap.</description>
+    <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>Bisection Narrowed It Correctly and Still Never Reached the Answer</title>
     <link>https://quintetkit.github.io/en/articles/failures-that-dont-come-back.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/en/articles/failures-that-dont-come-back.html</guid>
