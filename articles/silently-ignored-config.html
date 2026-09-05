@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>設定は書けているのに、何も起きない — .claude/ で黙って無視されるもの | Quartet / Quintet</title>
+<meta name="description" content="hook を書きました。JSON は正しい。キー名も合っている。エラーも出ません。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/silently-ignored-config.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/articles/silently-ignored-config.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/articles/silently-ignored-config.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/articles/silently-ignored-config.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="設定は書けているのに、何も起きない — .claude/ で黙って無視されるもの | Quartet / Quintet">
+<meta property="og:description" content="hook を書きました。JSON は正しい。キー名も合っている。エラーも出ません。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/silently-ignored-config.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="ja_JP">
+<meta property="article:published_time" content="2026-09-05">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-05 &nbsp;·&nbsp; claudecode · 設定 · json · 個人開発 · 運用</p>
+  <h1>設定は書けているのに、何も起きない — .claude/ で黙って無視されるもの</h1>
+<p>hook を書きました。JSON は正しい。キー名も合っている。エラーも出ません。</p>
+<p><strong>何も起きません。</strong></p>
+<p>このとき困るのは、<strong>間違っている箇所が画面に出ない</strong>ことです。
+起動しても警告が出ず、<code>--debug</code> にも出ず、ただ動きません。</p>
+<p><code>.claude/</code> の設定には、<strong>構文として正しく、意味として無効</strong>という状態がいくつかあります。
+公式ドキュメントに「無視される」「動かない」と明記されているものを並べます。</p>
+<h2 id="1-matcher-が黙って無視されるイベントがある">1. <code>matcher</code> が黙って無視されるイベントがある</h2>
+<p>これは公式にそう書いてあります。</p>
+<blockquote>
+<p>If you add a <code>matcher</code> field to an event without matcher support, it is silently ignored.
+— <a href="https://code.claude.com/docs/en/hooks">Hooks</a></p>
+</blockquote>
+<p><strong>silently ignored。</strong> エラーになりません。</p>
+<p>matcher を受け付けないイベントは、ドキュメントの表から拾うとこれだけあります。</p>
+<pre><code>CwdChanged, UserPromptSubmit, PostToolBatch, Stop, TeammateIdle,
+TaskCreated, TaskCompleted, WorktreeCreate, WorktreeRemove, MessageDisplay
+</code></pre>
+<p>つまり、こう書いた場合。</p>
+<pre><code class="language-json">{
+  &quot;hooks&quot;: {
+    &quot;UserPromptSubmit&quot;: [
+      { &quot;matcher&quot;: &quot;Bash&quot;, &quot;hooks&quot;: [{ &quot;type&quot;: &quot;command&quot;, &quot;command&quot;: &quot;./guard.sh&quot; }] }
+    ]
+  }
+}
+</code></pre>
+<p><strong><code>matcher</code> は消えます。</strong> そして <code>guard.sh</code> は<strong>すべてのプロンプト送信で走ります。</strong></p>
+<p>書いた本人は「Bash のときだけ動く」と思っています。
+実際には毎回動いていて、<strong>それに気づく手がかりがありません。</strong></p>
+<p>絞ったつもりが絞れていない、という向きの事故です。
+<strong>動いていないより性質が悪い</strong>場合があります。</p>
+<h2 id="2-if-は-ツール系のイベントでしか評価されない">2. <code>if</code> は、ツール系のイベントでしか評価されない</h2>
+<p><code>if</code> はツール名と引数をまとめて見る絞り込みです。</p>
+<blockquote>
+<p>For tool events, you can filter more narrowly by setting the <code>if</code> field on
+individual hook handlers.</p>
+</blockquote>
+<p><strong>ツール系のイベント</strong>というのが条件です。ここに入るのは次の5つです。</p>
+<pre><code>PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, PermissionDenied
+</code></pre>
+<p>それ以外のイベントで <code>if</code> を書くと、<strong>そのハンドラは決して動きません。</strong></p>
+<pre><code class="language-json">{
+  &quot;hooks&quot;: {
+    &quot;SessionStart&quot;: [
+      { &quot;hooks&quot;: [{ &quot;type&quot;: &quot;command&quot;, &quot;command&quot;: &quot;./init.sh&quot;, &quot;if&quot;: &quot;Bash(git *)&quot; }] }
+    ]
+  }
+}
+</code></pre>
+<p><code>SessionStart</code> にツールはありません。条件が一致しようがないので、<strong>永久に走りません。</strong></p>
+<p>1 と 2 は向きが逆です。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th></th>
+  <th>書いたつもり</th>
+  <th>実際</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong><code>matcher</code> を無視</strong></td>
+  <td>絞られている</td>
+  <td><strong>毎回走る</strong></td>
+</tr>
+<tr>
+  <td><strong><code>if</code> が評価されない</strong></td>
+  <td>条件付きで走る</td>
+  <td><strong>一度も走らない</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>どちらもエラーは出ません。</strong></p>
+<h2 id="3-非推奨のキーは-書けてしまう">3. 非推奨のキーは、書けてしまう</h2>
+<p>古い記事や古い設定から引き継いだキーが、そのまま残っていることがあります。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>書いてあるキー</th>
+  <th>いま有効なもの</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>ignorePatterns</code></td>
+  <td><code>permissions.deny</code></td>
+</tr>
+<tr>
+  <td><code>includeCoAuthoredBy</code></td>
+  <td><code>attribution</code></td>
+</tr>
+<tr>
+  <td><code>disableArtifact</code></td>
+  <td><code>enableArtifact</code>（真偽が反転）</td>
+</tr>
+<tr>
+  <td><code>voiceEnabled</code></td>
+  <td><code>voice.enabled</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>JSON としては正しいので、パースは通ります。</p>
+<p><code>disableArtifact</code> が厄介です。<strong>置き換え先で真偽が反転しています。</strong>
+<code>&quot;disableArtifact&quot;: false</code> を機械的に <code>&quot;enableArtifact&quot;: false</code> へ書き換えると、
+<strong>意味が逆になります。</strong></p>
+<h2 id="4-ハンドラの必須フィールドは-type-ごとに違う">4. ハンドラの必須フィールドは type ごとに違う</h2>
+<pre><code class="language-json">{ &quot;type&quot;: &quot;command&quot; }
+</code></pre>
+<p><code>command</code> がありません。何も起きません。</p>
+<p>type ごとに要るものはこれだけ違います。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>type</th>
+  <th>必須</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>command</code></td>
+  <td><code>command</code></td>
+</tr>
+<tr>
+  <td><code>http</code></td>
+  <td><code>url</code></td>
+</tr>
+<tr>
+  <td><code>mcp_tool</code></td>
+  <td><code>server</code>, <code>tool</code></td>
+</tr>
+<tr>
+  <td><code>prompt</code></td>
+  <td><code>prompt</code></td>
+</tr>
+<tr>
+  <td><code>agent</code></td>
+  <td><code>prompt</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>type を書き換えたときに、前の type のフィールドが残る</strong>のがよくある形です。
+<code>command</code> から <code>http</code> に変えて、<code>command</code> を消し忘れ、<code>url</code> を足し忘れる。</p>
+<h2 id="5-mcp-のツール名は-プラグイン経由だと変わる">5. MCP のツール名は、プラグイン経由だと変わる</h2>
+<p>matcher を書いたのに一度も当たらない、という形です。</p>
+<p>プラグインが同梱する MCP サーバーのツールは、<strong>名前にプラグイン名が入ります。</strong></p>
+<pre><code>mcp__plugin_&lt;プラグイン名&gt;_&lt;サーバー名&gt;__&lt;ツール名&gt;
+</code></pre>
+<p>サーバー名だけで書いた matcher は、<strong>このツールには一生当たりません。</strong></p>
+<pre><code>✗ mcp__db__.*                    プラグイン経由のものに当たらない
+✓ mcp__plugin_my-plugin_db__.*
+</code></pre>
+<h2 id="この種の失敗が厄介な理由">この種の失敗が厄介な理由</h2>
+<p>共通しているのは、<strong>失敗が観測できない</strong>ことです。</p>
+<pre><code>書き間違い    → 起動時にエラー。すぐ直る
+黙って無視    → 何も起きない。**動いていると思い込んだまま運用される**
+</code></pre>
+<p>そして hook は、<strong>動いていないことに気づきにくい種類の仕組み</strong>です。
+「危険なコマンドを止める hook」を書いて、それが無効だった場合、
+<strong>止まらなかった日まで気づきません。</strong></p>
+<h2 id="設定ファイル自身は-これを教えてくれない">設定ファイル自身は、これを教えてくれない</h2>
+<p>対処は外から検査するしかありません。
+<code>.claude/</code> を読んで、<strong>公式が「無視される」と書いているものだけ</strong>を報告する
+小さなツールを作りました。</p>
+<pre><code>$ ccheck
+error .claude/settings.json  matcher on CwdChanged is silently ignored
+      https://code.claude.com/docs/en/hooks
+warn  .claude/settings.json  ignorePatterns is deprecated; use permissions.deny
+      https://code.claude.com/docs/en/settings-reference
+</code></pre>
+<p>作るときに1つだけ制約を置きました。</p>
+<blockquote>
+<p><strong>公式ドキュメントに「エラーになる」「無視される」「スキップされる」と
+明記されているものだけをルールにする。</strong></p>
+</blockquote>
+<p>だから全部の指摘に出典 URL が付いています。
+<strong>出典を書けないルールは書きません。</strong> それは私の好みであって、壊れてはいないからです。</p>
+<p>この制約のせいで検査できないものが大量に残りました。
+モデル名の妥当性、パスパターンの正しさ、未知のキー。
+どれも「検査できたら便利そう」ですが、<strong>根拠が無いまま指摘すると誤検出になります。</strong></p>
+<p>そして検査ツールは、<strong>誤検出を1件出した時点で読まれなくなります。</strong></p>
+<p>MIT で公開しています。</p>
+<p><a href="https://github.com/quintetkit/ccheck">https://github.com/quintetkit/ccheck</a></p>
+<h2 id="まとめ">まとめ</h2>
+<ul>
+<li><code>.claude/</code> には<strong>構文は正しく、意味として無効</strong>な状態がある。<strong>エラーは出ない</strong></li>
+<li><code>matcher</code> を受け付けないイベントがあり、書くと<strong>黙って消えて毎回走る</strong></li>
+<li><code>if</code> はツール系5イベントでしか評価されない。ほかで書くと<strong>一度も走らない</strong></li>
+<li>非推奨キーは書けてしまう。<strong><code>disableArtifact</code> は置き換え先で真偽が反転する</strong></li>
+<li>ハンドラの必須フィールドは type ごとに違う。<strong>type を変えたときに残る</strong></li>
+<li>プラグイン経由の MCP ツールは<strong>名前にプラグイン名が入る</strong>。素の matcher は当たらない</li>
+<li><strong>失敗が観測できない設定は、外から検査するしかない</strong></li>
+<li>検査する側の制約: <strong>出典を書けないルールは書かない</strong></li>
+</ul>
+<hr />
+<!-- related -->
+
+<p><strong>あわせて読む</strong></p>
+<ul>
+<li><a href="https://quintetkit.github.io/articles/what-belongs-in-claude-md.html">CLAUDE.md に何を書くと効いて、何を書いても効かないのか</a></li>
+<li><a href="https://quintetkit.github.io/articles/linter-false-positives.html">linter を作るとき、何を検査しないかで品質が決まる</a></li>
+<li><a href="https://zenn.dev/quintetkit/articles/claude-code-multi-persona-workflow">Claude Code に5人格を分担させて並列開発する</a></li>
+</ul>
+<hr />
+<!-- product-links -->
+
+<p>Claude Code に設計・実装・レビューを別々の人格として分担させ、GitHub Issue と
+ブランチを軸に並列開発を回すための設定一式を MIT で公開しています。
+コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>このワークフローだけで実際にツールを 1 つ作りました。Issue の分割から PR、
+レビュー、マージまで記録が全部残っています。<strong>うまくいかなかった箇所も消していません。</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>UI 設計人格・レビュー基準・Issue 単位の並列実行スクリプト・実践ガイド 10 章を
+足したものは<a href="https://quintetkit.github.io">製品ページ</a>にあります。</p>
+<p>実践ガイド全10章は Zenn Book で読めます（¥1,500・2章まで無料）。</p>
+<p><a href="https://zenn.dev/quintetkit/books/claude-code-parallel-workflow">https://zenn.dev/quintetkit/books/claude-code-parallel-workflow</a></p>
+<p>設定一式（5人格・スクリプト・ガイド全文）の配布はこちらです。</p>
+<p><a href="https://quartet-dev.booth.pm/items/8807156">https://quartet-dev.booth.pm/items/8807156</a></p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

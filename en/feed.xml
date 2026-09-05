@@ -14,6 +14,13 @@
     <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>Your Hook Is Configured Correctly and Never Runs</title>
+    <link>https://quintetkit.github.io/en/articles/silently-ignored-config.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/silently-ignored-config.html</guid>
+    <description>You write a hook. The JSON is valid. The keys are spelled right. No error appears.</description>
+    <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>A Default That Is Safe on Create Is Destructive on Update</title>
     <link>https://quintetkit.github.io/en/articles/safe-default-destructive-update.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/en/articles/safe-default-destructive-update.html</guid>

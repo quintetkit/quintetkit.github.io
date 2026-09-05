@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your Hook Is Configured Correctly and Never Runs | Quartet / Quintet</title>
+<meta name="description" content="You write a hook. The JSON is valid. The keys are spelled right. No error appears.">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/silently-ignored-config.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/articles/silently-ignored-config.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/articles/silently-ignored-config.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/articles/silently-ignored-config.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Your Hook Is Configured Correctly and Never Runs | Quartet / Quintet">
+<meta property="og:description" content="You write a hook. The JSON is valid. The keys are spelled right. No error appears.">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/silently-ignored-config.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-09-05">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-05 &nbsp;·&nbsp; claudecode · ai · configuration · devops</p>
+  <h1>Your Hook Is Configured Correctly and Never Runs</h1>
+<p>You write a hook. The JSON is valid. The keys are spelled right. No error appears.</p>
+<p><strong>Nothing happens.</strong></p>
+<p>The hard part is that nothing points at the mistake. Startup is clean, <code>--debug</code>
+says nothing, and the hook simply does not run.</p>
+<p><code>.claude/</code> has several states that are <strong>syntactically correct and semantically
+inert.</strong> Below are the ones the official documentation explicitly describes as
+ignored or non-functional.</p>
+<h2 id="1-some-events-silently-discard-matcher">1. Some events silently discard <code>matcher</code></h2>
+<p>This one is stated outright:</p>
+<blockquote>
+<p>If you add a <code>matcher</code> field to an event without matcher support, it is silently ignored.
+— <a href="https://code.claude.com/docs/en/hooks">Hooks</a></p>
+</blockquote>
+<p><strong>Silently ignored.</strong> Not an error.</p>
+<p>The events with no matcher support, taken from the documentation's own table:</p>
+<pre><code>CwdChanged, UserPromptSubmit, PostToolBatch, Stop, TeammateIdle,
+TaskCreated, TaskCompleted, WorktreeCreate, WorktreeRemove, MessageDisplay
+</code></pre>
+<p>So this:</p>
+<pre><code class="language-json">{
+  &quot;hooks&quot;: {
+    &quot;UserPromptSubmit&quot;: [
+      { &quot;matcher&quot;: &quot;Bash&quot;, &quot;hooks&quot;: [{ &quot;type&quot;: &quot;command&quot;, &quot;command&quot;: &quot;./guard.sh&quot; }] }
+    ]
+  }
+}
+</code></pre>
+<p><strong>The matcher disappears.</strong> <code>guard.sh</code> runs on <em>every</em> prompt submission.</p>
+<p>The person who wrote it believes it fires only for Bash. It fires every time, and
+<strong>nothing in the system suggests otherwise.</strong></p>
+<p>This is the failure where a filter you thought you applied was never applied. It
+can be worse than the hook not running at all.</p>
+<h2 id="2-if-is-only-evaluated-on-tool-events">2. <code>if</code> is only evaluated on tool events</h2>
+<p><code>if</code> narrows on the tool name and its arguments together.</p>
+<blockquote>
+<p>For tool events, you can filter more narrowly by setting the <code>if</code> field on
+individual hook handlers.</p>
+</blockquote>
+<p><strong>Tool events</strong> is the condition. There are five:</p>
+<pre><code>PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, PermissionDenied
+</code></pre>
+<p>Write <code>if</code> on anything else and <strong>that handler never runs.</strong></p>
+<pre><code class="language-json">{
+  &quot;hooks&quot;: {
+    &quot;SessionStart&quot;: [
+      { &quot;hooks&quot;: [{ &quot;type&quot;: &quot;command&quot;, &quot;command&quot;: &quot;./init.sh&quot;, &quot;if&quot;: &quot;Bash(git *)&quot; }] }
+    ]
+  }
+}
+</code></pre>
+<p><code>SessionStart</code> has no tool. There is nothing for the condition to match, so it
+<strong>never fires.</strong></p>
+<p>The two failures point in opposite directions:</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th></th>
+  <th>what you wrote</th>
+  <th>what happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong><code>matcher</code> ignored</strong></td>
+  <td>narrowed</td>
+  <td><strong>runs every time</strong></td>
+</tr>
+<tr>
+  <td><strong><code>if</code> not evaluated</strong></td>
+  <td>conditional</td>
+  <td><strong>never runs</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Neither produces an error.</strong></p>
+<h2 id="3-deprecated-keys-still-parse">3. Deprecated keys still parse</h2>
+<p>Old settings survive in copied configs and old blog posts.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>key in your file</th>
+  <th>what replaced it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>ignorePatterns</code></td>
+  <td><code>permissions.deny</code></td>
+</tr>
+<tr>
+  <td><code>includeCoAuthoredBy</code></td>
+  <td><code>attribution</code></td>
+</tr>
+<tr>
+  <td><code>disableArtifact</code></td>
+  <td><code>enableArtifact</code> (<strong>the boolean inverts</strong>)</td>
+</tr>
+<tr>
+  <td><code>voiceEnabled</code></td>
+  <td><code>voice.enabled</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>disableArtifact</code> is the trap. <strong>The replacement inverts the sense.</strong> Rewriting
+<code>&quot;disableArtifact&quot;: false</code> to <code>&quot;enableArtifact&quot;: false</code> mechanically <strong>flips the
+meaning.</strong></p>
+<h2 id="4-required-handler-fields-depend-on-the-type">4. Required handler fields depend on the type</h2>
+<pre><code class="language-json">{ &quot;type&quot;: &quot;command&quot; }
+</code></pre>
+<p>No <code>command</code>. Nothing happens.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>type</th>
+  <th>required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>command</code></td>
+  <td><code>command</code></td>
+</tr>
+<tr>
+  <td><code>http</code></td>
+  <td><code>url</code></td>
+</tr>
+<tr>
+  <td><code>mcp_tool</code></td>
+  <td><code>server</code>, <code>tool</code></td>
+</tr>
+<tr>
+  <td><code>prompt</code></td>
+  <td><code>prompt</code></td>
+</tr>
+<tr>
+  <td><code>agent</code></td>
+  <td><code>prompt</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>The common shape is <strong>changing the type and leaving the old field behind</strong> —
+switching <code>command</code> to <code>http</code>, forgetting to delete <code>command</code>, forgetting to add
+<code>url</code>.</p>
+<h2 id="5-plugin-provided-mcp-tools-have-different-names">5. Plugin-provided MCP tools have different names</h2>
+<p>Here the matcher is written and simply never matches.</p>
+<p>Tools from an MCP server bundled by a plugin carry <strong>the plugin name in the tool
+name</strong>:</p>
+<pre><code>mcp__plugin_&lt;plugin-name&gt;_&lt;server-name&gt;__&lt;tool&gt;
+</code></pre>
+<p>A matcher written against the bare server key <strong>will never fire for them.</strong></p>
+<pre><code>✗ mcp__db__.*                    misses everything from the plugin
+✓ mcp__plugin_my-plugin_db__.*
+</code></pre>
+<h2 id="why-this-class-is-the-bad-one">Why this class is the bad one</h2>
+<p>They share one property: <strong>the failure is not observable.</strong></p>
+<pre><code>typo         -&gt; error at startup, fixed in a minute
+silently ignored -&gt; nothing happens, and it is operated for months
+                    by someone who believes it works
+</code></pre>
+<p>Hooks are especially bad for this. If you write a hook to block dangerous
+commands and it is inert, <strong>you find out on the day it fails to block one.</strong></p>
+<h2 id="the-config-file-cannot-tell-you-this">The config file cannot tell you this</h2>
+<p>The only way is to check it from outside. I wrote a small tool that reads
+<code>.claude/</code> and reports <strong>only what the documentation explicitly calls ignored or
+broken</strong>:</p>
+<pre><code>$ ccheck
+error .claude/settings.json  matcher on CwdChanged is silently ignored
+      https://code.claude.com/docs/en/hooks
+warn  .claude/settings.json  ignorePatterns is deprecated; use permissions.deny
+      https://code.claude.com/docs/en/settings-reference
+</code></pre>
+<p>I gave it one constraint:</p>
+<blockquote>
+<p><strong>A rule may exist only if the official documentation says the thing errors, is
+skipped, or is ignored.</strong></p>
+</blockquote>
+<p>That is why every finding carries a source URL. <strong>A rule I cannot cite does not get
+written</strong>, because at that point it is my taste, not a defect.</p>
+<p>The constraint left a lot unchecked: model name validity, path pattern
+correctness, unknown keys. All of them look useful. All of them would be guesses,
+<strong>and a checker that guesses produces false positives.</strong></p>
+<p>A checker stops being read after the first false positive.</p>
+<p>MIT:</p>
+<p><a href="https://github.com/quintetkit/ccheck">https://github.com/quintetkit/ccheck</a></p>
+<h2 id="takeaways">Takeaways</h2>
+<ul>
+<li><code>.claude/</code> has states that are <strong>valid syntax and inert semantics</strong>, with no error</li>
+<li>Some events <strong>silently drop <code>matcher</code></strong> — the hook then runs every time</li>
+<li><code>if</code> is evaluated on five tool events only; elsewhere the handler <strong>never runs</strong></li>
+<li>Deprecated keys still parse. <strong><code>disableArtifact</code> inverts when replaced</strong></li>
+<li>Required handler fields vary by type, and <strong>the old field survives a type change</strong></li>
+<li>Plugin-provided MCP tools <strong>carry the plugin name</strong>; a bare matcher misses them</li>
+<li><strong>Configuration that fails silently has to be checked from outside</strong></li>
+<li>The rule for the checker: <strong>if you cannot cite it, do not report it</strong></li>
+</ul>
+<hr />
+<!-- related -->
+
+<p><strong>Related</strong></p>
+<ul>
+<li><a href="https://dev.to/quintetkit/what-works-and-what-doesnt-in-claudemd-d22">What Works and What Doesn't in CLAUDE.md</a></li>
+<li><a href="https://dev.to/quintetkit/what-you-refuse-to-check-decides-the-quality-of-a-linter-5dbb">What You Refuse to Check Decides the Quality of a Linter</a></li>
+<li><a href="https://dev.to/quintetkit/assigning-5-personas-to-claude-code-for-parallel-development-5abn">Assigning 5 Personas to Claude Code for Parallel Development</a></li>
+</ul>
+<hr />
+<!-- product-links -->
+
+<p>I publish the configuration for splitting Claude Code into separate personas —
+Architect, Coder, Reviewer, Conflict Resolver — under MIT. Copy it, run
+<code>./setup.sh</code>, and it works. It does not depend on your tech stack.</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>I built one real tool using nothing but this workflow. Every Issue, PR, review
+and merge is still there. <strong>The parts that went wrong were not deleted.</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>The version that adds a UI Designer persona, review criteria, a per-Issue
+parallel execution script and a 10-chapter guide is on the
+<a href="https://quintetkit.github.io/index.en.html">product page</a>.</p>
+<p>The full kit — five personas, the scripts and the complete guide in English and Japanese — is on BOOTH, a Japanese store with an English interface that takes international cards.</p>
+<p><a href="https://quartet-dev.booth.pm/items/8807156">https://quartet-dev.booth.pm/items/8807156</a></p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

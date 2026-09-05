@@ -14,6 +14,13 @@
     <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>設定は書けているのに、何も起きない — .claude/ で黙って無視されるもの</title>
+    <link>https://quintetkit.github.io/articles/silently-ignored-config.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/silently-ignored-config.html</guid>
+    <description>hook を書きました。JSON は正しい。キー名も合っている。エラーも出ません。</description>
+    <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>作成時に安全だった既定値が、更新時には破壊的になる</title>
     <link>https://quintetkit.github.io/articles/safe-default-destructive-update.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/articles/safe-default-destructive-update.html</guid>
