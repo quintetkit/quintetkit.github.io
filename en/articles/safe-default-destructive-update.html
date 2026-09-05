@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A Default That Is Safe on Create Is Destructive on Update | Quartet / Quintet</title>
+<meta name="description" content="I wanted to add links to nine already-published articles. Just a bulk update through my own publishing tool.">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/safe-default-destructive-update.html">
+<link rel="alternate" type="application/rss+xml" title="A Default That Is Safe on Create Is Destructive on Update | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="A Default That Is Safe on Create Is Destructive on Update | Quartet / Quintet">
+<meta property="og:description" content="I wanted to add links to nine already-published articles. Just a bulk update through my own publishing tool.">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/safe-default-destructive-update.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-05 &nbsp;·&nbsp; typescript · api · softwaredevelopment · cli</p>
+  <h1>A Default That Is Safe on Create Is Destructive on Update</h1>
+<p>I wanted to add links to nine already-published articles. Just a bulk update through
+my own publishing tool.</p>
+<p><strong>The tool tried to unpublish them.</strong></p>
+<h2 id="the-safe-direction-of-a-default-flips-with-the-operation">The safe direction of a default flips with the operation</h2>
+<p>The tool was built like this:</p>
+<pre><code class="language-ts">const publish = rest.includes(&quot;--publish&quot;);
+
+const article = {
+  title: fm.title,
+  body_markdown: body.trim(),
+  published: publish,   // decided by an explicit flag, not by frontmatter
+  tags: fm.tags ?? [],
+};
+</code></pre>
+<p><code>published</code> does not come from the article's frontmatter. It comes from <code>--publish</code> on
+the command line. Without the flag, you get a draft.</p>
+<p>The reason was right there in a comment:</p>
+<blockquote>
+<p>Draft by default. Publish only when <code>--publish</code> is explicit,
+because <strong>failing to publish is safer than publishing by accident.</strong></p>
+</blockquote>
+<p><strong>For creation, that is correct.</strong> Shipping a half-written draft to the world costs more
+than forgetting to ship a finished one.</p>
+<p><strong>For updates, the same default points the other way.</strong></p>
+<p>Forget <code>--publish</code> while updating an existing article and you send <code>published: false</code>.
+<strong>A live article drops back to draft.</strong> The URL stays; it just 404s.</p>
+<ul>
+<li>Forgot to publish → notice later, publish then</li>
+<li><strong>Un-published by accident → every inbound link and every bit of search equity dies</strong></li>
+</ul>
+<p>The same phrase, &quot;err on the safe side&quot;, named opposite directions depending on the verb.</p>
+<h2 id="the-fix-was-not-quot-infer-it-more-cleverly-quot">The fix was not &quot;infer it more cleverly&quot;</h2>
+<p>My first instinct was to preserve the existing state on update: if <code>--publish</code> is absent,
+keep whatever the article currently is.</p>
+<p>I dropped it. <strong>You cannot distinguish &quot;I meant to unpublish this&quot; from &quot;I forgot the
+flag.&quot;</strong> Inferring past something you cannot distinguish means that one day someone
+genuinely wants to unpublish and is silently ignored.</p>
+<p>So it refuses:</p>
+<pre><code class="language-ts">// published comes from the explicit flag, so an update without --publish drags a
+// live article back to draft. Accidental unpublishing is far more common than
+// deliberate, so refuse. The URL survives but 404s, and the backlinks die with it.
+if (existing?.published &amp;&amp; !publish) {
+  throw new Error(
+    `&quot;${fm.title}&quot; is already published. Updating without --publish reverts it to a draft.\n` +
+    &quot;  Pass --publish to update it.&quot;,
+  );
+}
+</code></pre>
+<p>I ran it without the flag and confirmed it exits 1.</p>
+<p><strong>If you want to unpublish, that should be its own operation.</strong> Never something that
+happens as a side effect of updating.</p>
+<h2 id="and-then-identity-was-keyed-on-a-value-that-changes">And then: identity was keyed on a value that changes</h2>
+<p>The same tool had a second hole — how it found the existing article.</p>
+<pre><code class="language-ts">// update if an article with the same title exists, otherwise create
+const mine = await call(&quot;/articles/me/all?per_page=100&quot;);
+const existing = mine.find((a: any) =&gt; a.title === fm.title);
+</code></pre>
+<p><strong>It matched on the title.</strong></p>
+<p>The same day, I fixed a bug in the frontmatter parser. It stripped the outer quotes from
+<code>title: &quot;Treating \&quot;It Worked\&quot; as ...&quot;</code> without unescaping what was inside, so
+<strong>an article had shipped with backslashes in its name.</strong></p>
+<pre><code class="language-ts">// before
+if (value.startsWith('&quot;') &amp;&amp; value.endsWith('&quot;')) value = value.slice(1, -1);
+
+// after
+if (value.startsWith('&quot;') &amp;&amp; value.endsWith('&quot;')) {
+  value = value.slice(1, -1).replace(/\\([&quot;\\])/g, &quot;$1&quot;);
+}
+</code></pre>
+<p>The moment that landed, <code>fm.title</code> produced a different string. And <strong>the published
+article still carried the old one.</strong></p>
+<p>So <code>find</code> misses. It concludes there is no existing article. It falls through to create.</p>
+<p>Had I pushed without noticing, <strong>a second copy of the same article would have gone live.</strong></p>
+<h3 id="fixing-one-bug-is-what-exposed-the-other">Fixing one bug is what exposed the other</h3>
+<p>This is not &quot;I hit two bugs.&quot; It is <strong>one bug whose fix activated the other.</strong></p>
+<p>Identity was keyed on a derived value <strong>that the tool itself computes.</strong> Change how it
+is computed and the value changes. Change the value and identity breaks.</p>
+<p>The same shape shows up everywhere:</p>
+<ul>
+<li>Keying on a normalised name → fixing the normalisation rules orphans your existing rows</li>
+<li>Keying on a hash of the body → reformatting makes it a different object</li>
+<li>Keying on a display string → correcting a typo in it is an identity change</li>
+</ul>
+<p><strong>Never key identity on a value you might fix.</strong></p>
+<h2 id="the-fix-record-the-id-the-other-side-assigned">The fix: record the id the other side assigned</h2>
+<p><code>id</code> is assigned by the API. Nothing I do changes it. So the tool now records the id of
+every article it creates.</p>
+<pre><code class="language-json">{
+  &quot;_comment&quot;: &quot;filename -&gt; article id. Titles change; identity must not.&quot;,
+  &quot;ids&quot;: {
+    &quot;composite-github-action&quot;: 4576296,
+    &quot;linter-false-positives&quot;: 4577641
+  }
+}
+</code></pre>
+<pre><code class="language-ts">const knownId = store.ids[slug];
+let existing = knownId ? mine.find((a) =&gt; a.id === knownId) : undefined;
+
+if (knownId &amp;&amp; !existing) {
+  throw new Error(
+    `id=${knownId} (${slug}) is not on the server.\n` +
+    &quot;  Either the article was deleted, or this is a different account's key.\n&quot; +
+    &quot;  Continuing would create a duplicate, so stopping here.&quot;,
+  );
+}
+</code></pre>
+<p><strong>If there is a recorded id and it is missing, stop.</strong> Silently falling through to create
+is the single worst behaviour available.</p>
+<h3 id="verifying-it">Verifying it</h3>
+<p>I deliberately changed a title and pushed:</p>
+<pre><code>title: &quot;... (Without npm Publishing) (id lookup test)&quot;
+
+-&gt; PUT /articles/4576296
+</code></pre>
+<p><strong><code>PUT /articles/4576296</code>, not <code>POST /articles</code>.</strong> The title no longer matches and it
+still resolves to the same article. The article count did not change.</p>
+<h2 id="why-it-was-keyed-on-the-title-in-the-first-place">Why it was keyed on the title in the first place</h2>
+<p>Because I did not want a state file. I wanted the articles to be nothing but Markdown.</p>
+<p>I understand the impulse, and the price of it was <strong>inferring identity on every run.</strong>
+That works right up until the material the inference is built on changes.</p>
+<p><strong>Designs that hold no state tend to become designs that infer state instead.</strong> What you
+are inferring in place of storing is worth knowing explicitly.</p>
+<h2 id="summary">Summary</h2>
+<ul>
+<li><strong>A default's safe direction flips with the operation.</strong> &quot;Don't publish&quot; is the safe
+side on create and means &quot;unpublish&quot; on update</li>
+<li>Do not infer past an intent you cannot distinguish. <strong>Refuse, and make it explicit</strong></li>
+<li>Destructive operations get their own verb. <strong>Never as a side effect of another one</strong></li>
+<li><strong>Do not key identity on a value you computed</strong> — fixing the computation breaks identity</li>
+<li>Record the id the other side assigned, and <strong>stop when a recorded id goes missing</strong></li>
+<li>Stateless designs tend to become inference-based designs. Know what you are inferring</li>
+</ul>
+<hr />
+<!-- related -->
+
+<p><strong>Related</strong></p>
+<ul>
+<li><a href="https://quintetkit.github.io/en/articles/failures-that-dont-come-back.html">Bisection Narrowed It Correctly and Still Never Reached the Answer</a></li>
+<li><a href="https://dev.to/quintetkit/treating-it-worked-as-verification-ships-code-that-only-works-with-one-commit-2bk3">Treating &quot;It Worked&quot; as Verification Ships Code That Only Works With One Commit</a></li>
+<li><a href="https://dev.to/quintetkit/what-you-refuse-to-check-decides-the-quality-of-a-linter-5dbb">What You Refuse to Check Decides the Quality of a Linter</a></li>
+</ul>
+<hr />
+<!-- product-links -->
+
+<p>I publish the configuration for splitting Claude Code into separate personas —
+Architect, Coder, Reviewer, Conflict Resolver — under MIT. Copy it, run
+<code>./setup.sh</code>, and it works. It does not depend on your tech stack.</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>I built one real tool using nothing but this workflow. Every Issue, PR, review
+and merge is still there. <strong>The parts that went wrong were not deleted.</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>The version that adds a UI Designer persona, review criteria, a per-Issue
+parallel execution script and a 10-chapter guide is on the
+<a href="https://quintetkit.github.io/index.en.html">product page</a>.</p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

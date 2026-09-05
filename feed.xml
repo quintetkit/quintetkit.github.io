@@ -14,6 +14,13 @@
     <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>作成時に安全だった既定値が、更新時には破壊的になる</title>
+    <link>https://quintetkit.github.io/articles/safe-default-destructive-update.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/safe-default-destructive-update.html</guid>
+    <description>公開済みの記事9本に、後からリンクを足したくなりました。 自作の投稿ツールで一括更新するだけの作業です。</description>
+    <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>linter を作るとき、何を検査しないかで品質が決まる</title>
     <link>https://quintetkit.github.io/articles/linter-false-positives.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/articles/linter-false-positives.html</guid>

@@ -14,6 +14,13 @@
     <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>A Default That Is Safe on Create Is Destructive on Update</title>
+    <link>https://quintetkit.github.io/en/articles/safe-default-destructive-update.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/safe-default-destructive-update.html</guid>
+    <description>I wanted to add links to nine already-published articles. Just a bulk update through my own publishing tool.</description>
+    <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>What You Refuse to Check Decides the Quality of a Linter</title>
     <link>https://quintetkit.github.io/en/articles/linter-false-positives.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/en/articles/linter-false-positives.html</guid>

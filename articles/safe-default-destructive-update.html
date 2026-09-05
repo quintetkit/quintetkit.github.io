@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>作成時に安全だった既定値が、更新時には破壊的になる | Quartet / Quintet</title>
+<meta name="description" content="公開済みの記事9本に、後からリンクを足したくなりました。 自作の投稿ツールで一括更新するだけの作業です。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/safe-default-destructive-update.html">
+<link rel="alternate" type="application/rss+xml" title="作成時に安全だった既定値が、更新時には破壊的になる | Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="作成時に安全だった既定値が、更新時には破壊的になる | Quartet / Quintet">
+<meta property="og:description" content="公開済みの記事9本に、後からリンクを足したくなりました。 自作の投稿ツールで一括更新するだけの作業です。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/safe-default-destructive-update.html">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-05 &nbsp;·&nbsp; typescript · api · 設計 · 個人開発 · cli</p>
+  <h1>作成時に安全だった既定値が、更新時には破壊的になる</h1>
+<p>公開済みの記事9本に、後からリンクを足したくなりました。
+自作の投稿ツールで一括更新するだけの作業です。</p>
+<p><strong>そのツールは、更新すると記事を非公開にしようとしました。</strong></p>
+<h2 id="既定値の向きは-操作によって反転する">既定値の向きは、操作によって反転する</h2>
+<p>ツールはこういう設計でした。</p>
+<pre><code class="language-ts">const publish = rest.includes(&quot;--publish&quot;);
+
+const article = {
+  title: fm.title,
+  body_markdown: body.trim(),
+  published: publish,   // frontmatter ではなく明示フラグで決める
+  tags: fm.tags ?? [],
+};
+</code></pre>
+<p><code>published</code> を記事の frontmatter から読まず、<strong>コマンドラインの <code>--publish</code> で決める</strong>。
+付けなければ下書きです。</p>
+<p>理由はコメントに書いてありました。</p>
+<blockquote>
+<p>既定は下書き。<code>--publish</code> を明示したときだけ公開する。
+<strong>事故で公開されるより、公開し忘れるほうが安全</strong>なため。</p>
+</blockquote>
+<p><strong>新規作成では、これは正しい判断です。</strong> 書きかけを誤って世に出すより、
+出し忘れて後から出すほうが安い。</p>
+<p><strong>更新では、同じ既定値が逆を向きます。</strong></p>
+<p><code>--publish</code> を忘れて既存記事を更新すると、<code>published: false</code> が送られ、
+<strong>公開中の記事が下書きに落ちます。</strong> URL は残ったまま 404 になります。</p>
+<ul>
+<li>公開し忘れ → 気づいたら公開すればいい</li>
+<li><strong>公開の取り下げ → 集めた被リンクと検索の評価が死ぬ</strong></li>
+</ul>
+<p>同じ「安全側」という言葉が、操作が変わると反対側を指していました。</p>
+<h2 id="直し方は-賢く推測する-ではなかった">直し方は「賢く推測する」ではなかった</h2>
+<p>最初に考えたのは、更新のときだけ既存の公開状態を引き継ぐことでした。
+<code>--publish</code> が無ければ、いまの状態を維持する。</p>
+<p>やめました。<strong>「意図した取り下げ」と「フラグの付け忘れ」を区別できない</strong>からです。
+区別できないものを推測すると、今度は本当に取り下げたいときに黙って無視されます。</p>
+<p>拒否することにしました。</p>
+<pre><code class="language-ts">// published は明示フラグで決めるので、--publish 無しの更新は
+// 公開済みの記事を下書きへ引きずり下ろす。取り下げは事故のほうが多いので拒否する。
+// 誤って下書きに戻すと URL は残るが 404 になり、集めた被リンクが死ぬ。
+if (existing?.published &amp;&amp; !publish) {
+  throw new Error(
+    `&quot;${fm.title}&quot; は公開済みです。--publish 無しで更新すると下書きに戻ります。\n` +
+    &quot;  更新するなら --publish を付けてください。&quot;,
+  );
+}
+</code></pre>
+<p>実際に付けずに叩いて、終了コード 1 で止まることを確認しました。</p>
+<p><strong>取り下げたいなら、取り下げ用の操作を作るべきです。</strong>
+「更新のついでに起きる」形にしてはいけません。</p>
+<h2 id="もう1つ-同一性を-変わりうる値に置いていた">もう1つ。同一性を、変わりうる値に置いていた</h2>
+<p>同じツールに、別の穴がありました。既存記事の探し方です。</p>
+<pre><code class="language-ts">// 同じタイトルが既にあれば更新、無ければ新規作成
+const mine = await call(&quot;/articles/me/all?per_page=100&quot;);
+const existing = mine.find((a: any) =&gt; a.title === fm.title);
+</code></pre>
+<p><strong>タイトルで探していました。</strong></p>
+<p>同じ日に、frontmatter のパーサのバグを直しました。
+<code>title: &quot;Treating \&quot;It Worked\&quot; as ...&quot;</code> の外側の引用符だけ外して、
+中のエスケープを戻していなかったので、<strong>記事名にバックスラッシュが出たまま公開していた</strong>
+というものです。</p>
+<pre><code class="language-ts">// 直す前
+if (value.startsWith('&quot;') &amp;&amp; value.endsWith('&quot;')) value = value.slice(1, -1);
+
+// 直した後
+if (value.startsWith('&quot;') &amp;&amp; value.endsWith('&quot;')) {
+  value = value.slice(1, -1).replace(/\\([&quot;\\])/g, &quot;$1&quot;);
+}
+</code></pre>
+<p>直した瞬間、<code>fm.title</code> の値が変わります。
+そして<strong>既存記事のタイトルは、公開したときの古い値のまま</strong>です。</p>
+<p>つまり、<code>find</code> は一致しません。<strong>「既存なし」と判定され、新規作成に落ちます。</strong></p>
+<p>もし気づかずに push していたら、<strong>内容の同じ記事がもう1本、公開状態で作られていました。</strong></p>
+<h3 id="バグを直すと壊れる-という構造">バグを直すと壊れる、という構造</h3>
+<p>これは「バグを2つ踏んだ」話ではありません。<strong>1つを直したら、もう1つが顕在化した</strong>話です。</p>
+<p>同一性の判定を、<strong>そのツール自身が計算している派生値</strong>に置いていました。
+計算方法を直せば、値が変わります。値が変われば、同一性が壊れます。</p>
+<p>同じ形は他にもあります。</p>
+<ul>
+<li>正規化した名前をキーにする → 正規化の規則を直すと、過去のデータと一致しなくなる</li>
+<li>本文のハッシュをキーにする → 整形の仕方を変えるだけで別物になる</li>
+<li>表示用の文字列をキーにする → 表記ゆれの修正が同一性の破壊になる</li>
+</ul>
+<p><strong>「直すと変わりうる値」を同一性に使ってはいけません。</strong></p>
+<h2 id="対処-相手が決めた-id-を記録する">対処: 相手が決めた id を記録する</h2>
+<p><code>id</code> は API 側が採番する値で、こちらの都合では変わりません。
+一度作った記事の id を記録して持つことにしました。</p>
+<pre><code class="language-json">{
+  &quot;_comment&quot;: &quot;ファイル名 -&gt; 記事 id。タイトルは変わりうるので、同一性は id で持つ&quot;,
+  &quot;ids&quot;: {
+    &quot;composite-github-action&quot;: 4576296,
+    &quot;linter-false-positives&quot;: 4577641
+  }
+}
+</code></pre>
+<pre><code class="language-ts">const knownId = store.ids[slug];
+let existing = knownId ? mine.find((a) =&gt; a.id === knownId) : undefined;
+
+if (knownId &amp;&amp; !existing) {
+  throw new Error(
+    `id=${knownId} (${slug}) が見つかりません。\n` +
+    &quot;  記事が削除されたか、別アカウントの鍵を使っています。\n&quot; +
+    &quot;  そのまま進めると重複記事を作るので止めます。&quot;,
+  );
+}
+</code></pre>
+<p><strong>記録があるのに見つからないときは、止めます。</strong>
+黙って新規作成に落ちるのが、いちばん困る挙動だからです。</p>
+<h3 id="検証">検証</h3>
+<p>タイトルをわざと変えて push しました。</p>
+<pre><code>title: &quot;... (Without npm Publishing) (id lookup test)&quot;
+
+-&gt; PUT /articles/4576296
+</code></pre>
+<p><strong><code>POST /articles</code> ではなく <code>PUT /articles/4576296</code> が飛んでいます。</strong>
+タイトルが違っても、id で同じ記事だと判定できています。記事の総数も増えていません。</p>
+<h2 id="なぜ最初からタイトルだったのか">なぜ最初からタイトルだったのか</h2>
+<p>ローカルに状態ファイルを置きたくなかったからです。
+記事は Markdown ファイルだけで完結していてほしかった。</p>
+<p>その気持ちは分かりますが、代償は**「同一性を毎回推測する」**ことでした。
+推測できるうちは動きます。推測の材料が変わった日に壊れます。</p>
+<p><strong>状態を持たない設計は、状態を推測する設計とセットになりがちです。</strong>
+持たない代わりに何を推測しているのかは、意識しておく必要がありました。</p>
+<h2 id="まとめ">まとめ</h2>
+<ul>
+<li><strong>安全な既定値の向きは、操作によって反転する。</strong>
+作成では「公開しない」が安全側で、更新では同じ既定値が「取り下げ」になる</li>
+<li>区別できない意図を推測しない。<strong>拒否して、明示させる</strong></li>
+<li>破壊的な操作は、別の操作として分ける。<strong>「ついでに起きる」形にしない</strong></li>
+<li><strong>同一性を、自分が計算した派生値に置かない。</strong>
+計算を直した瞬間に、同一性が壊れる</li>
+<li>相手が採番した id を記録する。<strong>記録があるのに見つからないときは止める</strong></li>
+<li>状態を持たない設計は、<strong>状態を推測する設計</strong>になりやすい。何を推測しているかは把握しておく</li>
+</ul>
+<hr />
+<!-- related -->
+
+<p><strong>あわせて読む</strong></p>
+<ul>
+<li><a href="https://quintetkit.github.io/articles/failures-that-dont-come-back.html">二分法で正しく詰めても答えに届かなかった。失敗の理由が手元に返ってこない系のデバッグ</a></li>
+<li><a href="https://quintetkit.github.io/articles/verification-that-verifies-nothing.html">「動いた」を検証と見なすと、1コミットでだけ通るコードが出荷される</a></li>
+<li><a href="https://quintetkit.github.io/articles/linter-false-positives.html">linter を作るとき、何を検査しないかで品質が決まる</a></li>
+</ul>
+<hr />
+<!-- product-links -->
+
+<p>Claude Code に設計・実装・レビューを別々の人格として分担させ、GitHub Issue と
+ブランチを軸に並列開発を回すための設定一式を MIT で公開しています。
+コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>このワークフローだけで実際にツールを 1 つ作りました。Issue の分割から PR、
+レビュー、マージまで記録が全部残っています。<strong>うまくいかなかった箇所も消していません。</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>UI 設計人格・レビュー基準・Issue 単位の並列実行スクリプト・実践ガイド 10 章を
+足したものは<a href="https://quintetkit.github.io">製品ページ</a>にあります。</p>
+<p>実践ガイド全10章は Zenn Book で読めます（¥1,500・2章まで無料）。</p>
+<p><a href="https://zenn.dev/quintetkit/books/claude-code-parallel-workflow">https://zenn.dev/quintetkit/books/claude-code-parallel-workflow</a></p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>
