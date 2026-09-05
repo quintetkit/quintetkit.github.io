@@ -28,6 +28,13 @@
     <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>テンプレートを通らない1枚が、改善から取り残される</title>
+    <link>https://quintetkit.github.io/articles/handwritten-page-stops-improving.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/handwritten-page-stops-improving.html</guid>
+    <description>静的サイトジェネレータを自作して、記事28ページに canonical と hreflang を入れました。 日本語と英語で14本ずつあり、それまでは検索側から「翻訳」ではなく「別々の記事」に見えていたからです。</description>
+    <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>二分法で正しく詰めても答えに届かなかった。失敗の理由が手元に返ってこない系のデバッグ</title>
     <link>https://quintetkit.github.io/articles/failures-that-dont-come-back.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/articles/failures-that-dont-come-back.html</guid>

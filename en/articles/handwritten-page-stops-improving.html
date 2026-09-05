@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Page You Wrote by Hand Is the One That Stops Improving | Quartet / Quintet</title>
+<meta name="description" content="I wrote a static site generator and added canonical and hreflang to 28 article pages. Fourteen in Japanese, fourteen in English. Until then, search e…">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/handwritten-page-stops-improving.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/articles/handwritten-page-stops-improving.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/articles/handwritten-page-stops-improving.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/articles/handwritten-page-stops-improving.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="The Page You Wrote by Hand Is the One That Stops Improving | Quartet / Quintet">
+<meta property="og:description" content="I wrote a static site generator and added canonical and hreflang to 28 article pages. Fourteen in Japanese, fourteen in English. Until then, search e…">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/handwritten-page-stops-improving.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-09-05">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-05 &nbsp;·&nbsp; html · seo · webdev · programming</p>
+  <h1>The Page You Wrote by Hand Is the One That Stops Improving</h1>
+<p>I wrote a static site generator and added <code>canonical</code> and <code>hreflang</code> to 28 article
+pages. Fourteen in Japanese, fourteen in English. Until then, search engines had no
+way to know they were translations of each other rather than 28 unrelated pages.</p>
+<p>The build passed on the first run. All 28 pages had it.</p>
+<p><strong>Two pages did not.</strong></p>
+<h2 id="the-pages-that-were-missing-it-were-the-most-linked-pages-on-the-site">The pages that were missing it were the most linked pages on the site</h2>
+<p>The landing page, and its English version.</p>
+<pre><code>site/index.html          &lt;- product page (Japanese)
+site/index.en.html       &lt;- product page (English)
+site/articles/*.html     &lt;- 14 articles
+site/en/articles/*.html  &lt;- 14 articles
+</code></pre>
+<p>The articles go through a shared <code>page_shell()</code> function. <strong>The two landing pages are
+hand-written HTML.</strong> They predate the generator, and their layout is a one-off, so
+there was never a reason to put them on the template.</p>
+<p>So when I added the annotations to <code>page_shell()</code>, nothing happened to those two files.</p>
+<p>And it was not only the new annotations.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th></th>
+  <th>28 articles</th>
+  <th>2 landing pages</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>rel=&quot;canonical&quot;</code></td>
+  <td>yes</td>
+  <td><strong>no</strong></td>
+</tr>
+<tr>
+  <td><code>hreflang</code></td>
+  <td>yes</td>
+  <td><strong>no</strong></td>
+</tr>
+<tr>
+  <td><code>og:title</code> / <code>og:description</code></td>
+  <td>yes</td>
+  <td><strong>no</strong></td>
+</tr>
+<tr>
+  <td><code>og:url</code> / <code>og:type</code></td>
+  <td>yes</td>
+  <td><strong>no</strong></td>
+</tr>
+<tr>
+  <td><code>og:image</code></td>
+  <td>yes</td>
+  <td>yes</td>
+</tr>
+<tr>
+  <td><code>twitter:card</code></td>
+  <td>yes</td>
+  <td>yes</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>og:image</code> and <code>twitter:card</code> are there, because I put them in by hand the day I wrote
+the page. Everything added to the template since then is missing.</p>
+<p>The practical effect: <strong>a shared link rendered an image with a guessed title.</strong> With no
+<code>og:title</code>, a crawler falls back to <code>&lt;title&gt;</code> or whatever heading it finds convincing.</p>
+<p>And these two pages are where the READMEs of three repositories and the footers of 24
+articles send people. The most linked pages on the site had the least markup on them.</p>
+<h2 id="the-exception-you-wrote-by-hand-does-not-receive-later-improvements">The exception you wrote by hand does not receive later improvements</h2>
+<p>Stated generally:</p>
+<p><strong>Improvements go into the template. Things that do not go through the template do not
+get them.</strong></p>
+<p>On the day you write it, the hand-written page is usually the better one. You spent
+time on it, and you built it for that page specifically. <strong>That part is not the mistake.</strong></p>
+<p>The mistake is what happens afterward.</p>
+<pre><code>Feb   write the landing page by hand   ... it is the best page on the site
+May   add OGP to the template          ... only the articles improve
+Jul   add structured data              ... only the articles improve
+Sep   add hreflang                     ... only the articles improve
+</code></pre>
+<p><strong>The hand-written page stays at the quality it had the day you wrote it.</strong> Everything
+around it keeps rising, so in relative terms it falls.</p>
+<p>The same shape shows up all over a codebase:</p>
+<ul>
+<li>the one <code>try/catch</code> that does not go through the shared error handler</li>
+<li>the one <code>fetch</code> that does not go through the shared HTTP client</li>
+<li>the one <code>console.log</code> that does not go through the logger</li>
+<li>the script you run by hand that CI never touches</li>
+</ul>
+<p>Every one of those was a reasonable call when it was made. Every one of them stops
+receiving what lands afterward.</p>
+<h2 id="checking-the-output-beats-normalizing-the-input">Checking the output beats normalizing the input</h2>
+<p>There are two ways out.</p>
+<p><strong>A. Remove the exception and put everything on the template.</strong></p>
+<p>The right direction, but not always available. My landing page has a one-off layout,
+and forcing it through the article template breaks it. Generalizing the template enough
+to hold it would <strong>make the generation of the other 28 pages more complicated.</strong> Adding
+complexity to 28 pages for the sake of 2 is not a trade I want.</p>
+<p><strong>B. Check the output, whatever produced it.</strong></p>
+<p>This is what I did. <strong>Look at what came out, not at how it was made.</strong></p>
+<p><code>hreflang</code> has a <strong>reciprocity</strong> requirement. If A says &quot;the English version is B&quot;, then
+B has to say &quot;the Japanese version is A&quot;. <strong>If it does not, the annotation is ignored
+entirely.</strong> A one-sided declaration does nothing.</p>
+<p>So read every HTML file that was produced and check exactly that.</p>
+<pre><code class="language-python">import re, pathlib
+
+BASE = &quot;https://example.github.io&quot;
+site = pathlib.Path(&quot;site&quot;)
+ann = {}
+
+for f in site.rglob(&quot;*.html&quot;):
+    text = f.read_text(encoding=&quot;utf-8&quot;)
+    url = BASE + &quot;/&quot; + str(f.relative_to(site))
+    if f.name == &quot;index.html&quot;:
+        url = url.replace(&quot;/index.html&quot;, &quot;/&quot;)
+    # lang -&gt; href
+    alts = {m.group(1): m.group(2) for m in re.finditer(
+        r'&lt;link rel=&quot;alternate&quot; hreflang=&quot;([^&quot;]+)&quot; href=&quot;([^&quot;]+)&quot;', text)}
+    if alts:
+        ann[url] = alts
+
+bad = []
+for url, alts in ann.items():
+    for lang, target in alts.items():
+        if lang == &quot;x-default&quot;:
+            continue
+        if not target.startswith(BASE):
+            continue                      # external hosts will not annotate back
+        if target not in ann:
+            bad.append(f&quot;{url} -&gt; {target} has no hreflang of its own&quot;)
+        elif url not in ann[target].values():
+            bad.append(f&quot;{url} -&gt; {target} does not point back&quot;)
+
+print(f&quot;pages with hreflang: {len(ann)}  inconsistent: {len(bad)}&quot;)
+for b in bad:
+    print(&quot; &quot;, b)
+</code></pre>
+<p><strong>This check does not know whether a page came from the template.</strong> It does not need to.
+Hand-written or generated, if the file landed in <code>site/</code>, it is held to the same
+standard.</p>
+<p><strong>Managing the input means managing every path into it, and you will miss one when a new
+path appears.</strong> Checking the output is one place, and it holds no matter how many paths
+there are.</p>
+<h2 id="some-annotations-are-worth-keeping-even-when-they-cannot-work">Some annotations are worth keeping even when they cannot work</h2>
+<p>Running the check gave this:</p>
+<pre><code>pages with hreflang: 32
+pointing at external hosts: 20   &lt;- reciprocity cannot hold
+inconsistent within the site: 0
+</code></pre>
+<p>The articles are also published on other platforms, and those copies are the <code>canonical</code>
+ones. That means <code>hreflang</code> points at an external URL too — and <strong>those platforms will
+never point back.</strong> Reciprocity does not hold, so those 20 annotations are ignored.</p>
+<p>I left them pointing outward anyway, because there are only two options:</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th></th>
+  <th>reciprocity</th>
+  <th>agrees with canonical</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>point at the external URL</td>
+  <td><strong>no</strong> (annotation ignored)</td>
+  <td>yes</td>
+</tr>
+<tr>
+  <td>point at my own non-canonical copy</td>
+  <td>yes</td>
+  <td><strong>no</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>A page whose <code>hreflang</code> and <code>canonical</code> disagree <strong>gets both signals distrusted.</strong> Being
+ignored is the cheaper failure.</p>
+<p><strong>Sometimes you pick the option you know does not work, because the alternative does
+damage.</strong> What matters is picking it <em>knowing</em> that. An annotation that is inert because
+you chose it and one that is inert because you never checked look identical today, and
+differ entirely the day you can fix it.</p>
+<h2 id="takeaways">Takeaways</h2>
+<ul>
+<li><strong>Improvements land in the template. Anything outside it gets none of them.</strong></li>
+<li>A hand-written exception <strong>freezes at the quality it had on day one</strong>, and falls
+behind as everything around it rises</li>
+<li>The page you put the most care into is the one most likely to be left behind</li>
+<li><strong>Check the output rather than normalizing every input</strong> — it holds as paths multiply</li>
+<li><code>hreflang</code> requires <strong>reciprocity</strong>; a one-sided declaration does nothing</li>
+<li><strong>An ignored annotation is better than one that contradicts your <code>canonical</code></strong></li>
+</ul>
+<hr />
+<!-- related -->
+
+<p><strong>Related</strong></p>
+<ul>
+<li><a href="https://quintetkit.github.io/en/articles/canonical-across-platforms.html">Publishing the Same Article in Three Places Splits Its Search Value</a></li>
+<li><a href="https://dev.to/quintetkit/treating-it-worked-as-verification-ships-code-that-only-works-with-one-commit-2bk3">Treating &quot;It Worked&quot; as Verification Ships Code That Only Works With One Commit</a></li>
+<li><a href="https://dev.to/quintetkit/distribute-custom-tools-as-composite-github-actions-without-npm-publishing-51lp">Distribute Custom Tools as Composite GitHub Actions (Without npm Publishing)</a></li>
+</ul>
+<hr />
+<!-- product-links -->
+
+<p>I publish the configuration for splitting Claude Code into separate personas —
+Architect, Coder, Reviewer, Conflict Resolver — under MIT. Copy it, run
+<code>./setup.sh</code>, and it works. It does not depend on your tech stack.</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>I built one real tool using nothing but this workflow. Every Issue, PR, review
+and merge is still there. <strong>The parts that went wrong were not deleted.</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>The version that adds a UI Designer persona, review criteria, a per-Issue
+parallel execution script and a 10-chapter guide is on the
+<a href="https://quintetkit.github.io/index.en.html">product page</a>.</p>
+<p>The full kit — five personas, the scripts and the complete guide in English and Japanese — is on BOOTH, a Japanese store with an English interface that takes international cards.</p>
+<p><a href="https://quartet-dev.booth.pm/items/8807156">https://quartet-dev.booth.pm/items/8807156</a></p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

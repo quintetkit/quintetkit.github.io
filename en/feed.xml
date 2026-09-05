@@ -28,6 +28,13 @@
     <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>The Page You Wrote by Hand Is the One That Stops Improving</title>
+    <link>https://quintetkit.github.io/en/articles/handwritten-page-stops-improving.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/handwritten-page-stops-improving.html</guid>
+    <description>I wrote a static site generator and added canonical and hreflang to 28 article pages. Fourteen in Japanese, fourteen in English. Until then, search e…</description>
+    <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>Bisection Narrowed It Correctly and Still Never Reached the Answer</title>
     <link>https://quintetkit.github.io/en/articles/failures-that-dont-come-back.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/en/articles/failures-that-dont-come-back.html</guid>

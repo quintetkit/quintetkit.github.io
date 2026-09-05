@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>テンプレートを通らない1枚が、改善から取り残される | Quartet / Quintet</title>
+<meta name="description" content="静的サイトジェネレータを自作して、記事28ページに canonical と hreflang を入れました。 日本語と英語で14本ずつあり、それまでは検索側から「翻訳」ではなく「別々の記事」に見えていたからです。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/handwritten-page-stops-improving.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/articles/handwritten-page-stops-improving.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/articles/handwritten-page-stops-improving.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/articles/handwritten-page-stops-improving.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="テンプレートを通らない1枚が、改善から取り残される | Quartet / Quintet">
+<meta property="og:description" content="静的サイトジェネレータを自作して、記事28ページに canonical と hreflang を入れました。 日本語と英語で14本ずつあり、それまでは検索側から「翻訳」ではなく「別々の記事」に見えていたからです。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/handwritten-page-stops-improving.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="ja_JP">
+<meta property="article:published_time" content="2026-09-05">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-05 &nbsp;·&nbsp; html · seo · 設計 · 個人開発 · 静的サイト</p>
+  <h1>テンプレートを通らない1枚が、改善から取り残される</h1>
+<p>静的サイトジェネレータを自作して、記事28ページに <code>canonical</code> と <code>hreflang</code> を入れました。
+日本語と英語で14本ずつあり、それまでは<strong>検索側から「翻訳」ではなく「別々の記事」に見えていた</strong>からです。</p>
+<p>生成は一発で通りました。28ページすべてに入りました。</p>
+<p><strong>入っていないページが2枚ありました。</strong></p>
+<h2 id="抜けていたのは-いちばんリンクされているページだった">抜けていたのは、いちばんリンクされているページだった</h2>
+<p>トップページと、その英語版です。</p>
+<pre><code>site/index.html      ← 製品ページ（日本語）
+site/index.en.html   ← 製品ページ（英語）
+site/articles/*.html ← 記事14本
+site/en/articles/*.html ← 記事14本
+</code></pre>
+<p>記事は <code>page_shell()</code> という共通の関数を通って生成されます。
+<strong>LP 2枚は手書きの HTML です。</strong> ジェネレータを書く前に作ったもので、
+デザインが1枚ものなので、テンプレートに載せる意味がありませんでした。</p>
+<p>だから <code>page_shell()</code> に注釈を足したとき、この2枚には何も起きませんでした。</p>
+<p>抜けていたのはこれだけではありません。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th></th>
+  <th>記事28ページ</th>
+  <th>LP 2枚</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>rel=&quot;canonical&quot;</code></td>
+  <td>有り</td>
+  <td><strong>無し</strong></td>
+</tr>
+<tr>
+  <td><code>hreflang</code></td>
+  <td>有り</td>
+  <td><strong>無し</strong></td>
+</tr>
+<tr>
+  <td><code>og:title</code> / <code>og:description</code></td>
+  <td>有り</td>
+  <td><strong>無し</strong></td>
+</tr>
+<tr>
+  <td><code>og:url</code> / <code>og:type</code></td>
+  <td>有り</td>
+  <td><strong>無し</strong></td>
+</tr>
+<tr>
+  <td><code>og:image</code></td>
+  <td>有り</td>
+  <td>有り</td>
+</tr>
+<tr>
+  <td><code>twitter:card</code></td>
+  <td>有り</td>
+  <td>有り</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>og:image</code> と <code>twitter:card</code> だけがあります。手で書いたときに入れたからです。
+そのあと記事側で追加したものが、全部抜けています。</p>
+<p><strong>結果として、共有カードは画像だけが出てタイトルは推測される</strong>という状態でした。
+<code>og:title</code> が無いと、クローラは <code>&lt;title&gt;</code> やページ内の見出しから適当に拾います。</p>
+<p>そして、この2枚は<strong>リポジトリ3つの README と、記事24本のフッタの行き先</strong>です。
+サイトの中でいちばんリンクされているページが、いちばん注釈が薄いページでした。</p>
+<h2 id="例外として手で書いたもの-は-改善を受け取らない">「例外として手で書いたもの」は、改善を受け取らない</h2>
+<p>一般化するとこうです。</p>
+<p><strong>改善はテンプレートに入ります。テンプレートを通らないものには入りません。</strong></p>
+<p>手で書いた時点では、たいてい手書きのほうが品質が高い。
+時間をかけて、そのページのためだけに作るからです。<strong>そこは間違っていません。</strong></p>
+<p>問題は<strong>そのあと</strong>です。</p>
+<pre><code>2月  LP を手で書く         … 品質は LP のほうが高い
+5月  テンプレートに OGP を追加  … 記事だけ良くなる
+7月  テンプレートに構造化データ  … 記事だけ良くなる
+9月  テンプレートに hreflang    … 記事だけ良くなる
+</code></pre>
+<p><strong>手書きのページは、作った日の品質のまま止まります。</strong>
+まわりが上がっていくので、相対的には下がり続けます。</p>
+<p>同じ形は、コードのあちこちにあります。</p>
+<ul>
+<li>共通のエラーハンドラを通さない、1箇所だけの <code>try/catch</code></li>
+<li>共通の HTTP クライアントを使わない、1箇所だけの <code>fetch</code></li>
+<li>共通のログ関数を使わない、1箇所だけの <code>console.log</code></li>
+<li>CI を通らない、手で叩くだけのスクリプト</li>
+</ul>
+<p>どれも<strong>書いた時点では合理的な判断</strong>です。
+そして、そのあとに入る改善を全部取り逃します。</p>
+<h2 id="入力を揃えるより-出力を検査するほうが確実">入力を揃えるより、出力を検査するほうが確実</h2>
+<p>対策は2つ考えられます。</p>
+<p><strong>A. 手書きを無くして、全部テンプレートに寄せる</strong></p>
+<p>正しい方向ですが、いつも可能とは限りません。
+私の LP は1枚もののデザインで、記事用のテンプレートに載せると壊れます。
+載せるためにテンプレートを汎用化すると、<strong>記事側の生成が複雑になります。</strong>
+2枚のために28ページを複雑にするのは、割に合いません。</p>
+<p><strong>B. 生成物を、生成の仕方によらず検査する</strong></p>
+<p>こちらを取りました。<strong>「どう作ったか」ではなく「何ができたか」を見ます。</strong></p>
+<p><code>hreflang</code> には<strong>相互性</strong>の要件があります。
+A が「英語版は B だ」と言うなら、B も「日本語版は A だ」と言わなければ、
+<strong>注釈ごと無視されます。</strong> 片側だけの宣言は効きません。</p>
+<p>出力された HTML を全部読んで、これを確かめます。</p>
+<pre><code class="language-python">import re, pathlib
+
+BASE = &quot;https://example.github.io&quot;
+site = pathlib.Path(&quot;site&quot;)
+ann = {}
+
+for f in site.rglob(&quot;*.html&quot;):
+    text = f.read_text(encoding=&quot;utf-8&quot;)
+    url = BASE + &quot;/&quot; + str(f.relative_to(site))
+    if f.name == &quot;index.html&quot;:
+        url = url.replace(&quot;/index.html&quot;, &quot;/&quot;)
+    # lang -&gt; href
+    alts = {m.group(1): m.group(2) for m in re.finditer(
+        r'&lt;link rel=&quot;alternate&quot; hreflang=&quot;([^&quot;]+)&quot; href=&quot;([^&quot;]+)&quot;', text)}
+    if alts:
+        ann[url] = alts
+
+bad = []
+for url, alts in ann.items():
+    for lang, target in alts.items():
+        if lang == &quot;x-default&quot;:
+            continue
+        if not target.startswith(BASE):
+            continue                      # 外部は相手が返さないので対象外
+        if target not in ann:
+            bad.append(f&quot;{url} -&gt; {target} 相手に hreflang が無い&quot;)
+        elif url not in ann[target].values():
+            bad.append(f&quot;{url} -&gt; {target} 相手がこちらを指していない&quot;)
+
+print(f&quot;hreflang を持つページ: {len(ann)}  不整合: {len(bad)}&quot;)
+for b in bad:
+    print(&quot; &quot;, b)
+</code></pre>
+<p><strong>この検査は「テンプレートを通ったかどうか」を知りません。</strong>
+知る必要がありません。手書きだろうと生成だろうと、
+<code>site/</code> に出た HTML を全部同じ基準で見ます。</p>
+<p><strong>入力の経路を管理しようとすると、経路が増えるたびに管理が漏れます。</strong>
+出力を1箇所で見れば、経路が何本あっても漏れません。</p>
+<h2 id="相互性が成立しない相手には-それでも向ける">相互性が成立しない相手には、それでも向ける</h2>
+<p>検査を回すと、こういう結果になりました。</p>
+<pre><code>hreflang を持つページ: 32
+外部を指す注釈: 20   ← 相互性は成立しない
+自サイト内の不整合: 0
+</code></pre>
+<p>記事は同じ内容を外部の媒体にも出していて、そちらを <code>canonical</code> にしています。
+すると <code>hreflang</code> も外部の URL を指すことになりますが、
+<strong>外部の媒体はこちらへ <code>hreflang</code> を返してくれません。</strong> 相互性は成立しません。</p>
+<p>それでも外を指しています。理由は、選択肢がこの2つしかないからです。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th></th>
+  <th>相互性</th>
+  <th>canonical との整合</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>外部の URL を指す</td>
+  <td><strong>成立しない</strong>（注釈が無視される）</td>
+  <td>一致する</td>
+</tr>
+<tr>
+  <td>自分の非正規版を指す</td>
+  <td>成立する</td>
+  <td><strong>矛盾する</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>hreflang</code> と <code>canonical</code> が矛盾しているページは、
+<strong>どちらの指示も信用されなくなります。</strong> 無視されるほうがまだ軽い。</p>
+<p><strong>「効かないと分かっているが、害が少ないほう」を選ぶ場面があります。</strong>
+このとき大事なのは、効かないと<strong>分かったうえで</strong>選ぶことです。
+知らずに置いてあるのと、結果は同じでも、次に直せるかどうかが違います。</p>
+<h2 id="まとめ">まとめ</h2>
+<ul>
+<li><strong>改善はテンプレートに入る。テンプレートを通らないものには入らない</strong></li>
+<li>手書きの例外は、**作った日の品質のまま止まる。**まわりが上がるので相対的には下がる</li>
+<li>いちばん手をかけたページが、いちばん取り残されやすい</li>
+<li>対策は<strong>入力を揃えるより、出力を検査する</strong>ほうが確実。経路が増えても漏れない</li>
+<li><code>hreflang</code> には<strong>相互性</strong>が要る。片側だけの宣言は効かない</li>
+<li><strong><code>hreflang</code> と <code>canonical</code> が矛盾するくらいなら、無視されるほうがよい</strong></li>
+</ul>
+<hr />
+<!-- related -->
+
+<p><strong>あわせて読む</strong></p>
+<ul>
+<li><a href="https://quintetkit.github.io/articles/canonical-across-platforms.html">同じ記事を3か所に出すと検索評価が割れる。canonical をどこに寄せるか</a></li>
+<li><a href="https://quintetkit.github.io/articles/verification-that-verifies-nothing.html">「動いた」を検証と見なすと、1コミットでだけ通るコードが出荷される</a></li>
+<li><a href="https://quintetkit.github.io/articles/composite-github-action.html">自作ツールを composite GitHub Action で配る（npm 公開なし）</a></li>
+</ul>
+<hr />
+<!-- product-links -->
+
+<p>Claude Code に設計・実装・レビューを別々の人格として分担させ、GitHub Issue と
+ブランチを軸に並列開発を回すための設定一式を MIT で公開しています。
+コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>このワークフローだけで実際にツールを 1 つ作りました。Issue の分割から PR、
+レビュー、マージまで記録が全部残っています。<strong>うまくいかなかった箇所も消していません。</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>UI 設計人格・レビュー基準・Issue 単位の並列実行スクリプト・実践ガイド 10 章を
+足したものは<a href="https://quintetkit.github.io">製品ページ</a>にあります。</p>
+<p>実践ガイド全10章は Zenn Book で読めます（¥1,500・2章まで無料）。</p>
+<p><a href="https://zenn.dev/quintetkit/books/claude-code-parallel-workflow">https://zenn.dev/quintetkit/books/claude-code-parallel-workflow</a></p>
+<p>設定一式（5人格・スクリプト・ガイド全文）の配布はこちらです。</p>
+<p><a href="https://quartet-dev.booth.pm/items/8807156">https://quartet-dev.booth.pm/items/8807156</a></p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>
