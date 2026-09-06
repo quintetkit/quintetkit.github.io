@@ -209,6 +209,12 @@ git worktree add -b issue/13-profile ../worktrees/issue-13 main
 手元で測ると、ソース 5,600KB のリポジトリに作業ツリーを1つ足したとき、
 増えたのは 5,608KB でした（<code>.git</code> 側の増分は 44KB）。<code>node_modules</code> も共有されません。
 つまり並列させる本数だけ、ソースと依存関係のぶんディスクを使います。</p>
+<h2 id="設定そのものが効いていないとき">設定そのものが効いていないとき</h2>
+<p>人格を分けても動きが変わらない場合、<strong>設定が黙って無視されている</strong>ことがあります。
+<code>matcher</code> を受け付けないイベントに <code>matcher</code> を書く、ツール系以外で <code>if</code> を書く。
+どちらもエラーになりません。</p>
+<p>イベントごとに何が効くかを1枚の表にしました。</p>
+<p><a href="https://quintetkit.github.io/reference/claude-code-hooks.html">https://quintetkit.github.io/reference/claude-code-hooks.html</a></p>
 <h2 id="このやり方が向かないとき">このやり方が向かないとき</h2>
 <p>正直に書いておきます。<strong>これはオーバーヘッドです。</strong></p>
 <ul>
@@ -230,7 +236,7 @@ git worktree add -b issue/13-profile ../worktrees/issue-13 main
 <p><strong>あわせて読む</strong></p>
 <ul>
 <li><a href="https://quintetkit.github.io/articles/shared-files-kill-parallelism.html">並列開発を殺すのは、いつも共有ファイル</a></li>
-<li><a href="https://quintetkit.github.io/articles/what-belongs-in-claude-md.html">CLAUDE.md に何を書くと効いて、何を書いても効かないのか</a></li>
+<li><a href="https://zenn.dev/quintetkit/articles/what-belongs-in-claude-md">CLAUDE.md に何を書くと効いて、何を書いても効かないのか</a></li>
 <li><a href="https://zenn.dev/quintetkit/articles/ai-generated-ui-fix">AIに作らせた画面が「AIっぽい」のは、センスの問題ではない</a></li>
 </ul>
 <hr />
