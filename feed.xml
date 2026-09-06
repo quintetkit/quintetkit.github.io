@@ -7,6 +7,13 @@
   <description>Claude Code に複数の人格を分担させて並列開発を回すための、実際に使っている設定と、そこで踏んだ失敗の記録です。</description>
   <language>ja</language>
   <item>
+    <title>Zenn の「投稿数の上限に達したためデプロイされませんでした」で実際に起きていること</title>
+    <link>https://quintetkit.github.io/articles/zenn-deploy-rate-limit.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/zenn-deploy-rate-limit.html</guid>
+    <description>GitHub 連携で記事を push しました。デプロイは成功しています。</description>
+    <pubDate>Mon, 07 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>配ってみるまで、配れていないことに気づけない</title>
     <link>https://quintetkit.github.io/articles/shipping-a-cli-to-npm.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/articles/shipping-a-cli-to-npm.html</guid>

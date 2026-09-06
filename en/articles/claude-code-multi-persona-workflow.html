@@ -206,6 +206,12 @@ Measured locally: adding one worktree to a repository with 5,600KB of source
 added 5,608KB, while <code>.git</code> itself grew by 44KB. <code>node_modules</code> is not shared
 either. So each parallel branch costs you a full copy of the source and its
 dependencies.</p>
+<h2 id="when-the-configuration-itself-is-not-taking-effect">When the Configuration Itself Is Not Taking Effect</h2>
+<p>If splitting the personas changes nothing, the configuration may be <strong>silently
+ignored.</strong> Writing <code>matcher</code> on an event that does not support it, or writing
+<code>if</code> outside the tool-related events. Neither produces an error.</p>
+<p>I put what actually applies, event by event, into one table.</p>
+<p><a href="https://quintetkit.github.io/en/reference/claude-code-hooks.html">https://quintetkit.github.io/en/reference/claude-code-hooks.html</a></p>
 <h2 id="when-this-approach-is-not-suitable">When This Approach Is Not Suitable</h2>
 <p>To be honest, <strong>this adds overhead.</strong></p>
 <ul>
