@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://quintetkit.github.io/</loc></url>
-  <url><loc>https://quintetkit.github.io/index.en.html</loc></url>
-  <url><loc>https://quintetkit.github.io/articles/</loc></url>
-  <url><loc>https://quintetkit.github.io/en/articles/</loc></url>
-  <url><loc>https://quintetkit.github.io/reference/</loc></url>
-  <url><loc>https://quintetkit.github.io/en/reference/</loc></url>
-  <url><loc>https://quintetkit.github.io/reference/claude-code-hooks.html</loc></url>
-  <url><loc>https://quintetkit.github.io/en/reference/claude-code-hooks.html</loc></url>
-  <url><loc>https://quintetkit.github.io/reference/claude-code-settings-scope.html</loc></url>
-  <url><loc>https://quintetkit.github.io/en/reference/claude-code-settings-scope.html</loc></url>
-  <url><loc>https://quintetkit.github.io/reference/devto-api.html</loc></url>
-  <url><loc>https://quintetkit.github.io/en/reference/devto-api.html</loc></url>
+  <url><loc>https://quintetkit.github.io/</loc><lastmod>2026-09-07</lastmod></url>
+  <url><loc>https://quintetkit.github.io/index.en.html</loc><lastmod>2026-09-07</lastmod></url>
+  <url><loc>https://quintetkit.github.io/articles/</loc><lastmod>2026-09-07</lastmod></url>
+  <url><loc>https://quintetkit.github.io/en/articles/</loc><lastmod>2026-09-07</lastmod></url>
+  <url><loc>https://quintetkit.github.io/reference/</loc><lastmod>2026-09-07</lastmod></url>
+  <url><loc>https://quintetkit.github.io/en/reference/</loc><lastmod>2026-09-07</lastmod></url>
+  <url><loc>https://quintetkit.github.io/reference/claude-code-hooks.html</loc><lastmod>2026-09-06</lastmod></url>
+  <url><loc>https://quintetkit.github.io/en/reference/claude-code-hooks.html</loc><lastmod>2026-09-06</lastmod></url>
+  <url><loc>https://quintetkit.github.io/reference/claude-code-settings-scope.html</loc><lastmod>2026-09-07</lastmod></url>
+  <url><loc>https://quintetkit.github.io/en/reference/claude-code-settings-scope.html</loc><lastmod>2026-09-07</lastmod></url>
+  <url><loc>https://quintetkit.github.io/reference/devto-api.html</loc><lastmod>2026-09-06</lastmod></url>
+  <url><loc>https://quintetkit.github.io/en/reference/devto-api.html</loc><lastmod>2026-09-06</lastmod></url>
   <url><loc>https://quintetkit.github.io/articles/zenn-deploy-rate-limit.html</loc><lastmod>2026-09-07</lastmod></url>
   <url><loc>https://quintetkit.github.io/articles/shipping-a-cli-to-npm.html</loc><lastmod>2026-09-06</lastmod></url>
   <url><loc>https://quintetkit.github.io/en/articles/shipping-a-cli-to-npm.html</loc><lastmod>2026-09-06</lastmod></url>
