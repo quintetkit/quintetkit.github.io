@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The 71 settings keys that do nothing in a project .claude/settings.json</title>
+<meta name="description" content="71 of Claude Code&#x27;s settings keys apply only from managed settings, user settings, or ~/.claude.json. Written into a project&#x27;s .claude/settings.json they are not an error, produce no warning, and do nothing. Extracted from the scope column of the official settings table.">
+<link rel="canonical" href="https://quintetkit.github.io/en/reference/claude-code-settings-scope.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/reference/claude-code-settings-scope.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/reference/claude-code-settings-scope.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/reference/claude-code-settings-scope.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="The 71 settings keys that do nothing in a project .claude/settings.json">
+<meta property="og:description" content="71 of Claude Code&#x27;s settings keys apply only from managed settings, user settings, or ~/.claude.json. Written into a project&#x27;s .claude/settings.json they are not an error, produce no warning, and do nothing. Extracted from the scope column of the official settings table.">
+<meta property="og:url" content="https://quintetkit.github.io/en/reference/claude-code-settings-scope.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="en_US">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><a href="../../en/articles/index.html">Articles</a><span>Reference</span></nav>
+</div></div>
+<article><div class="wrap">
+  <h1>The 71 settings keys that do nothing in a project .claude/settings.json</h1>
+<p>Some settings keys only take effect from a particular file.</p>
+<p>The awkward part is that <strong>putting one in the wrong file is not an error.</strong>
+The JSON is valid, startup prints no warning, <code>--debug</code> says nothing. <strong>It just does not apply.</strong></p>
+<p>Counting the scope column of the official settings table, <strong>71 keys</strong> are in this position.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Scope</th>
+  <th>Applies from</th>
+  <th>Count</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>Managed</code></td>
+  <td>Managed settings only — the file an organisation deploys</td>
+  <td>39</td>
+</tr>
+<tr>
+  <td><code>User or managed</code></td>
+  <td>The user's own <code>~/.claude/settings.json</code>, or managed settings</td>
+  <td>23</td>
+</tr>
+<tr>
+  <td><code>User, local, or managed</code></td>
+  <td>User settings, <code>settings.local.json</code>, or managed settings (<strong>this one does apply from <code>settings.local.json</code></strong>)</td>
+  <td>3</td>
+</tr>
+<tr>
+  <td><code>Global config</code></td>
+  <td><code>~/.claude.json</code> only</td>
+  <td>6</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>Any file</code> (152 keys) applies everywhere and is not listed here.</p>
+<h2 id="checking-it">Checking it</h2>
+<p>This is not a table to read down by hand. Let a tool do it.</p>
+<pre><code class="language-bash">npx @quintetkit/ccheck
+</code></pre>
+<pre><code>warn  .claude/settings.json:63
+      `autoMode` applies from user or managed settings only. It has no effect from this file.
+</code></pre>
+<h2 id="two-things-worth-knowing">Two things worth knowing</h2>
+<p><strong><code>~/.claude/settings.json</code> is the user scope.</strong> Its path looks the same as a project settings file, but a <code>User or managed</code> key written there is <strong>correct</strong>.</p>
+<p><strong>Nested keys are decided by their full dotted name.</strong> <code>sandbox.network.strictAllowlist</code> is written under <code>sandbox</code>, but the scope belongs to the complete name. <code>sandbox</code> itself is not restricted.</p>
+<h2 id="managed-39-keys"><code>Managed</code> — 39 keys</h2>
+<p>Managed settings only — the file an organisation deploys.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Key</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>allowAllClaudeAiMcps</code></td>
+</tr>
+<tr>
+  <td><code>allowManagedHooksOnly</code></td>
+</tr>
+<tr>
+  <td><code>allowManagedMcpServersOnly</code></td>
+</tr>
+<tr>
+  <td><code>allowManagedPermissionRulesOnly</code></td>
+</tr>
+<tr>
+  <td><code>allowedChannelPlugins</code></td>
+</tr>
+<tr>
+  <td><code>blockedMarketplaces</code></td>
+</tr>
+<tr>
+  <td><code>browserExternalPageTools</code></td>
+</tr>
+<tr>
+  <td><code>channelsEnabled</code></td>
+</tr>
+<tr>
+  <td><code>claudeMd</code></td>
+</tr>
+<tr>
+  <td><code>disableBrowserExternalNavigation</code></td>
+</tr>
+<tr>
+  <td><code>disableCommandPluginSources</code></td>
+</tr>
+<tr>
+  <td><code>disableDesktopLocalSessions</code></td>
+</tr>
+<tr>
+  <td><code>disableMobileSimulatorTools</code></td>
+</tr>
+<tr>
+  <td><code>disableSideloadFlags</code></td>
+</tr>
+<tr>
+  <td><code>forceLoginGatewayUrl</code></td>
+</tr>
+<tr>
+  <td><code>forceRemoteSettingsRefresh</code></td>
+</tr>
+<tr>
+  <td><code>managedSourcesBehavior</code></td>
+</tr>
+<tr>
+  <td><code>modelPricing</code></td>
+</tr>
+<tr>
+  <td><code>parentSettingsBehavior</code></td>
+</tr>
+<tr>
+  <td><code>pluginSuggestionMarketplaces</code></td>
+</tr>
+<tr>
+  <td><code>pluginTrustMessage</code></td>
+</tr>
+<tr>
+  <td><code>policyHelper</code></td>
+</tr>
+<tr>
+  <td><code>policyHelper.path</code></td>
+</tr>
+<tr>
+  <td><code>policyHelper.refreshIntervalMs</code></td>
+</tr>
+<tr>
+  <td><code>policyHelper.timeoutMs</code></td>
+</tr>
+<tr>
+  <td><code>requiredMaximumVersion</code></td>
+</tr>
+<tr>
+  <td><code>requiredMinimumVersion</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.bwrapPath</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.filesystem.allowManagedReadPathsOnly</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.network.allowManagedDomainsOnly</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.socatPath</code></td>
+</tr>
+<tr>
+  <td><code>sshHostAllowlist</code></td>
+</tr>
+<tr>
+  <td><code>strictKnownMarketplaces</code></td>
+</tr>
+<tr>
+  <td><code>strictPluginOnlyCustomization</code></td>
+</tr>
+<tr>
+  <td><code>strictPluginOnlyCustomization.agents</code></td>
+</tr>
+<tr>
+  <td><code>strictPluginOnlyCustomization.hooks</code></td>
+</tr>
+<tr>
+  <td><code>strictPluginOnlyCustomization.mcp</code></td>
+</tr>
+<tr>
+  <td><code>strictPluginOnlyCustomization.skills</code></td>
+</tr>
+<tr>
+  <td><code>wslInheritsWindowsSettings</code></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="user-or-managed-23-keys"><code>User or managed</code> — 23 keys</h2>
+<p>The user's own <code>~/.claude/settings.json</code>, or managed settings.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Key</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>askUserQuestionTimeout</code></td>
+</tr>
+<tr>
+  <td><code>autoContinueAtUsageLimit</code></td>
+</tr>
+<tr>
+  <td><code>autoMode</code></td>
+</tr>
+<tr>
+  <td><code>autoMode.classifyAllShell</code></td>
+</tr>
+<tr>
+  <td><code>desktopSessionCleanupPeriodDays</code></td>
+</tr>
+<tr>
+  <td><code>dialogExpiry</code></td>
+</tr>
+<tr>
+  <td><code>feedbackDrafts</code></td>
+</tr>
+<tr>
+  <td><code>footerLinksRegexes</code></td>
+</tr>
+<tr>
+  <td><code>modelPicker</code></td>
+</tr>
+<tr>
+  <td><code>pluginConfigs</code></td>
+</tr>
+<tr>
+  <td><code>processWrapper</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.allowAppleEvents</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.credentials.allowPlaintextInject</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.credentials.awsPairs</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.credentials.sigv4</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.filesystem.disabled</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.network.strictAllowlist</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.network.tlsTerminate</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.ripgrep</code></td>
+</tr>
+<tr>
+  <td><code>skipAutoPermissionPrompt</code></td>
+</tr>
+<tr>
+  <td><code>spellcheck</code></td>
+</tr>
+<tr>
+  <td><code>sshConfigs</code></td>
+</tr>
+<tr>
+  <td><code>vimInsertModeRemaps</code></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="user-local-or-managed-3-keys"><code>User, local, or managed</code> — 3 keys</h2>
+<p>User settings, <code>settings.local.json</code>, or managed settings (<strong>this one does apply from <code>settings.local.json</code></strong>).</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Key</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>skipDangerousModePermissionPrompt</code></td>
+</tr>
+<tr>
+  <td><code>syncClaudeAiSkills</code></td>
+</tr>
+<tr>
+  <td><code>useAutoModeDuringPlan</code></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="global-config-6-keys"><code>Global config</code> — 6 keys</h2>
+<p><code>~/.claude.json</code> only.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Key</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>autoConnectIde</code></td>
+</tr>
+<tr>
+  <td><code>autoInstallIdeExtension</code></td>
+</tr>
+<tr>
+  <td><code>diffTool</code></td>
+</tr>
+<tr>
+  <td><code>externalEditorContext</code></td>
+</tr>
+<tr>
+  <td><code>permissionExplainerEnabled</code></td>
+</tr>
+<tr>
+  <td><code>teammateDefaultModel</code></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="source">Source</h2>
+<p>The scope column of the official settings reference table.</p>
+<p><a href="https://code.claude.com/docs/en/settings-reference">https://code.claude.com/docs/en/settings-reference</a></p>
+<p>Extracted mechanically from a <strong>snapshot taken 2026-09-04</strong>. <strong>When this was copied by hand, 51 of the 71 were missing.</strong> At this size, it should not be a list a person maintains.</p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

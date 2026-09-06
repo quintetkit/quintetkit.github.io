@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>.claude/settings.json に書いても効かないキー 71 個</title>
+<meta name="description" content="設定キーのうち 71 個は、管理設定・ユーザ設定・~/.claude.json からしか効きません。プロジェクトの .claude/settings.json に書いてもエラーにならず、警告も出ず、何も起きません。公式の設定表のスコープ列から機械的に抽出した一覧です。">
+<link rel="canonical" href="https://quintetkit.github.io/reference/claude-code-settings-scope.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/reference/claude-code-settings-scope.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/reference/claude-code-settings-scope.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/reference/claude-code-settings-scope.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content=".claude/settings.json に書いても効かないキー 71 個">
+<meta property="og:description" content="設定キーのうち 71 個は、管理設定・ユーザ設定・~/.claude.json からしか効きません。プロジェクトの .claude/settings.json に書いてもエラーにならず、警告も出ず、何も起きません。公式の設定表のスコープ列から機械的に抽出した一覧です。">
+<meta property="og:url" content="https://quintetkit.github.io/reference/claude-code-settings-scope.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="ja_JP">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><a href="../articles/index.html">記事</a><span>リファレンス</span></nav>
+</div></div>
+<article><div class="wrap">
+  <h1>.claude/settings.json に書いても効かないキー 71 個</h1>
+<p>設定キーには<strong>どのファイルから書けば効くか</strong>が決まっているものがあります。</p>
+<p>厄介なのは、<strong>間違った場所に書いてもエラーにならない</strong>ことです。
+JSON としては正しく、起動時の警告も出ず、<code>--debug</code> にも出ません。<strong>ただ効きません。</strong></p>
+<p>公式の設定表のスコープ列を数えると、<strong>71 個</strong>がこれに当たります。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>スコープ</th>
+  <th>効く場所</th>
+  <th>件数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>Managed</code></td>
+  <td>組織が配る管理設定（<code>managed-settings.json</code>）からのみ</td>
+  <td>39</td>
+</tr>
+<tr>
+  <td><code>User or managed</code></td>
+  <td><code>~/.claude/settings.json</code> か管理設定からのみ</td>
+  <td>23</td>
+</tr>
+<tr>
+  <td><code>User, local, or managed</code></td>
+  <td>ユーザ設定・<code>settings.local.json</code>・管理設定からのみ（<strong><code>settings.local.json</code> からは効きます</strong>）</td>
+  <td>3</td>
+</tr>
+<tr>
+  <td><code>Global config</code></td>
+  <td><code>~/.claude.json</code> からのみ</td>
+  <td>6</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>Any file</code>（152 個）はどこに書いても効くので、ここには載せていません。</p>
+<h2 id="確かめ方">確かめ方</h2>
+<p>手で照らし合わせる表ではないので、ツールに任せてください。</p>
+<pre><code class="language-bash">npx @quintetkit/ccheck
+</code></pre>
+<pre><code>warn  .claude/settings.json:63
+      `autoMode` applies from user or managed settings only. It has no effect from this file.
+</code></pre>
+<h2 id="注意点が2つあります">注意点が2つあります</h2>
+<p><strong><code>~/.claude/settings.json</code> はユーザ設定そのものです。</strong>
+パスの見た目はプロジェクトの設定ファイルと同じですが、そこに <code>User or managed</code> のキーを書くのは<strong>正しい</strong>書き方です。</p>
+<p><strong>入れ子のキーは点つなぎの名前で決まります。</strong>
+<code>sandbox.network.strictAllowlist</code> は <code>sandbox</code> の下に書きますが、スコープが決まっているのは<strong>その完全な名前</strong>のほうです。
+<code>sandbox</code> そのものは制限されていません。</p>
+<h2 id="managed-39-個"><code>Managed</code> — 39 個</h2>
+<p>組織が配る管理設定（<code>managed-settings.json</code>）からのみ効きます。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>キー</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>allowAllClaudeAiMcps</code></td>
+</tr>
+<tr>
+  <td><code>allowManagedHooksOnly</code></td>
+</tr>
+<tr>
+  <td><code>allowManagedMcpServersOnly</code></td>
+</tr>
+<tr>
+  <td><code>allowManagedPermissionRulesOnly</code></td>
+</tr>
+<tr>
+  <td><code>allowedChannelPlugins</code></td>
+</tr>
+<tr>
+  <td><code>blockedMarketplaces</code></td>
+</tr>
+<tr>
+  <td><code>browserExternalPageTools</code></td>
+</tr>
+<tr>
+  <td><code>channelsEnabled</code></td>
+</tr>
+<tr>
+  <td><code>claudeMd</code></td>
+</tr>
+<tr>
+  <td><code>disableBrowserExternalNavigation</code></td>
+</tr>
+<tr>
+  <td><code>disableCommandPluginSources</code></td>
+</tr>
+<tr>
+  <td><code>disableDesktopLocalSessions</code></td>
+</tr>
+<tr>
+  <td><code>disableMobileSimulatorTools</code></td>
+</tr>
+<tr>
+  <td><code>disableSideloadFlags</code></td>
+</tr>
+<tr>
+  <td><code>forceLoginGatewayUrl</code></td>
+</tr>
+<tr>
+  <td><code>forceRemoteSettingsRefresh</code></td>
+</tr>
+<tr>
+  <td><code>managedSourcesBehavior</code></td>
+</tr>
+<tr>
+  <td><code>modelPricing</code></td>
+</tr>
+<tr>
+  <td><code>parentSettingsBehavior</code></td>
+</tr>
+<tr>
+  <td><code>pluginSuggestionMarketplaces</code></td>
+</tr>
+<tr>
+  <td><code>pluginTrustMessage</code></td>
+</tr>
+<tr>
+  <td><code>policyHelper</code></td>
+</tr>
+<tr>
+  <td><code>policyHelper.path</code></td>
+</tr>
+<tr>
+  <td><code>policyHelper.refreshIntervalMs</code></td>
+</tr>
+<tr>
+  <td><code>policyHelper.timeoutMs</code></td>
+</tr>
+<tr>
+  <td><code>requiredMaximumVersion</code></td>
+</tr>
+<tr>
+  <td><code>requiredMinimumVersion</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.bwrapPath</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.filesystem.allowManagedReadPathsOnly</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.network.allowManagedDomainsOnly</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.socatPath</code></td>
+</tr>
+<tr>
+  <td><code>sshHostAllowlist</code></td>
+</tr>
+<tr>
+  <td><code>strictKnownMarketplaces</code></td>
+</tr>
+<tr>
+  <td><code>strictPluginOnlyCustomization</code></td>
+</tr>
+<tr>
+  <td><code>strictPluginOnlyCustomization.agents</code></td>
+</tr>
+<tr>
+  <td><code>strictPluginOnlyCustomization.hooks</code></td>
+</tr>
+<tr>
+  <td><code>strictPluginOnlyCustomization.mcp</code></td>
+</tr>
+<tr>
+  <td><code>strictPluginOnlyCustomization.skills</code></td>
+</tr>
+<tr>
+  <td><code>wslInheritsWindowsSettings</code></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="user-or-managed-23-個"><code>User or managed</code> — 23 個</h2>
+<p><code>~/.claude/settings.json</code> か管理設定からのみ効きます。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>キー</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>askUserQuestionTimeout</code></td>
+</tr>
+<tr>
+  <td><code>autoContinueAtUsageLimit</code></td>
+</tr>
+<tr>
+  <td><code>autoMode</code></td>
+</tr>
+<tr>
+  <td><code>autoMode.classifyAllShell</code></td>
+</tr>
+<tr>
+  <td><code>desktopSessionCleanupPeriodDays</code></td>
+</tr>
+<tr>
+  <td><code>dialogExpiry</code></td>
+</tr>
+<tr>
+  <td><code>feedbackDrafts</code></td>
+</tr>
+<tr>
+  <td><code>footerLinksRegexes</code></td>
+</tr>
+<tr>
+  <td><code>modelPicker</code></td>
+</tr>
+<tr>
+  <td><code>pluginConfigs</code></td>
+</tr>
+<tr>
+  <td><code>processWrapper</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.allowAppleEvents</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.credentials.allowPlaintextInject</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.credentials.awsPairs</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.credentials.sigv4</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.filesystem.disabled</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.network.strictAllowlist</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.network.tlsTerminate</code></td>
+</tr>
+<tr>
+  <td><code>sandbox.ripgrep</code></td>
+</tr>
+<tr>
+  <td><code>skipAutoPermissionPrompt</code></td>
+</tr>
+<tr>
+  <td><code>spellcheck</code></td>
+</tr>
+<tr>
+  <td><code>sshConfigs</code></td>
+</tr>
+<tr>
+  <td><code>vimInsertModeRemaps</code></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="user-local-or-managed-3-個"><code>User, local, or managed</code> — 3 個</h2>
+<p>ユーザ設定・<code>settings.local.json</code>・管理設定からのみ（<strong><code>settings.local.json</code> からは効きます</strong>）効きます。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>キー</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>skipDangerousModePermissionPrompt</code></td>
+</tr>
+<tr>
+  <td><code>syncClaudeAiSkills</code></td>
+</tr>
+<tr>
+  <td><code>useAutoModeDuringPlan</code></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="global-config-6-個"><code>Global config</code> — 6 個</h2>
+<p><code>~/.claude.json</code> からのみ効きます。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>キー</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>autoConnectIde</code></td>
+</tr>
+<tr>
+  <td><code>autoInstallIdeExtension</code></td>
+</tr>
+<tr>
+  <td><code>diffTool</code></td>
+</tr>
+<tr>
+  <td><code>externalEditorContext</code></td>
+</tr>
+<tr>
+  <td><code>permissionExplainerEnabled</code></td>
+</tr>
+<tr>
+  <td><code>teammateDefaultModel</code></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="出典">出典</h2>
+<p>公式の設定リファレンスの一覧表にあるスコープ列です。</p>
+<p><a href="https://code.claude.com/docs/en/settings-reference">https://code.claude.com/docs/en/settings-reference</a></p>
+<p>この表は <strong>2026-09-04 に取得したスナップショット</strong>から機械的に抽出しています。
+<strong>手で写していたときは 71 個中 51 個が抜けていました。</strong> 数が多いので、人が写す前提の運用にしないほうがよいです。</p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>
