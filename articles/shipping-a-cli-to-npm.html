@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>配ってみるまで、配れていないことに気づけない | Quartet / Quintet</title>
+<meta name="description" content="自作の CLI を3本、npm に出しました。3本とも、出す直前に壊れていることが分かりました。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/shipping-a-cli-to-npm.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/articles/shipping-a-cli-to-npm.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/articles/shipping-a-cli-to-npm.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/articles/shipping-a-cli-to-npm.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="配ってみるまで、配れていないことに気づけない | Quartet / Quintet">
+<meta property="og:description" content="自作の CLI を3本、npm に出しました。3本とも、出す直前に壊れていることが分かりました。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/shipping-a-cli-to-npm.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="ja_JP">
+<meta property="article:published_time" content="2026-09-06">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span><a href="../reference/">リファレンス</a></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-06 &nbsp;·&nbsp; npm · nodejs · typescript · cli · 個人開発</p>
+  <h1>配ってみるまで、配れていないことに気づけない</h1>
+<p>自作の CLI を3本、npm に出しました。<strong>3本とも、出す直前に壊れていることが分かりました。</strong></p>
+<p>どれもローカルでは動いていました。テストも通っていました。
+<strong>壊れていたのは「配られた状態」だけ</strong>で、それは実際に配ってみるまで見えません。</p>
+<h2 id="1-npm-は-node_modules-の中の-typescript-を実行できない">1. npm は <code>node_modules</code> の中の TypeScript を実行できない</h2>
+<p>Node 22.18 以降は <code>.ts</code> をそのまま実行できます。だから <code>bin</code> に <code>.ts</code> を指定して、
+ビルド不要で配れると思っていました。</p>
+<pre><code class="language-json">{ &quot;bin&quot;: { &quot;mytool&quot;: &quot;src/cli.ts&quot; } }
+</code></pre>
+<p>ローカルでは動きます。パッケージにして入れると、こうなります。</p>
+<pre><code>Error [ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING]:
+Stripping types is currently unsupported for files under node_modules,
+for &quot;.../node_modules/@scope/mytool/src/cli.ts&quot;
+</code></pre>
+<p><strong>Node は <code>node_modules</code> 配下のファイルから型を除去することを拒否します。</strong>
+意図的な制限です（依存の中身を実行時に変換したくない、という設計判断）。</p>
+<p>つまり <strong><code>npx</code> の初回実行で必ず落ちます。</strong></p>
+<h3 id="直し方">直し方</h3>
+<p>コンパイルして <code>dist/</code> を配ります。<strong>clone した人は今まで通り <code>src</code> を叩けます。</strong></p>
+<pre><code class="language-json">{
+  &quot;bin&quot;: { &quot;mytool&quot;: &quot;dist/cli.js&quot; },
+  &quot;files&quot;: [&quot;dist&quot;, &quot;README.md&quot;, &quot;LICENSE&quot;],
+  &quot;scripts&quot;: { &quot;prepack&quot;: &quot;tsc -p tsconfig.json&quot; }
+}
+</code></pre>
+<p><code>tsconfig.json</code> は <code>rewriteRelativeImportExtensions</code> を入れておきます（TS 5.7 以降）。
+ソースの <code>import &quot;./x.ts&quot;</code> が、出力では <code>&quot;./x.js&quot;</code> になります。</p>
+<pre><code class="language-json">{ &quot;compilerOptions&quot;: { &quot;rewriteRelativeImportExtensions&quot;: true } }
+</code></pre>
+<p><strong><code>typescript</code> は devDependencies です。</strong> 配られるパッケージの依存はゼロのままです。</p>
+<h2 id="2-prepack-だけでは-git-から入れた人に届かない">2. <code>prepack</code> だけでは、git から入れた人に届かない</h2>
+<p><code>npx github:owner/repo</code> という入れ方があります。README にこれを書いている人は多い。</p>
+<p><strong><code>prepack</code> はレジストリ向けのビルドで、git 経由のインストールでは走りません。</strong>
+<code>dist/</code> が無い状態で入るので、<code>bin</code> が指すファイルが存在しません。</p>
+<pre><code>sh: mytool: command not found
+</code></pre>
+<p><strong><code>prepare</code> を足します。</strong> これは git 経由のインストールでも走ります。</p>
+<pre><code class="language-json">{
+  &quot;scripts&quot;: {
+    &quot;build&quot;:   &quot;tsc -p tsconfig.json&quot;,
+    &quot;prepare&quot;: &quot;tsc -p tsconfig.json&quot;,
+    &quot;prepack&quot;: &quot;tsc -p tsconfig.json&quot;
+  }
+}
+</code></pre>
+<p>両方書くのは冗長に見えますが、<strong>片方だけだと、もう片方の経路で必ず壊れます。</strong></p>
+<h2 id="3-readme-に書いた導入コマンドが-一度も動いていなかった">3. README に書いた導入コマンドが、一度も動いていなかった</h2>
+<p>これがいちばん効きました。</p>
+<p>公開済みのリポジトリの README に、こう書いてありました。</p>
+<pre><code class="language-bash">npx github:quintetkit/ccheck        # リポジトリ直下で
+</code></pre>
+<p>まっさらなディレクトリで叩いてみました。</p>
+<pre><code>npm error code ENOENT
+npm error enoent Could not read package.json
+</code></pre>
+<p><strong><code>package.json</code> の無いリポジトリは、npm がインストールできません。</strong></p>
+<p>そのリポジトリには <code>package.json</code> がありませんでした（依存ゼロで
+<code>node src/cli.ts</code> で動くので、要らないと思っていた）。
+<strong>README の最初の指示に従った人は、全員このエラーを見ていたことになります。公開時からずっと。</strong></p>
+<p>スターが0だったので実害は小さいですが、<strong>流入が来てから気づいたら最悪でした。</strong></p>
+<h2 id="何が共通しているか">何が共通しているか</h2>
+<p>3つとも、<strong>「自分の環境で動く」と「配られた状態で動く」は別物</strong>だという話です。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>見えるもの</th>
+  <th>見えないもの</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>ローカルで <code>node src/cli.ts</code> が動く</td>
+  <td><code>node_modules</code> の中では動かない</td>
+</tr>
+<tr>
+  <td><code>npm pack</code> が成功する</td>
+  <td>git 経由では <code>dist</code> が無い</td>
+</tr>
+<tr>
+  <td>リポジトリを clone すれば動く</td>
+  <td><code>package.json</code> が無いと npm が入れられない</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>左側だけ見ていると、右側は永久に見えません。</strong></p>
+<h2 id="検査を-ci-に置く">検査を CI に置く</h2>
+<p>対処は「配られた状態を作って、実際に叩く」ことです。CI に入れました。</p>
+<pre><code class="language-yaml">- name: パッケージした形でも動くこと
+  run: |
+    npm pack --silent
+    tmp=$(mktemp -d); cd &quot;$tmp&quot;
+    npm init -y &gt; /dev/null
+    npm install --silent &quot;$GITHUB_WORKSPACE&quot;/*.tgz
+    npx mytool --help &gt; /dev/null
+</code></pre>
+<p><strong><code>npm pack</code> が成功することは、何も保証しません。</strong> 入れて叩くまでは。</p>
+<p>git 経由も同じように確かめられます。</p>
+<pre><code class="language-bash">cd $(mktemp -d) &amp;&amp; npx -y github:owner/repo --help
+</code></pre>
+<p><strong>まっさらなディレクトリで、これが 0 で返ること。</strong>
+ローカルのキャッシュやグローバルインストールが効いていない場所で試すのが大事です。</p>
+<h2 id="公開する前にやったほうがいいこと">公開する前にやったほうがいいこと</h2>
+<ul>
+<li><code>npm pack</code> の中身を1つずつ見る。<strong>テストのコンパイル結果を配っていました</strong>（8ファイル）</li>
+<li><code>files</code> を明示する。書かないと、思っていないものが入ります</li>
+<li><code>repository</code> の URL が<strong>実在するか確かめる</strong>。404 を指したまま公開されがちです</li>
+<li><code>version</code> が git のタグと一致しているか。片方だけ上げると、後で追えなくなります</li>
+</ul>
+<h2 id="まとめ">まとめ</h2>
+<ul>
+<li><strong>Node は <code>node_modules</code> 配下の <code>.ts</code> から型を除去しない。</strong> <code>npx</code> の初回で落ちる</li>
+<li>コンパイルして配る。<strong>clone した人は元のまま動く</strong>ようにしておける</li>
+<li><strong><code>prepare</code> と <code>prepack</code> は別の経路。</strong> 片方だけだと、もう片方で必ず壊れる</li>
+<li><strong><code>package.json</code> の無いリポジトリは <code>npx github:</code> で入らない</strong></li>
+<li>「自分の環境で動く」と「配られた状態で動く」は別。<strong>左だけ見ていると右は見えない</strong></li>
+<li><strong>CI で、パッケージして・入れて・叩く。</strong> <code>npm pack</code> の成功は何も保証しない</li>
+</ul>
+<hr />
+<!-- related -->
+
+<p><strong>あわせて読む</strong></p>
+<ul>
+<li><a href="https://quintetkit.github.io/articles/composite-github-action.html">自作ツールを composite GitHub Action で配る（npm 公開なし）</a></li>
+<li><a href="https://quintetkit.github.io/articles/fixtures-encode-your-assumptions.html">テストが全部通るのに、本物のデータを1件も読めなかった</a></li>
+<li><a href="https://quintetkit.github.io/articles/verification-that-verifies-nothing.html">「動いた」を検証と見なすと、1コミットでだけ通るコードが出荷される</a></li>
+</ul>
+<hr />
+<!-- product-links -->
+
+<p>Claude Code に設計・実装・レビューを別々の人格として分担させ、GitHub Issue と
+ブランチを軸に並列開発を回すための設定一式を MIT で公開しています。
+コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>このワークフローだけで実際にツールを 1 つ作りました。Issue の分割から PR、
+レビュー、マージまで記録が全部残っています。<strong>うまくいかなかった箇所も消していません。</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>UI 設計人格・レビュー基準・Issue 単位の並列実行スクリプト・実践ガイド 10 章を
+足したものは<a href="https://quintetkit.github.io">製品ページ</a>にあります。</p>
+<p>実践ガイド全10章は Zenn Book で読めます（¥1,500・2章まで無料）。</p>
+<p><a href="https://zenn.dev/quintetkit/books/claude-code-parallel-workflow">https://zenn.dev/quintetkit/books/claude-code-parallel-workflow</a></p>
+<p>設定一式（5人格・スクリプト・ガイド全文）の配布はこちらです。</p>
+<p><a href="https://quartet-dev.booth.pm/items/8807156">https://quartet-dev.booth.pm/items/8807156</a></p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

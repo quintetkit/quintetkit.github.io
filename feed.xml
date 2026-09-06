@@ -7,6 +7,13 @@
   <description>Claude Code に複数の人格を分担させて並列開発を回すための、実際に使っている設定と、そこで踏んだ失敗の記録です。</description>
   <language>ja</language>
   <item>
+    <title>配ってみるまで、配れていないことに気づけない</title>
+    <link>https://quintetkit.github.io/articles/shipping-a-cli-to-npm.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/shipping-a-cli-to-npm.html</guid>
+    <description>自作の CLI を3本、npm に出しました。3本とも、出す直前に壊れていることが分かりました。</description>
+    <pubDate>Sun, 06 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>「動いた」を検証と見なすと、1コミットでだけ通るコードが出荷される</title>
     <link>https://quintetkit.github.io/articles/verification-that-verifies-nothing.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/articles/verification-that-verifies-nothing.html</guid>

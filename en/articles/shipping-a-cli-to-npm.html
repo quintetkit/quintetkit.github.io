@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>You Cannot Tell It Does Not Ship Until You Ship It | Quartet / Quintet</title>
+<meta name="description" content="I published three CLIs of my own to npm. All three turned out to be broken, found in the last few minutes before publishing.">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/shipping-a-cli-to-npm.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/articles/shipping-a-cli-to-npm.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/articles/shipping-a-cli-to-npm.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/articles/shipping-a-cli-to-npm.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="You Cannot Tell It Does Not Ship Until You Ship It | Quartet / Quintet">
+<meta property="og:description" content="I published three CLIs of my own to npm. All three turned out to be broken, found in the last few minutes before publishing.">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/shipping-a-cli-to-npm.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-09-06">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span><a href="../../en/reference/">Reference</a></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-06 &nbsp;·&nbsp; npm · node · typescript · programming</p>
+  <h1>You Cannot Tell It Does Not Ship Until You Ship It</h1>
+<p>I published three CLIs of my own to npm. <strong>All three turned out to be broken,
+found in the last few minutes before publishing.</strong></p>
+<p>Every one of them ran locally. The tests passed. <strong>What was broken was the
+installed state</strong>, and that is not visible until you actually install it.</p>
+<h2 id="1-npm-cannot-run-typescript-inside-node_modules">1. npm cannot run TypeScript inside node_modules</h2>
+<p>Node 22.18 and later runs <code>.ts</code> directly, so I pointed <code>bin</code> at the source and
+expected to ship with no build step.</p>
+<pre><code class="language-json">{ &quot;bin&quot;: { &quot;mytool&quot;: &quot;src/cli.ts&quot; } }
+</code></pre>
+<p>It works locally. Packed and installed, it does this:</p>
+<pre><code>Error [ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING]:
+Stripping types is currently unsupported for files under node_modules,
+for &quot;.../node_modules/@scope/mytool/src/cli.ts&quot;
+</code></pre>
+<p><strong>Node refuses to strip types from anything under <code>node_modules</code>.</strong> It is a
+deliberate restriction — a dependency's contents should not be transformed at
+runtime.</p>
+<p>So <strong><code>npx</code> fails on the very first run.</strong></p>
+<h3 id="the-fix">The fix</h3>
+<p>Compile and ship <code>dist/</code>. <strong>A clone still runs the source with no build step.</strong></p>
+<pre><code class="language-json">{
+  &quot;bin&quot;: { &quot;mytool&quot;: &quot;dist/cli.js&quot; },
+  &quot;files&quot;: [&quot;dist&quot;, &quot;README.md&quot;, &quot;LICENSE&quot;],
+  &quot;scripts&quot;: { &quot;prepack&quot;: &quot;tsc -p tsconfig.json&quot; }
+}
+</code></pre>
+<p>Set <code>rewriteRelativeImportExtensions</code> (TypeScript 5.7+) so <code>import &quot;./x.ts&quot;</code> in
+the source becomes <code>&quot;./x.js&quot;</code> in the output:</p>
+<pre><code class="language-json">{ &quot;compilerOptions&quot;: { &quot;rewriteRelativeImportExtensions&quot;: true } }
+</code></pre>
+<p><strong><code>typescript</code> is a devDependency.</strong> The published package still has zero
+runtime dependencies.</p>
+<h2 id="2-prepack-alone-does-not-reach-anyone-installing-from-git">2. prepack alone does not reach anyone installing from git</h2>
+<p><code>npx github:owner/repo</code> is a real way people install things, and plenty of
+READMEs recommend it.</p>
+<p><strong><code>prepack</code> runs for the registry. It does not run for a git install.</strong> The
+package lands with no <code>dist/</code>, so the file <code>bin</code> points at does not exist:</p>
+<pre><code>sh: mytool: command not found
+</code></pre>
+<p><strong>Add <code>prepare</code>.</strong> That one does run on git installs.</p>
+<pre><code class="language-json">{
+  &quot;scripts&quot;: {
+    &quot;build&quot;:   &quot;tsc -p tsconfig.json&quot;,
+    &quot;prepare&quot;: &quot;tsc -p tsconfig.json&quot;,
+    &quot;prepack&quot;: &quot;tsc -p tsconfig.json&quot;
+  }
+}
+</code></pre>
+<p>Writing both looks redundant. <strong>With only one, the other path is guaranteed
+broken.</strong></p>
+<h2 id="3-the-install-command-in-my-readme-had-never-worked">3. The install command in my README had never worked</h2>
+<p>This is the one that mattered.</p>
+<p>A published repository's README said:</p>
+<pre><code class="language-bash">npx github:quintetkit/ccheck        # from your repository root
+</code></pre>
+<p>I ran it in an empty directory:</p>
+<pre><code>npm error code ENOENT
+npm error enoent Could not read package.json
+</code></pre>
+<p><strong>npm cannot install a repository that has no <code>package.json</code>.</strong></p>
+<p>That repository had none — it has zero dependencies and runs with
+<code>node src/cli.ts</code>, so it never seemed necessary. <strong>Everyone who followed the
+first instruction in that README got this error. Since the day it was
+published.</strong></p>
+<p>It had no stars, so the damage was small. <strong>Finding this after traffic arrived
+would have been the expensive version.</strong></p>
+<h2 id="what-these-share">What these share</h2>
+<p>All three are the same shape: <strong>&quot;works on my machine&quot; and &quot;works as installed&quot;
+are different claims.</strong></p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>what you can see</th>
+  <th>what you cannot</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>node src/cli.ts</code> runs</td>
+  <td>it will not run inside <code>node_modules</code></td>
+</tr>
+<tr>
+  <td><code>npm pack</code> succeeds</td>
+  <td>a git install has no <code>dist</code></td>
+</tr>
+<tr>
+  <td>a clone works</td>
+  <td>npm cannot install a repo with no <code>package.json</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Looking only at the left column keeps the right column invisible forever.</strong></p>
+<h2 id="put-the-check-in-ci">Put the check in CI</h2>
+<p>The fix is to build the installed state and actually run it.</p>
+<pre><code class="language-yaml">- name: it still runs once packaged
+  run: |
+    npm pack --silent
+    tmp=$(mktemp -d); cd &quot;$tmp&quot;
+    npm init -y &gt; /dev/null
+    npm install --silent &quot;$GITHUB_WORKSPACE&quot;/*.tgz
+    npx mytool --help &gt; /dev/null
+</code></pre>
+<p><strong><code>npm pack</code> succeeding guarantees nothing.</strong> Installing and running it does.</p>
+<p>The git path is one line:</p>
+<pre><code class="language-bash">cd $(mktemp -d) &amp;&amp; npx -y github:owner/repo --help
+</code></pre>
+<p><strong>In an empty directory</strong>, so no local cache or global install is answering for
+it.</p>
+<h2 id="worth-doing-before-you-publish">Worth doing before you publish</h2>
+<ul>
+<li>Read the <code>npm pack</code> file list, one line at a time. <strong>I was shipping compiled
+tests</strong> — eight files nobody runs</li>
+<li>Set <code>files</code> explicitly. Without it you ship things you did not picture</li>
+<li>Check the <code>repository</code> URL <strong>actually exists</strong>. Publishing one that 404s is easy</li>
+<li>Check <code>version</code> against your git tags. Bumping one and not the other makes
+the history unfollowable later</li>
+</ul>
+<h2 id="takeaways">Takeaways</h2>
+<ul>
+<li><strong>Node will not strip types under <code>node_modules</code></strong> — <code>npx</code> dies on the first run</li>
+<li>Compile for the registry; <strong>a clone can still run the source</strong></li>
+<li><strong><code>prepare</code> and <code>prepack</code> cover different paths.</strong> One alone breaks the other</li>
+<li><strong>npm cannot install a repository with no <code>package.json</code></strong></li>
+<li>&quot;Runs here&quot; and &quot;runs installed&quot; are separate claims. <strong>The first hides the second</strong></li>
+<li><strong>In CI: pack it, install it, run it.</strong> A successful pack proves nothing</li>
+</ul>
+<hr />
+<!-- related -->
+
+<p><strong>Related</strong></p>
+<ul>
+<li><a href="https://dev.to/quintetkit/distribute-custom-tools-as-composite-github-actions-without-npm-publishing-51lp">Distribute Custom Tools as Composite GitHub Actions (Without npm Publishing)</a></li>
+<li><a href="https://quintetkit.github.io/en/articles/fixtures-encode-your-assumptions.html">Every Test Passed and It Could Not Read a Single Real Record</a></li>
+<li><a href="https://dev.to/quintetkit/treating-it-worked-as-verification-ships-code-that-only-works-with-one-commit-2bk3">Treating &quot;It Worked&quot; as Verification Ships Code That Only Works With One Commit</a></li>
+</ul>
+<hr />
+<!-- product-links -->
+
+<p>I publish the configuration for splitting Claude Code into separate personas —
+Architect, Coder, Reviewer, Conflict Resolver — under MIT. Copy it, run
+<code>./setup.sh</code>, and it works. It does not depend on your tech stack.</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>I built one real tool using nothing but this workflow. Every Issue, PR, review
+and merge is still there. <strong>The parts that went wrong were not deleted.</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>The version that adds a UI Designer persona, review criteria, a per-Issue
+parallel execution script and a 10-chapter guide is on the
+<a href="https://quintetkit.github.io/index.en.html">product page</a>.</p>
+<p>The full kit — five personas, the scripts and the complete guide in English and Japanese — is on BOOTH, a Japanese store with an English interface that takes international cards.</p>
+<p><a href="https://quartet-dev.booth.pm/items/8807156">https://quartet-dev.booth.pm/items/8807156</a></p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

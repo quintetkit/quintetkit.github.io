@@ -7,6 +7,13 @@
   <description>Notes on running parallel development with Claude Code by splitting it into separate personas — the configuration actually in use, and the failures behind it.</description>
   <language>en</language>
   <item>
+    <title>You Cannot Tell It Does Not Ship Until You Ship It</title>
+    <link>https://quintetkit.github.io/en/articles/shipping-a-cli-to-npm.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/shipping-a-cli-to-npm.html</guid>
+    <description>I published three CLIs of my own to npm. All three turned out to be broken, found in the last few minutes before publishing.</description>
+    <pubDate>Sun, 06 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>Treating \&quot;It Worked\&quot; as Verification Ships Code That Only Works With One Commit</title>
     <link>https://quintetkit.github.io/en/articles/verification-that-verifies-nothing.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/en/articles/verification-that-verifies-nothing.html</guid>
