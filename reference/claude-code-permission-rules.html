@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code の権限ルールで、書けるのに無視されるもの</title>
+<meta name="description" content="permissions.allow / deny / ask に書いても、エラーにならず警告も出ないまま無視される書き方が5種類あります。アンカーの無い allow グロブ、参照されないツールへのパス指定、本体の入力へのパラメータ指定、括弧つきの mcp__ ルール、コマンドの途中に置いた *。公式ドキュメントの記述と、機械で検査する方法。">
+<link rel="canonical" href="https://quintetkit.github.io/reference/claude-code-permission-rules.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/reference/claude-code-permission-rules.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/reference/claude-code-permission-rules.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/reference/claude-code-permission-rules.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Claude Code の権限ルールで、書けるのに無視されるもの">
+<meta property="og:description" content="permissions.allow / deny / ask に書いても、エラーにならず警告も出ないまま無視される書き方が5種類あります。アンカーの無い allow グロブ、参照されないツールへのパス指定、本体の入力へのパラメータ指定、括弧つきの mcp__ ルール、コマンドの途中に置いた *。公式ドキュメントの記述と、機械で検査する方法。">
+<meta property="og:url" content="https://quintetkit.github.io/reference/claude-code-permission-rules.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="ja_JP">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><a href="../articles/index.html">記事</a><span>リファレンス</span></nav>
+</div></div>
+<article><div class="wrap">
+  <h1>Claude Code の権限ルールで、書けるのに無視されるもの</h1>
+<p>権限ルールで困るのは、<strong>間違っていても JSON としては正しい</strong>ことです。</p>
+<p><code>permissions.allow</code> に書いた1行が効いていないとき、
+壊れているのか、そういう仕様なのかが<strong>設定ファイルからは分かりません。</strong></p>
+<p>公式ドキュメントが「無視される」「スキップされる」「起動時に警告する」と
+<strong>明記しているもの</strong>を、1か所に集めました。推測は入れていません。</p>
+<h2 id="一覧">一覧</h2>
+<div class="scroll"><table><thead>
+<tr>
+  <th>書き方</th>
+  <th>何が起きるか</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>&quot;*&quot;</code> / <code>&quot;B*&quot;</code> / <code>&quot;mcp__*&quot;</code> を <strong>allow</strong> に</td>
+  <td><strong>スキップされ、何も自動承認しない。</strong> 警告が出る</td>
+</tr>
+<tr>
+  <td><code>Write(...)</code> / <code>NotebookEdit(...)</code> / <code>Glob(...)</code> / <code>MultiEdit(...)</code> のパス指定</td>
+  <td>受け付けられるが<strong>参照されない。</strong> 起動時に警告</td>
+</tr>
+<tr>
+  <td><code>Bash(command:...)</code> のように<strong>本体の入力</strong>をパラメータ指定</td>
+  <td><strong>無視される。</strong> 起動時に警告</td>
+</tr>
+<tr>
+  <td>括弧つきの <code>mcp__</code> ルール（<code>mcp__memory(read)</code>）</td>
+  <td>読み込み時に<strong>スキップ。</strong> 起動時のダイアログと <code>claude doctor</code> に出る</td>
+</tr>
+<tr>
+  <td>allow で <code>*</code> のうしろにまだ字が続く（<code>Bash(git * main)</code>）</td>
+  <td>効くが、<strong>見た目より広く許可する。</strong> 起動時に警告</td>
+</tr>
+</tbody>
+</table></div>
+<p>どれも<strong>エラーにはなりません。</strong> 設定は読み込まれ、その1行だけが死にます。</p>
+<h2 id="それぞれの中身">それぞれの中身</h2>
+<h3 id="アンカーの無い-allow-グロブ">アンカーの無い allow グロブ</h3>
+<p>deny と ask はツール名の位置にグロブを書けますが、<strong>allow は書けません。</strong></p>
+<p>allow でグロブが使えるのは <code>mcp__&lt;サーバ名&gt;__</code> まで書いたあとだけです。</p>
+<pre><code class="language-jsonc">// 効く
+&quot;mcp__puppeteer__*&quot;
+&quot;mcp__github__get_*&quot;
+
+// スキップされる（何も自動承認しない）
+&quot;*&quot;
+&quot;B*&quot;
+&quot;mcp__*&quot;
+</code></pre>
+<p>サーバ名の部分にグロブは置けません。<strong>どのサーバかを名指ししている必要があります。</strong></p>
+<h3 id="パス指定が参照されないツール">パス指定が参照されないツール</h3>
+<p>ファイルパスのルールが効くのは <code>Read(...)</code> と <code>Edit(...)</code> だけです。</p>
+<p><code>Write</code> / <code>NotebookEdit</code> / <code>Glob</code> / 旧 <code>MultiEdit</code> に書いても、
+<strong>受け付けられたうえで一度も参照されません。</strong></p>
+<h3 id="本体の入力へのパラメータ指定">本体の入力へのパラメータ指定</h3>
+<p><code>Tool(param:value)</code> の形は、deny と ask で<strong>上位のパラメータ</strong>に対して使えます。</p>
+<p>ただし<strong>そのツールの本体にあたる入力</strong>は指定できません。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>ツール</th>
+  <th>本体の入力</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>Bash</code> / <code>PowerShell</code></td>
+  <td><code>command</code></td>
+</tr>
+<tr>
+  <td><code>Read</code> / <code>Edit</code> / <code>Write</code></td>
+  <td><code>file_path</code></td>
+</tr>
+<tr>
+  <td><code>Grep</code> / <code>Glob</code></td>
+  <td><code>path</code></td>
+</tr>
+<tr>
+  <td><code>NotebookEdit</code></td>
+  <td><code>notebook_path</code></td>
+</tr>
+<tr>
+  <td><code>WebFetch</code></td>
+  <td><code>url</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>Bash(command:rm *)</code> は<strong>複合コマンドで抜けられてしまう</strong>ので、意図的に無視されます。</p>
+<pre><code class="language-jsonc">// 無視される
+&quot;Bash(command:rm *)&quot;
+&quot;Read(file_path:./.env)&quot;
+
+// こう書く
+&quot;Bash(rm *)&quot;
+&quot;Read(./.env)&quot;
+&quot;WebFetch(domain:example.com)&quot;
+</code></pre>
+<h3 id="括弧つきの-mcp__-ルール">括弧つきの <code>mcp__</code> ルール</h3>
+<p>設定ファイルを読み込むとき、<strong>括弧のある <code>mcp__</code> ルールは飛ばされます。</strong></p>
+<p>MCP ツールのパラメータで絞りたい場合は、設定ファイルではなく
+CLI の <code>--disallowedTools</code> を使います。</p>
+<p>飛ばされたルールは、対話セッションの起動時ダイアログと <code>claude doctor</code> に出ます。</p>
+<h3 id="のうしろにまだ字が続く-allow"><code>*</code> のうしろにまだ字が続く allow</h3>
+<p><code>*</code> は<strong>その位置の文字列すべて</strong>に当たります。
+だから <code>*</code> を前に置くほど、ルールは広くなります。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>書き方</th>
+  <th>実際に許可されるもの</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>Bash(git log *)</code></td>
+  <td><code>git log</code> から始まるコマンド</td>
+</tr>
+<tr>
+  <td><code>Bash(git * main)</code></td>
+  <td><strong><code>git push origin main</code> も含む、あらゆる git サブコマンド</strong></td>
+</tr>
+<tr>
+  <td><code>Bash(* --version)</code></td>
+  <td><strong>あらゆるプログラム</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>Bash(git * main)</code> は <code>git</code> の<strong>全サブコマンド</strong>を許可します。
+<code>-c</code> も含むので、git に別のプログラムを起動させることもできます。</p>
+<h3 id="ついでに-は末尾でだけ効く">ついでに: <code>:*</code> は末尾でだけ効く</h3>
+<p><code>Bash(ls:*)</code> は <code>Bash(ls *)</code> と同じです。<strong>ただし末尾に置いたときだけ。</strong></p>
+<p><code>Bash(git:* push)</code> の <code>:</code> はただの文字として扱われ、<strong>git のコマンドには当たりません。</strong></p>
+<h2 id="空白の有無が意味を変えます">空白の有無が意味を変えます</h2>
+<p>末尾の <code>*</code> の前の空白は、ルールの一部です。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>書き方</th>
+  <th>当たる</th>
+  <th>当たらない</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>Bash(ls *)</code></td>
+  <td><code>ls -la</code>, <code>ls</code></td>
+  <td><code>lsof</code></td>
+</tr>
+<tr>
+  <td><code>Bash(ls*)</code></td>
+  <td><code>ls -la</code>, <code>lsof</code></td>
+  <td></td>
+</tr>
+</tbody>
+</table></div>
+<p>末尾の <code>*</code> が<strong>そのルール唯一のワイルドカードのとき</strong>だけ、
+<code>Bash(ls *)</code> は引数なしの <code>ls</code> にも当たります。</p>
+<h2 id="検査する">検査する</h2>
+<p>上の5つは機械で見つけられます。</p>
+<pre><code class="language-bash">npx @quintetkit/ccheck
+</code></pre>
+<pre><code>warn  .claude/settings.json:14
+      `Bash(command:rm *)` is ignored. `command` is Bash's own content field and
+      cannot be matched as a parameter. Write `Bash(rm *)` instead.
+      why: https://code.claude.com/docs/en/permissions
+</code></pre>
+<p><strong>指摘には必ず出典が付きます。</strong> 根拠を示せないものはルールにしていません。</p>
+<p><code>deny</code> / <code>ask</code> のツール名が実在するかは<strong>あえて検査していません。</strong>
+公式は「知らないツール名なら起動時に警告する」としていますが、
+その判定には最新のツール一覧が要ります。
+こちらが持てるのはスナップショットだけなので、
+<strong>新しいツールが増えるたびに誤検出します。</strong></p>
+<h2 id="出典">出典</h2>
+<p><a href="https://code.claude.com/docs/en/permissions">https://code.claude.com/docs/en/permissions</a></p>
+<p>2026-09-04 に取得したスナップショットを元にしています。</p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

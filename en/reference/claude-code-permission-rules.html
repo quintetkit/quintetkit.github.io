@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code permission rules that are accepted and then ignored</title>
+<meta name="description" content="Five ways to write a permissions.allow / deny / ask rule that is not an error, produces no warning you will see, and does nothing: unanchored allow globs, path rules on tools that never consult them, parameter rules on a tool&#x27;s own content field, mcp__ rules with parentheses, and a wildcard before the rest of a command. What the documentation says, and how to check it mechanically.">
+<link rel="canonical" href="https://quintetkit.github.io/en/reference/claude-code-permission-rules.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/reference/claude-code-permission-rules.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/reference/claude-code-permission-rules.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/reference/claude-code-permission-rules.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Claude Code permission rules that are accepted and then ignored">
+<meta property="og:description" content="Five ways to write a permissions.allow / deny / ask rule that is not an error, produces no warning you will see, and does nothing: unanchored allow globs, path rules on tools that never consult them, parameter rules on a tool&#x27;s own content field, mcp__ rules with parentheses, and a wildcard before the rest of a command. What the documentation says, and how to check it mechanically.">
+<meta property="og:url" content="https://quintetkit.github.io/en/reference/claude-code-permission-rules.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="en_US">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><a href="../../en/articles/index.html">Articles</a><span>Reference</span></nav>
+</div></div>
+<article><div class="wrap">
+  <h1>Claude Code permission rules that are accepted and then ignored</h1>
+<p>The awkward part of permission rules is that <strong>a wrong one is still valid JSON.</strong></p>
+<p>When a line in <code>permissions.allow</code> is not taking effect, the settings file
+<strong>cannot tell you</strong> whether it is broken or working as designed.</p>
+<p>Collected here are the cases the official documentation states outright — as
+ignored, as skipped, or as a startup warning. Nothing is inferred.</p>
+<h2 id="the-list">The list</h2>
+<div class="scroll"><table><thead>
+<tr>
+  <th>What you write</th>
+  <th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>&quot;*&quot;</code> / <code>&quot;B*&quot;</code> / <code>&quot;mcp__*&quot;</code> in <strong>allow</strong></td>
+  <td><strong>Skipped, auto-approves nothing.</strong> Warns</td>
+</tr>
+<tr>
+  <td>A path rule on <code>Write</code> / <code>NotebookEdit</code> / <code>Glob</code> / <code>MultiEdit</code></td>
+  <td>Accepted but <strong>never consulted.</strong> Warns at startup</td>
+</tr>
+<tr>
+  <td>A parameter rule on a tool's <strong>own content field</strong>, e.g. <code>Bash(command:...)</code></td>
+  <td><strong>Ignored.</strong> Warns at startup</td>
+</tr>
+<tr>
+  <td>An <code>mcp__</code> rule with parentheses, e.g. <code>mcp__memory(read)</code></td>
+  <td><strong>Skipped at load.</strong> Listed in the startup dialog and <code>claude doctor</code></td>
+</tr>
+<tr>
+  <td>An allow rule with a <code>*</code> before the rest of the command, e.g. <code>Bash(git * main)</code></td>
+  <td>Applies, but <strong>allows far more than it names.</strong> Warns at startup</td>
+</tr>
+</tbody>
+</table></div>
+<p>None of these is an error. The file loads and that one line is dead.</p>
+<h2 id="each-one">Each one</h2>
+<h3 id="unanchored-allow-globs">Unanchored allow globs</h3>
+<p>Deny and ask rules accept a glob in the tool-name position. <strong>Allow rules do not.</strong></p>
+<p>An allow rule may use a glob only after a literal <code>mcp__&lt;server&gt;__</code> prefix.</p>
+<pre><code class="language-jsonc">// applies
+&quot;mcp__puppeteer__*&quot;
+&quot;mcp__github__get_*&quot;
+
+// skipped, auto-approves nothing
+&quot;*&quot;
+&quot;B*&quot;
+&quot;mcp__*&quot;
+</code></pre>
+<p>The server segment must be glob-free, so the rule names a server you configured.</p>
+<h3 id="tools-that-never-consult-a-path-rule">Tools that never consult a path rule</h3>
+<p>File path rules apply to <code>Read(...)</code> and <code>Edit(...)</code>.</p>
+<p>Written for <code>Write</code>, <code>NotebookEdit</code>, <code>Glob</code>, or the legacy <code>MultiEdit</code>, the rule
+is <strong>accepted and then never consulted.</strong></p>
+<h3 id="parameter-rules-on-a-tool-s-own-content-field">Parameter rules on a tool's own content field</h3>
+<p><code>Tool(param:value)</code> works in deny and ask rules for a top-level input parameter.</p>
+<p>It does not work for the field that <strong>is</strong> the tool's content.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Tool</th>
+  <th>Its content field</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>Bash</code> / <code>PowerShell</code></td>
+  <td><code>command</code></td>
+</tr>
+<tr>
+  <td><code>Read</code> / <code>Edit</code> / <code>Write</code></td>
+  <td><code>file_path</code></td>
+</tr>
+<tr>
+  <td><code>Grep</code> / <code>Glob</code></td>
+  <td><code>path</code></td>
+</tr>
+<tr>
+  <td><code>NotebookEdit</code></td>
+  <td><code>notebook_path</code></td>
+</tr>
+<tr>
+  <td><code>WebFetch</code></td>
+  <td><code>url</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>Bash(command:rm *)</code> would be <strong>bypassable with a compound command</strong>, so it is
+ignored on purpose.</p>
+<pre><code class="language-jsonc">// ignored
+&quot;Bash(command:rm *)&quot;
+&quot;Read(file_path:./.env)&quot;
+
+// write this instead
+&quot;Bash(rm *)&quot;
+&quot;Read(./.env)&quot;
+&quot;WebFetch(domain:example.com)&quot;
+</code></pre>
+<h3 id="mcp__-rules-with-parentheses"><code>mcp__</code> rules with parentheses</h3>
+<p>When a settings file is loaded, <strong>any <code>mcp__</code> rule containing parentheses is
+skipped.</strong></p>
+<p>To gate an MCP tool by parameter, use the CLI's <code>--disallowedTools</code> rather than
+a settings file.</p>
+<p>A skipped rule is listed in the invalid-settings dialog at the start of an
+interactive session, and in <code>claude doctor</code>.</p>
+<h3 id="a-wildcard-before-the-rest-of-the-command">A wildcard before the rest of the command</h3>
+<p>A <code>*</code> stands in for <strong>whatever text is in its place</strong>, so the earlier it sits,
+the wider the rule.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>What you write</th>
+  <th>What it actually allows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>Bash(git log *)</code></td>
+  <td>commands beginning <code>git log</code></td>
+</tr>
+<tr>
+  <td><code>Bash(git * main)</code></td>
+  <td><strong>every git subcommand, <code>git push origin main</code> included</strong></td>
+</tr>
+<tr>
+  <td><code>Bash(* --version)</code></td>
+  <td><strong>every program</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>Bash(git * main)</code> covers <code>-c</code>, which makes git run a program you name.</p>
+<h3 id="related-only-works-at-the-end">Related: <code>:*</code> only works at the end</h3>
+<p><code>Bash(ls:*)</code> is the same rule as <code>Bash(ls *)</code> — <strong>but only as a suffix.</strong></p>
+<p>In <code>Bash(git:* push)</code> the colon is a literal character, and the rule <strong>matches
+no git command at all.</strong></p>
+<h2 id="whitespace-changes-the-meaning">Whitespace changes the meaning</h2>
+<p>The space before a trailing <code>*</code> is part of the rule.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>What you write</th>
+  <th>Matches</th>
+  <th>Doesn't match</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>Bash(ls *)</code></td>
+  <td><code>ls -la</code>, <code>ls</code></td>
+  <td><code>lsof</code></td>
+</tr>
+<tr>
+  <td><code>Bash(ls*)</code></td>
+  <td><code>ls -la</code>, <code>lsof</code></td>
+  <td></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>Bash(ls *)</code> matches bare <code>ls</code> only because the trailing <code>*</code> is the rule's
+<strong>only</strong> wildcard.</p>
+<h2 id="checking-it">Checking it</h2>
+<p>All five are mechanically detectable.</p>
+<pre><code class="language-bash">npx @quintetkit/ccheck
+</code></pre>
+<pre><code>warn  .claude/settings.json:14
+      `Bash(command:rm *)` is ignored. `command` is Bash's own content field and
+      cannot be matched as a parameter. Write `Bash(rm *)` instead.
+      why: https://code.claude.com/docs/en/permissions
+</code></pre>
+<p><strong>Every finding cites its source.</strong> A rule that cannot be cited is not written.</p>
+<p>Whether a <code>deny</code> or <code>ask</code> rule names a real tool is <strong>deliberately not checked.</strong>
+The documentation says an unknown tool name warns at startup, and deciding that
+needs the current list of tools. A checker can only hold a snapshot, so it would
+<strong>warn on every tool released after it.</strong></p>
+<h2 id="source">Source</h2>
+<p><a href="https://code.claude.com/docs/en/permissions">https://code.claude.com/docs/en/permissions</a></p>
+<p>Based on a snapshot taken 2026-09-04.</p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>
