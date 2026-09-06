@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Five ways a subagent file is skipped, and every frontmatter field</title>
+<meta name="description" content="A file in .claude/agents/ with a frontmatter problem is skipped without being reported in the session. The five conditions that cause it, the eighteen fields you can write, the field that is easy to put in the wrong place (cacheTtl belongs inside experimental), and the three cases where a change still needs a restart.">
+<link rel="canonical" href="https://quintetkit.github.io/en/reference/claude-code-subagent-frontmatter.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/reference/claude-code-subagent-frontmatter.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/reference/claude-code-subagent-frontmatter.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/reference/claude-code-subagent-frontmatter.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Five ways a subagent file is skipped, and every frontmatter field">
+<meta property="og:description" content="A file in .claude/agents/ with a frontmatter problem is skipped without being reported in the session. The five conditions that cause it, the eighteen fields you can write, the field that is easy to put in the wrong place (cacheTtl belongs inside experimental), and the three cases where a change still needs a restart.">
+<meta property="og:url" content="https://quintetkit.github.io/en/reference/claude-code-subagent-frontmatter.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="en_US">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><a href="../../en/articles/index.html">Articles</a><span>Reference</span></nav>
+</div></div>
+<article><div class="wrap">
+  <h1>Five ways a subagent file is skipped, and every frontmatter field</h1>
+<p>You put a file in <code>.claude/agents/</code> and the subagent is never used.</p>
+<p><strong>Most often the file was never loaded at all</strong> — and the awkward part is that
+<strong>nothing appears in the session to say so.</strong></p>
+<h2 id="five-ways-a-file-is-skipped-silently">Five ways a file is skipped silently</h2>
+<p>Any of these in the frontmatter and the file is not treated as a subagent.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Condition</th>
+  <th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>No <code>name</code></td>
+  <td><strong>Treated as documentation</strong> — a note kept beside your agents</td>
+</tr>
+<tr>
+  <td>The opening <code>---</code> is <strong>not the first line</strong></td>
+  <td>Read as having no frontmatter, so documentation again</td>
+</tr>
+<tr>
+  <td>A <code>name</code> starting with <code>-</code> or containing <code>:</code></td>
+  <td><strong>The whole file is skipped.</strong> The reason goes to the debug log</td>
+</tr>
+<tr>
+  <td>A <code>name</code> but no <code>description</code></td>
+  <td><strong>Skipped.</strong> Reason in the debug log</td>
+</tr>
+<tr>
+  <td>YAML that does not parse</td>
+  <td>Nothing is read, the file is skipped, parse error in the debug log</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>What they share is that the session says nothing.</strong> To see the reason you need
+<code>--debug</code>.</p>
+<p><code>:</code> is unavailable because it is reserved for plugin-scoped identifiers such as
+<code>my-plugin:reviewer</code>.</p>
+<p><strong>Plugin subagents are the exception:</strong> one with no <code>name</code>, or with frontmatter
+that does not parse, still loads — under its filename.</p>
+<h3 id="checking-before-a-session">Checking before a session</h3>
+<p>Frontmatter that fails to parse can be found with <code>claude plugin validate</code>.</p>
+<pre><code class="language-bash">claude plugin validate .claude/agents
+claude plugin validate ~/.claude/agents
+</code></pre>
+<p>It looks <strong>only at the directory you name</strong>, and it does <strong>not</strong> flag a file
+whose frontmatter parses but has no <code>name</code>.</p>
+<h2 id="every-frontmatter-field">Every frontmatter field</h2>
+<p><strong>Only <code>name</code> and <code>description</code> are required.</strong></p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Field</th>
+  <th>What it decides</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>name</code></td>
+  <td>The identifier: lowercase and hyphens. <strong>It need not match the filename.</strong> Hooks receive it as <code>agent_type</code></td>
+</tr>
+<tr>
+  <td><code>description</code></td>
+  <td>When Claude should delegate here. This is what the delegation decision reads</td>
+</tr>
+<tr>
+  <td><code>tools</code></td>
+  <td>Which tools it may use. <strong>Omit it and it inherits everything available to subagents</strong></td>
+</tr>
+<tr>
+  <td><code>disallowedTools</code></td>
+  <td>Tools removed from the inherited or specified list</td>
+</tr>
+<tr>
+  <td><code>model</code></td>
+  <td><code>sonnet</code> / <code>opus</code> / <code>haiku</code> / <code>fable</code> / a full model ID / <code>inherit</code></td>
+</tr>
+<tr>
+  <td><code>permissionMode</code></td>
+  <td><code>default</code> / <code>acceptEdits</code> / <code>auto</code> / <code>dontAsk</code> / <code>bypassPermissions</code> / <code>plan</code> / <code>manual</code></td>
+</tr>
+<tr>
+  <td><code>maxTurns</code></td>
+  <td>Where to stop. Output cut short is <strong>marked as partial</strong> and can be resumed</td>
+</tr>
+<tr>
+  <td><code>skills</code></td>
+  <td>Skills preloaded at startup — <strong>the full content, not just the description</strong></td>
+</tr>
+<tr>
+  <td><code>mcpServers</code></td>
+  <td>MCP servers available to it, by name or defined inline</td>
+</tr>
+<tr>
+  <td><code>hooks</code></td>
+  <td>Lifecycle hooks scoped to this subagent alone</td>
+</tr>
+<tr>
+  <td><code>memory</code></td>
+  <td><code>user</code> / <code>project</code> / <code>local</code>. Learning that survives the session</td>
+</tr>
+<tr>
+  <td><code>background</code></td>
+  <td><code>true</code> keeps it in the background even when Claude asks for the foreground</td>
+</tr>
+<tr>
+  <td><code>effort</code></td>
+  <td><code>low</code> / <code>medium</code> / <code>high</code> / <code>xhigh</code> / <code>max</code>. <strong>Which levels exist depends on the model</strong></td>
+</tr>
+<tr>
+  <td><code>isolation</code></td>
+  <td><code>worktree</code> runs it inside its own copy of the repository</td>
+</tr>
+<tr>
+  <td><code>color</code></td>
+  <td>Display colour in the task list. Eight choices</td>
+</tr>
+<tr>
+  <td><code>initialPrompt</code></td>
+  <td>Submitted as the first user turn when this runs as the main session agent (<code>--agent</code>)</td>
+</tr>
+<tr>
+  <td><code>experimental</code></td>
+  <td>Map of experimental options. <code>cacheTtl</code> goes in here</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="one-thing-to-watch-in-tools">One thing to watch in <code>tools</code></h3>
+<p><strong>If no entry in the list resolves to a tool, the subagent usually fails to
+launch</strong>, with an error naming the entries.</p>
+<p>Listing <code>Skill</code> to preload skills is the wrong field — use <code>skills</code>.</p>
+<h3 id="cachettl-belongs-inside-experimental"><code>cacheTtl</code> belongs inside <code>experimental</code></h3>
+<p><strong>At the top level it does nothing.</strong> This is the easy one to get wrong.</p>
+<pre><code class="language-yaml">---
+name: repo-auditor
+description: Audits a large repository and reports what it finds
+experimental:
+  cacheTtl: 1h
+---
+</code></pre>
+<p>Only <code>5m</code> and <code>1h</code> are read; <strong>any other value is ignored.</strong> <code>1h</code> is also
+ignored while your subscription is using usage credits. And the field is read
+<strong>only from subagent files.</strong></p>
+<h3 id="fields-ignored-for-plugin-subagents">Fields ignored for plugin subagents</h3>
+<p><code>permissionMode</code>, <code>mcpServers</code> and <code>hooks</code> are <strong>ignored</strong> when the subagent
+comes from a plugin.</p>
+<h2 id="when-a-change-does-not-take-effect">When a change does not take effect</h2>
+<p><code>~/.claude/agents/</code> and <code>.claude/agents/</code> are <strong>watched</strong>, so an edit applies to
+the next delegation within a few seconds. No restart.</p>
+<p><strong>Three cases still need one.</strong></p>
+<ul>
+<li>The <strong>first</strong> agent file in a scope, when the <code>agents</code> directory itself is new
+— the watcher only covers directories that existed when the session started</li>
+<li><code>.claude/agents/</code> inside a directory added with <code>--add-dir</code> or <code>/add-dir</code>,
+which is <strong>not watched at all</strong></li>
+<li>A session started with <code>--disable-slash-commands</code>, which watches <strong>neither</strong></li>
+</ul>
+<h2 id="checking-it">Checking it</h2>
+<p>All five conditions are mechanically detectable, and so are duplicate names —
+<strong>which of the two loads is decided by an undocumented filesystem read order.</strong></p>
+<pre><code class="language-bash">npx @quintetkit/ccheck
+</code></pre>
+<pre><code>error .claude/agents/a.md:2
+      `name: bad:name` is not loaded. A name containing `:` or starting with `-` is invalid.
+      why: https://code.claude.com/docs/en/sub-agents
+</code></pre>
+<p><strong>Every finding cites its source.</strong> A rule that cannot be cited is not written.</p>
+<p>The <strong>sets of valid values</strong> for fields like <code>model</code> and <code>color</code> are
+deliberately not checked: a checker holding a snapshot would warn on every value
+added after it.</p>
+<h2 id="source">Source</h2>
+<p><a href="https://code.claude.com/docs/en/sub-agents">https://code.claude.com/docs/en/sub-agents</a></p>
+<p>Based on a snapshot taken 2026-09-04.</p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

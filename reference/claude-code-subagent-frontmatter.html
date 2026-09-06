@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>サブエージェントのファイルが読み込まれない5つの条件と、frontmatter の全項目</title>
+<meta name="description" content=".claude/agents/*.md は、frontmatter に問題があると黙って飛ばされます。セッションには何も出ません。飛ばされる5条件と、書ける18項目の一覧、間違えやすい置き場所（cacheTtl は experimental の中）、変更の反映に再起動が要る3つの場合。">
+<link rel="canonical" href="https://quintetkit.github.io/reference/claude-code-subagent-frontmatter.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/reference/claude-code-subagent-frontmatter.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/reference/claude-code-subagent-frontmatter.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/reference/claude-code-subagent-frontmatter.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="サブエージェントのファイルが読み込まれない5つの条件と、frontmatter の全項目">
+<meta property="og:description" content=".claude/agents/*.md は、frontmatter に問題があると黙って飛ばされます。セッションには何も出ません。飛ばされる5条件と、書ける18項目の一覧、間違えやすい置き場所（cacheTtl は experimental の中）、変更の反映に再起動が要る3つの場合。">
+<meta property="og:url" content="https://quintetkit.github.io/reference/claude-code-subagent-frontmatter.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="ja_JP">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><a href="../articles/index.html">記事</a><span>リファレンス</span></nav>
+</div></div>
+<article><div class="wrap">
+  <h1>サブエージェントのファイルが読み込まれない5つの条件と、frontmatter の全項目</h1>
+<p><code>.claude/agents/</code> にファイルを置いたのに、そのサブエージェントが呼ばれない。</p>
+<p><strong>いちばん多いのは、ファイルが読み込まれてすらいない</strong>ケースです。
+そして厄介なことに、<strong>セッションには何も出ません。</strong></p>
+<h2 id="黙って飛ばされる5つの条件">黙って飛ばされる5つの条件</h2>
+<p>frontmatter に次のどれかがあると、そのファイルは<strong>サブエージェントとして扱われません。</strong></p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>条件</th>
+  <th>何が起きるか</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>name</code> が無い</td>
+  <td><strong>ドキュメントとして扱われる。</strong> エージェントの横に置いたメモと同じ</td>
+</tr>
+<tr>
+  <td>開きの <code>---</code> が<strong>1行目でない</strong></td>
+  <td>frontmatter が無いものとして読まれ、やはりドキュメント扱い</td>
+</tr>
+<tr>
+  <td><code>name</code> が <code>-</code> で始まる／<code>:</code> を含む</td>
+  <td><strong>ファイルごとスキップ。</strong> 理由はデバッグログにだけ出る</td>
+</tr>
+<tr>
+  <td><code>name</code> はあるが <code>description</code> が無い</td>
+  <td><strong>スキップ。</strong> 理由はデバッグログ</td>
+</tr>
+<tr>
+  <td>YAML として壊れている</td>
+  <td>何も読まれずスキップ。パースエラーはデバッグログ</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>共通しているのは「セッション側には出ない」こと。</strong> 理由を見るには <code>--debug</code> が要ります。</p>
+<p><code>:</code> が使えないのは、プラグイン用の識別子（<code>my-plugin:reviewer</code>）に予約されているためです。</p>
+<p>なお<strong>プラグインのサブエージェント</strong>は例外で、<code>name</code> が無くても
+YAML が壊れていても、<strong>ファイル名で読み込まれます。</strong></p>
+<h3 id="先に確かめる">先に確かめる</h3>
+<p>パースできない frontmatter は <code>claude plugin validate</code> で見つけられます。</p>
+<pre><code class="language-bash">claude plugin validate .claude/agents
+claude plugin validate ~/.claude/agents
+</code></pre>
+<p>ただし<strong>指定したディレクトリしか見ません</strong>。そして
+<strong>「パースはできるが <code>name</code> が無い」ファイルは出ません。</strong></p>
+<h2 id="frontmatter-に書ける項目">frontmatter に書ける項目</h2>
+<p><strong>必須は <code>name</code> と <code>description</code> の2つだけ</strong>です。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>項目</th>
+  <th>何を決めるか</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>name</code></td>
+  <td>識別子。小文字とハイフン。<strong>ファイル名と一致していなくてよい</strong>。hook には <code>agent_type</code> として渡る</td>
+</tr>
+<tr>
+  <td><code>description</code></td>
+  <td>どういうときに任せるか。Claude はこれを見て委譲を判断する</td>
+</tr>
+<tr>
+  <td><code>tools</code></td>
+  <td>使えるツール。<strong>省くと、サブエージェントが使える全部を継承</strong></td>
+</tr>
+<tr>
+  <td><code>disallowedTools</code></td>
+  <td>継承／指定した一覧から取り除くツール</td>
+</tr>
+<tr>
+  <td><code>model</code></td>
+  <td><code>sonnet</code> / <code>opus</code> / <code>haiku</code> / <code>fable</code> / 完全なモデル ID / <code>inherit</code></td>
+</tr>
+<tr>
+  <td><code>permissionMode</code></td>
+  <td><code>default</code> / <code>acceptEdits</code> / <code>auto</code> / <code>dontAsk</code> / <code>bypassPermissions</code> / <code>plan</code> / <code>manual</code></td>
+</tr>
+<tr>
+  <td><code>maxTurns</code></td>
+  <td>何ターンで打ち切るか。打ち切られた出力は<strong>部分的と印がつく</strong></td>
+</tr>
+<tr>
+  <td><code>skills</code></td>
+  <td>起動時に読み込ませる Skill。<strong>説明だけでなく本文ごと</strong>入る</td>
+</tr>
+<tr>
+  <td><code>mcpServers</code></td>
+  <td>使える MCP サーバ。名前の参照でも、その場での定義でもよい</td>
+</tr>
+<tr>
+  <td><code>hooks</code></td>
+  <td>このサブエージェントにだけ効く hook</td>
+</tr>
+<tr>
+  <td><code>memory</code></td>
+  <td><code>user</code> / <code>project</code> / <code>local</code>。セッションをまたいだ記憶</td>
+</tr>
+<tr>
+  <td><code>background</code></td>
+  <td><code>true</code> で常に背景実行</td>
+</tr>
+<tr>
+  <td><code>effort</code></td>
+  <td><code>low</code> / <code>medium</code> / <code>high</code> / <code>xhigh</code> / <code>max</code>。<strong>使える段階はモデル次第</strong></td>
+</tr>
+<tr>
+  <td><code>isolation</code></td>
+  <td><code>worktree</code> で、リポジトリの複製の中で動く</td>
+</tr>
+<tr>
+  <td><code>color</code></td>
+  <td>一覧での表示色。8色</td>
+</tr>
+<tr>
+  <td><code>initialPrompt</code></td>
+  <td><code>--agent</code> で主セッションとして動かすとき、最初のユーザー発話として自動で入る</td>
+</tr>
+<tr>
+  <td><code>experimental</code></td>
+  <td>実験的な設定のマップ。<code>cacheTtl</code> はここに書く</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="tools-を書くときの注意"><code>tools</code> を書くときの注意</h3>
+<p><strong>一覧のどれもツールに解決できないと、起動そのものに失敗します</strong>（該当の項目名を挙げたエラーが出る）。</p>
+<p>Skill を先読みさせたいときに <code>Skill</code> を並べるのは誤りで、<code>skills</code> を使います。</p>
+<h3 id="cachettl-は-experimental-の中"><code>cacheTtl</code> は <code>experimental</code> の中</h3>
+<p><strong>上の階層に書いても効きません。</strong> よく間違える場所です。</p>
+<pre><code class="language-yaml">---
+name: repo-auditor
+description: 大きなリポジトリを調べて報告する
+experimental:
+  cacheTtl: 1h
+---
+</code></pre>
+<p><code>5m</code> か <code>1h</code> だけが読まれ、<strong>それ以外の値は無視されます。</strong>
+サブスクリプションがクレジットを消費している間は <code>1h</code> も無視されます。
+そして<strong>この項目はサブエージェントのファイルからしか読まれません。</strong></p>
+<h3 id="プラグインのサブエージェントでは効かない項目">プラグインのサブエージェントでは効かない項目</h3>
+<p><code>permissionMode</code> / <code>mcpServers</code> / <code>hooks</code> の3つは、
+<strong>プラグインのサブエージェントでは無視されます。</strong></p>
+<h2 id="変更が反映されないとき">変更が反映されないとき</h2>
+<p><code>~/.claude/agents/</code> と <code>.claude/agents/</code> は<strong>監視されている</strong>ので、
+書き換えれば数秒で次の委譲から効きます。再起動は要りません。</p>
+<p><strong>要る場合が3つあります。</strong></p>
+<ul>
+<li>そのスコープで<strong>最初の1個目</strong>を作ったとき（監視はセッション開始時に存在した
+ディレクトリだけが対象なので、<code>agents</code> ディレクトリごと新設した場合）</li>
+<li><code>--add-dir</code> / <code>/add-dir</code> で足したディレクトリの中の <code>.claude/agents/</code>
+（<strong>そもそも監視されていない</strong>）</li>
+<li><code>--disable-slash-commands</code> で始めたセッション（<strong>一切監視しない</strong>）</li>
+</ul>
+<h2 id="検査する">検査する</h2>
+<p>上の5条件は機械で見つけられます。名前の重複も出ます
+（<strong>どちらが読まれるかはファイルシステムの読み出し順</strong>で決まり、文書化されていません）。</p>
+<pre><code class="language-bash">npx @quintetkit/ccheck
+</code></pre>
+<pre><code>error .claude/agents/a.md:2
+      `name: bad:name` is not loaded. A name containing `:` or starting with `-` is invalid.
+      why: https://code.claude.com/docs/en/sub-agents
+</code></pre>
+<p><strong>指摘には必ず出典が付きます。</strong> 根拠を示せないものはルールにしていません。</p>
+<p><code>model</code> や <code>color</code> のような<strong>値の一覧は検査していません。</strong>
+新しい値が増えるたびに誤検出するからです。</p>
+<h2 id="出典">出典</h2>
+<p><a href="https://code.claude.com/docs/en/sub-agents">https://code.claude.com/docs/en/sub-agents</a></p>
+<p>2026-09-04 に取得したスナップショットを元にしています。</p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

@@ -33,6 +33,7 @@
   <li><a href="claude-code-hooks.html">Claude Code の hook イベント一覧 — matcher と if が効く場所</a><p>Claude Code の hook イベント33種を1つの表にまとめた対照表。matcher が何に当たるか、matcher を書いても無視されるのはどれか、if が評価されるのはどれかを、公式ドキュメントの記述から起こしている。</p></li>
   <li><a href="claude-code-permission-rules.html">Claude Code の権限ルールで、書けるのに無視されるもの</a><p>permissions.allow / deny / ask に書いても、エラーにならず警告も出ないまま無視される書き方が5種類あります。アンカーの無い allow グロブ、参照されないツールへのパス指定、本体の入力へのパラメータ指定、括弧つきの mcp__ ルール、コマンドの途中に置いた *。公式ドキュメントの記述…</p></li>
   <li><a href="claude-code-settings-scope.html">.claude/settings.json に書いても効かないキー 71 個</a><p>設定キーのうち 71 個は、管理設定・ユーザ設定・~/.claude.json からしか効きません。プロジェクトの .claude/settings.json に書いてもエラーにならず、警告も出ず、何も起きません。公式の設定表のスコープ列から機械的に抽出した一覧です。</p></li>
+  <li><a href="claude-code-subagent-frontmatter.html">サブエージェントのファイルが読み込まれない5つの条件と、frontmatter の全項目</a><p>.claude/agents/*.md は、frontmatter に問題があると黙って飛ばされます。セッションには何も出ません。飛ばされる5条件と、書ける18項目の一覧、間違えやすい置き場所（cacheTtl は experimental の中）、変更の反映に再起動が要る3つの場合。</p></li>
   <li><a href="devto-api.html">dev.to に API で記事を出す — 実測でしか分からなかったこと</a><p>Forem API v1 の、ドキュメントに書かれていない挙動の記録。レート制限は 429 ではなく 500 で返る、カバー画像のフィールド名が入力と出力で違う、更新時に published を送らないと公開済み記事が下書きに戻る。記事19本・更新約40回の実測。</p></li>
 </ul>
 </div>
