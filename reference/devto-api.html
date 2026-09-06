@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dev.to に API で記事を出す — 実測でしか分からなかったこと</title>
+<meta name="description" content="Forem API v1 の、ドキュメントに書かれていない挙動の記録。レート制限は 429 ではなく 500 で返る、カバー画像のフィールド名が入力と出力で違う、更新時に published を送らないと公開済み記事が下書きに戻る。記事19本・更新約40回の実測。">
+<link rel="canonical" href="https://quintetkit.github.io/reference/devto-api.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/reference/devto-api.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/reference/devto-api.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/reference/devto-api.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="dev.to に API で記事を出す — 実測でしか分からなかったこと">
+<meta property="og:description" content="Forem API v1 の、ドキュメントに書かれていない挙動の記録。レート制限は 429 ではなく 500 で返る、カバー画像のフィールド名が入力と出力で違う、更新時に published を送らないと公開済み記事が下書きに戻る。記事19本・更新約40回の実測。">
+<meta property="og:url" content="https://quintetkit.github.io/reference/devto-api.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="ja_JP">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><a href="../articles/index.html">記事</a><span>リファレンス</span></nav>
+</div></div>
+<article><div class="wrap">
+  <h1>dev.to に API で記事を出す — 実測でしか分からなかったこと</h1>
+<p>ここに書いてあるのは全部、実際のアカウントで記事を出しながら観測したものです。
+読んだ話ではありません。日付を入れてあるので、古くなっているかは各自で判断してください。</p>
+<p><strong>2026-09-04 〜 2026-09-06</strong> の実測。記事19本、更新の呼び出しは約40回。</p>
+<h2 id="レート制限は-429-ではなく-500-で返る">レート制限は 429 ではなく 500 で返る</h2>
+<p>いちばん時間を取られるのがこれです。<strong>500 は「サーバが壊れている」に読めるので、
+再試行のループに入ってしまいます。</strong></p>
+<p><strong>2026-09-04。</strong> 間隔を空けずに <code>PUT /articles/:id</code> を9回:</p>
+<pre><code>9回中3回 -&gt; HTTP 500
+</code></pre>
+<p>本文に「レート制限」とは書かれていません。同じ内容を間隔を空けて投げ直すと、全部通ります。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>間隔</th>
+  <th>回数</th>
+  <th>失敗</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>なし</td>
+  <td>9</td>
+  <td><strong>3</strong></td>
+</tr>
+<tr>
+  <td>10秒</td>
+  <td>6</td>
+  <td>0</td>
+</tr>
+<tr>
+  <td>10秒</td>
+  <td>11</td>
+  <td>0</td>
+</tr>
+<tr>
+  <td>20秒</td>
+  <td>7</td>
+  <td>0</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>書き込みの間を10秒空ければ、私が回した全部のバッチで通りました。</strong>
+書き込みで 500 が返ったら、送った内容を疑う前に間隔を空けてください。</p>
+<h2 id="カバー画像は-送るときと返るときで名前が違う">カバー画像は、送るときと返るときで名前が違う</h2>
+<p>送るのは <code>main_image</code>、返るのは <code>cover_image</code> です。</p>
+<pre><code>送信   { &quot;article&quot;: { &quot;main_image&quot;: &quot;https://example.github.io/covers/a.png&quot; } }
+応答   { &quot;cover_image&quot;: &quot;https://media2.dev.to/dynamic/image/width=1000,.../https%3A%2F%2F...&quot; }
+</code></pre>
+<p>応答の URL は dev.to 側の CDN で、送った URL を書き換えたものです。
+つまり <strong>dev.to が取り込んだあとは、こちらの置き場が落ちても記事の表示は壊れません。</strong></p>
+<p>応答の <code>main_image</code> を見に行くと <code>null</code> なので、<strong>書き込みが効いていないように見えます。</strong></p>
+<h2 id="published-は毎回リクエストの値になる"><code>published</code> は毎回リクエストの値になる</h2>
+<p>「そのままにする」という選択肢がありません。送った値が、そのまま記事の状態になります。</p>
+<pre><code>PUT /articles/:id  published: false で送る  -&gt;  公開済みの記事が取り下げられる
+</code></pre>
+<p>URL は残り、ページは 404 になり、貼られていたリンクが死にます。
+<code>published</code> をコマンドラインのフラグで決めているツールなら、
+<strong>フラグを付け忘れた更新が、直したかった記事を取り下げます。</strong></p>
+<p>安全な形は、推測せずに<strong>拒否する</strong>ことです。</p>
+<pre><code class="language-ts">if (existing?.published &amp;&amp; !publish) {
+  throw new Error(&quot;この記事は公開済みです。--publish 無しの更新は下書きに戻します。&quot;);
+}
+</code></pre>
+<p>推測するほうが危険です。<strong>「意図した取り下げ」と「フラグの付け忘れ」は、
+ツールの中からは区別できません。</strong></p>
+<h2 id="記事詳細の応答に-series-は入らない">記事詳細の応答に <code>series</code> は入らない</h2>
+<p><code>series</code> は article オブジェクトに載せれば設定できます。<strong>が、
+<code>GET /articles/:id</code> は返してきません。</strong></p>
+<p>7本に series を設定して API を見ました。何も入っていません。
+<strong>記事ページには最初から表示されていました。</strong></p>
+<pre><code class="language-bash"># 設定できたかどうかは、これでは分からない
+curl -H &quot;api-key: $KEY&quot; https://dev.to/api/articles/4570263 | jq .series
+
+# こちらで分かる
+curl -s https://dev.to/&lt;user&gt;/&lt;slug&gt; | grep -o &quot;&lt;シリーズ名&gt;&quot;
+</code></pre>
+<p><strong>表示を確かめたいなら、表示を見ること。</strong></p>
+<h2 id="同じ日に何本も出すと-ほとんどが埋まる">同じ日に何本も出すと、ほとんどが埋まる</h2>
+<p>API の挙動ではありませんが、<strong>API があるとやってしまう失敗</strong>です。</p>
+<p><strong>2026-09-04。</strong> 英語記事9本を1日のうちに公開。24時間後の PV:</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>記事</th>
+  <th>PV</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>1本目</td>
+  <td>27</td>
+</tr>
+<tr>
+  <td>2本目</td>
+  <td>23</td>
+</tr>
+<tr>
+  <td>3本目</td>
+  <td>13</td>
+</tr>
+<tr>
+  <td>4本目</td>
+  <td>10</td>
+</tr>
+<tr>
+  <td>残り5本</td>
+  <td><strong>0</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>フィードは時系列なので、<strong>まとめて出した記事は互いを埋めます。</strong>
+以後は1日1本にしました。</p>
+<p><strong>0 のまま残った記事は、放っておいても回復しませんでした。</strong></p>
+<h2 id="同一性はタイトルではなく-id-で持つ">同一性はタイトルではなく id で持つ</h2>
+<p><code>GET /articles/me/published</code> で自分の記事が取れます。
+ここで<strong>タイトルで既存を探すと、タイトルの描画バグを直した日に、
+ツールが自分の記事を見失って重複を作ります。</strong></p>
+<p>ファイル名と、API が採番した id の対応を持っておきます。</p>
+<pre><code class="language-json">{ &quot;ids&quot;: { &quot;composite-github-action&quot;: 4576296 } }
+</code></pre>
+<p>そして<strong>記録があるのに見つからないときは止めます。</strong>
+黙って新規作成に落ちるのがいちばん困ります。
+<strong>同じ内容の記事が2本、同じ検索語で競合する</strong>ことになるからです。</p>
+<h2 id="注記">注記</h2>
+<ul>
+<li>API は Forem API v1。鍵は <code>api-key</code> ヘッダに入れる</li>
+<li>上は1アカウントでの観測です。<strong>レート制限はアカウントの古さや評価で変わる可能性があります</strong></li>
+<li><a href="https://developers.forem.com/api">公式ドキュメント</a>と食い違う場合は、
+まず公式を見てください。このページは<strong>実際に起きたこと</strong>の記録です</li>
+</ul>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

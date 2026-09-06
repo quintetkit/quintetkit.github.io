@@ -4,8 +4,12 @@
   <url><loc>https://quintetkit.github.io/index.en.html</loc></url>
   <url><loc>https://quintetkit.github.io/articles/</loc></url>
   <url><loc>https://quintetkit.github.io/en/articles/</loc></url>
+  <url><loc>https://quintetkit.github.io/reference/</loc></url>
+  <url><loc>https://quintetkit.github.io/en/reference/</loc></url>
   <url><loc>https://quintetkit.github.io/reference/claude-code-hooks.html</loc></url>
   <url><loc>https://quintetkit.github.io/en/reference/claude-code-hooks.html</loc></url>
+  <url><loc>https://quintetkit.github.io/reference/devto-api.html</loc></url>
+  <url><loc>https://quintetkit.github.io/en/reference/devto-api.html</loc></url>
   <url><loc>https://quintetkit.github.io/articles/verification-that-verifies-nothing.html</loc><lastmod>2026-09-05</lastmod></url>
   <url><loc>https://quintetkit.github.io/articles/silently-ignored-config.html</loc><lastmod>2026-09-05</lastmod></url>
   <url><loc>https://quintetkit.github.io/articles/safe-default-destructive-update.html</loc><lastmod>2026-09-05</lastmod></url>

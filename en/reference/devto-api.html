@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Publishing to dev.to Through Its API — What I Measured</title>
+<meta name="description" content="Behaviours of the Forem API v1 that the documentation does not state: rate limiting surfaces as HTTP 500 rather than 429, the cover image field is named differently on input and output, and omitting published on an update takes a live article down. Measured while publishing 19 articles.">
+<link rel="canonical" href="https://quintetkit.github.io/en/reference/devto-api.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/reference/devto-api.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/reference/devto-api.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/reference/devto-api.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Publishing to dev.to Through Its API — What I Measured">
+<meta property="og:description" content="Behaviours of the Forem API v1 that the documentation does not state: rate limiting surfaces as HTTP 500 rather than 429, the cover image field is named differently on input and output, and omitting published on an update takes a live article down. Measured while publishing 19 articles.">
+<meta property="og:url" content="https://quintetkit.github.io/en/reference/devto-api.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="en_US">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><a href="../../en/articles/index.html">Articles</a><span>Reference</span></nav>
+</div></div>
+<article><div class="wrap">
+  <h1>Publishing to dev.to Through Its API — What I Measured</h1>
+<p>Everything here was observed while publishing and updating articles on a real
+account, not read somewhere. Dates are given so you can judge how stale it is.</p>
+<p>Measured between <strong>2026-09-04 and 2026-09-06</strong>, across 19 articles and roughly
+40 update calls.</p>
+<h2 id="rate-limiting-returns-500-not-429">Rate limiting returns 500, not 429</h2>
+<p>This is the one that costs the most time, because a 500 reads as &quot;the server is
+broken&quot; and invites a retry loop.</p>
+<p><strong>2026-09-04.</strong> Nine consecutive <code>PUT /articles/:id</code> calls with no delay:</p>
+<pre><code>3 of 9 -&gt; HTTP 500
+</code></pre>
+<p>Nothing in the body says &quot;rate limit&quot;. The same requests, replayed with a delay,
+all succeeded.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>spacing</th>
+  <th>calls</th>
+  <th>failures</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>none</td>
+  <td>9</td>
+  <td><strong>3</strong></td>
+</tr>
+<tr>
+  <td>10 seconds</td>
+  <td>6</td>
+  <td>0</td>
+</tr>
+<tr>
+  <td>10 seconds</td>
+  <td>11</td>
+  <td>0</td>
+</tr>
+<tr>
+  <td>20 seconds</td>
+  <td>7</td>
+  <td>0</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Ten seconds between write calls was enough</strong> across every batch I ran. If you
+get a 500 on a write, wait before assuming the payload is at fault.</p>
+<h2 id="the-cover-image-field-has-a-different-name-on-the-way-in-and-out">The cover image field has a different name on the way in and out</h2>
+<p>You set it as <code>main_image</code>. You read it back as <code>cover_image</code>.</p>
+<pre><code>request   { &quot;article&quot;: { &quot;main_image&quot;: &quot;https://example.github.io/covers/a.png&quot; } }
+response  { &quot;cover_image&quot;: &quot;https://media2.dev.to/dynamic/image/width=1000,.../https%3A%2F%2F...&quot; }
+</code></pre>
+<p>The response URL is dev.to's own CDN, rewritten from the one you sent. That
+matters: <strong>once dev.to has ingested the image, your host going down does not
+break the article.</strong></p>
+<p>If you check for <code>main_image</code> on the response, it is <code>null</code>, and it looks like
+the write did nothing.</p>
+<h2 id="published-is-taken-from-the-request-every-time"><code>published</code> is taken from the request, every time</h2>
+<p>There is no &quot;leave it as it is&quot;. Whatever you send is what the article becomes.</p>
+<pre><code>PUT /articles/:id  with published: false   -&gt;  a live article is taken down
+</code></pre>
+<p>The URL survives, the page 404s, and links to it die. If your tool decides
+<code>published</code> from a command-line flag, <strong>an update without that flag unpublishes
+the article you meant to edit.</strong></p>
+<p>The safe shape is to refuse rather than guess:</p>
+<pre><code class="language-ts">if (existing?.published &amp;&amp; !publish) {
+  throw new Error(&quot;This article is published. Updating without --publish takes it down.&quot;);
+}
+</code></pre>
+<p>Guessing the intent is worse, because &quot;meant to unpublish&quot; and &quot;forgot the flag&quot;
+look identical from inside the tool.</p>
+<h2 id="the-article-detail-response-omits-series">The article detail response omits <code>series</code></h2>
+<p>You can set <code>series</code> on the article object, and it works — but
+<code>GET /articles/:id</code> does not return it.</p>
+<p>I set a series on seven articles and checked the API. Nothing came back. <strong>The
+series box was rendering on the article page the whole time.</strong></p>
+<pre><code class="language-bash"># does not tell you whether the series was set
+curl -H &quot;api-key: $KEY&quot; https://dev.to/api/articles/4570263 | jq .series
+
+# does
+curl -s https://dev.to/&lt;user&gt;/&lt;slug&gt; | grep -o &quot;&lt;series name&gt;&quot;
+</code></pre>
+<p><strong>If you want to know what is displayed, look at what is displayed.</strong></p>
+<h2 id="publishing-several-articles-on-one-day-buries-most-of-them">Publishing several articles on one day buries most of them</h2>
+<p>Not an API behaviour, but it is the mistake the API makes easy.</p>
+<p><strong>2026-09-04.</strong> Nine English articles published within one day. Page views after
+24 hours:</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>article</th>
+  <th>views</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>1st</td>
+  <td>27</td>
+</tr>
+<tr>
+  <td>2nd</td>
+  <td>23</td>
+</tr>
+<tr>
+  <td>3rd</td>
+  <td>13</td>
+</tr>
+<tr>
+  <td>4th</td>
+  <td>10</td>
+</tr>
+<tr>
+  <td>remaining 5</td>
+  <td><strong>0</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>The feed is chronological, so articles published together compete with each
+other and the later ones are never seen. <strong>One a day, from then on.</strong></p>
+<p>The ones that sat at zero views did not recover on their own.</p>
+<h2 id="identity-use-the-id-not-the-title">Identity: use the id, not the title</h2>
+<p><code>GET /articles/me/published</code> gives you your articles. If you find the existing
+one by title, the day you fix a title-rendering bug is the day your tool stops
+recognising its own articles and creates duplicates.</p>
+<p>Keep a file mapping your filename to the id the API assigned:</p>
+<pre><code class="language-json">{ &quot;ids&quot;: { &quot;composite-github-action&quot;: 4576296 } }
+</code></pre>
+<p>And <strong>stop when the id is recorded but not found.</strong> Silently falling through to
+create is the worst option: you end up with two published copies of the same
+article competing for the same search terms.</p>
+<h2 id="notes">Notes</h2>
+<ul>
+<li>The API is Forem API v1; the key goes in an <code>api-key</code> header</li>
+<li>Everything above is behaviour observed on one account. Rate limits in
+particular may differ by account age or reputation</li>
+<li>Where this disagrees with the <a href="https://developers.forem.com/api">official documentation</a>,
+the documentation is the place to start; this page records what actually happened</li>
+</ul>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>
