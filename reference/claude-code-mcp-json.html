@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>.mcp.json で書き間違えても気づけないところ</title>
+<meta name="description" content="type を書き忘れた url は stdio サーバとして読まれてスキップされます。timeout: 500 は 500ms ではなく約28時間になります（1000 未満は無視されて MCP_TOOL_TIMEOUT の既定に落ちる）。トランスポート別の必須項目、sse が非推奨であること、untrusted なフォルダでは承認設定が無視されることまで。">
+<link rel="canonical" href="https://quintetkit.github.io/reference/claude-code-mcp-json.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/reference/claude-code-mcp-json.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/reference/claude-code-mcp-json.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/reference/claude-code-mcp-json.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content=".mcp.json で書き間違えても気づけないところ">
+<meta property="og:description" content="type を書き忘れた url は stdio サーバとして読まれてスキップされます。timeout: 500 は 500ms ではなく約28時間になります（1000 未満は無視されて MCP_TOOL_TIMEOUT の既定に落ちる）。トランスポート別の必須項目、sse が非推奨であること、untrusted なフォルダでは承認設定が無視されることまで。">
+<meta property="og:url" content="https://quintetkit.github.io/reference/claude-code-mcp-json.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="ja_JP">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><a href="../articles/index.html">記事</a><span>リファレンス</span></nav>
+</div></div>
+<article><div class="wrap">
+  <h1>.mcp.json で書き間違えても気づけないところ</h1>
+<p><code>.mcp.json</code> は短いファイルなので、間違いは少ないはずです。</p>
+<p><strong>実際にいちばん高くつくのは、間違いが「別の正しい設定」として読まれる</strong>ときです。</p>
+<h2 id="1-url-だけ書くと-stdio-サーバとして読まれる">1. <code>url</code> だけ書くと、stdio サーバとして読まれる</h2>
+<p><code>type</code> を書き忘れた場合、既定として http になるわけではありません。
+<strong><code>type</code> の無いエントリは stdio サーバとして読まれます。</strong></p>
+<p>stdio サーバには <code>command</code> が必要なので、そのサーバは<strong>設定エラーとして飛ばされます。</strong></p>
+<pre><code class="language-json">{
+  &quot;mcpServers&quot;: {
+    &quot;example&quot;: { &quot;url&quot;: &quot;https://mcp.example.com/mcp&quot; }
+  }
+}
+</code></pre>
+<pre><code>MCP server &quot;example&quot; has a &quot;url&quot; but no &quot;type&quot;; add &quot;type&quot;: &quot;http&quot; (or &quot;sse&quot; / &quot;ws&quot;) to this entry
+</code></pre>
+<p><strong>この文言が出るのは v2.1.202 以降</strong>です。それより前は
+<code>command: expected string, received undefined</code> と出ていました。
+url を書いたのに command の話をされるので、<strong>原因に辿り着きにくい形</strong>でした。</p>
+<p><code>--output-format stream-json</code> で走らせている場合は、
+<code>system/init</code> イベントの <code>mcp_server_errors</code> にも出ます。<strong>スクリプトから検知できます。</strong></p>
+<h2 id="2-timeout-500-は-500ミリ秒になりません">2. <code>timeout: 500</code> は 500ミリ秒になりません</h2>
+<p><code>timeout</code> はミリ秒です。そして<strong>1000 未満の値は無視されます。</strong></p>
+<p>無視されたあとは <code>MCP_TOOL_TIMEOUT</code> に落ち、それも設定されていなければ
+<strong>その既定である約28時間</strong>になります。</p>
+<pre><code class="language-json">&quot;timeout&quot;: 500      // → 500ms ではない。約28時間
+&quot;timeout&quot;: 600000   // → 10分
+</code></pre>
+<p><strong>短くしたつもりが、事実上の無制限になります。</strong>
+<code>v2.1.162</code> より前は 1000 未満は1秒に丸められていたので、<strong>挙動が変わっています。</strong></p>
+<p>関連して知っておくとよいこと。</p>
+<ul>
+<li><code>timeout</code> は<strong>1回のツール呼び出しに対する実時間の上限</strong>で、
+サーバからの進捗通知では延びません</li>
+<li><strong>1000 以上の <code>timeout</code> は、アイドル打ち切りの下限にもなります。</strong>
+その時間より早くアイドルで打ち切られることはありません</li>
+<li>stdio と WebSocket のサーバには<strong>リクエスト単位のタイマーがありません</strong></li>
+</ul>
+<h2 id="3-トランスポート別の必須項目">3. トランスポート別の必須項目</h2>
+<div class="scroll"><table><thead>
+<tr>
+  <th><code>type</code></th>
+  <th>必須</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>（無し）</td>
+  <td><code>command</code> — <strong><code>type</code> を省くと stdio 扱い</strong></td>
+</tr>
+<tr>
+  <td><code>stdio</code></td>
+  <td><code>command</code></td>
+</tr>
+<tr>
+  <td><code>http</code></td>
+  <td><code>url</code></td>
+</tr>
+<tr>
+  <td><code>streamable-http</code></td>
+  <td><code>url</code> — <strong><code>http</code> の別名</strong>。MCP 仕様側の呼び方</td>
+</tr>
+<tr>
+  <td><code>sse</code></td>
+  <td><code>url</code></td>
+</tr>
+<tr>
+  <td><code>ws</code></td>
+  <td><code>url</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>streamable-http</code> が別名として受け付けられるので、
+<strong>サーバのドキュメントからそのまま貼っても動きます。</strong></p>
+<p><code>ws</code> は <code>url</code> / <code>headers</code> / <code>headersHelper</code> / <code>timeout</code> / <code>alwaysLoad</code> を
+<code>http</code> と同じように受け付けますが、<strong><code>claude mcp add --transport</code> は <code>ws</code> を受け付けません。</strong>
+JSON で書く必要があります。</p>
+<h2 id="4-sse-は非推奨">4. <code>sse</code> は非推奨</h2>
+<p><strong>SSE トランスポートは非推奨です。</strong> ただし SSE しか出していないサービスもあるので、
+選べない場合はあります。選べるなら <code>http</code> にしてください。</p>
+<h2 id="5-untrusted-なフォルダでは-承認の設定が無視される">5. untrusted なフォルダでは、承認の設定が無視される</h2>
+<p><code>.mcp.json</code> のサーバは承認が要ります。
+そして<strong>その承認をリポジトリ側から与えることはできません。</strong></p>
+<p><code>enableAllProjectMcpServers</code> や <code>enabledMcpjsonServers</code> を
+プロジェクトの <code>.claude/settings.json</code> にコミットしても、
+<strong>untrusted なフォルダでは無視されます。</strong> サーバは <code>⏸ Pending approval</code> のまま、
+接続もヘルスチェックもされません。</p>
+<p><strong>クローンしてきたリポジトリは、自分のサーバを自分で承認できません。</strong></p>
+<p>untrusted なフォルダでも効く承認元は3つです。</p>
+<ul>
+<li>あなた自身の <code>~/.claude/settings.json</code></li>
+<li>管理設定</li>
+<li><code>--settings</code> で渡した設定</li>
+</ul>
+<h2 id="6-alwaysload-は起動を待たせる">6. <code>alwaysLoad</code> は起動を待たせる</h2>
+<p><code>alwaysLoad: true</code> にすると、そのサーバのツールは
+<code>ENABLE_TOOL_SEARCH</code> の設定に関係なく、<strong>セッション開始時に全部読み込まれます。</strong></p>
+<p>引き換えに、<strong>起動がそのサーバのツール一覧を待ちます</strong>
+（最初のプロンプトを組む時点で揃っている必要があるため）。
+待ち時間は接続タイムアウトの5秒が上限です。</p>
+<p><strong>毎ターン必要な少数のツールにだけ使ってください。</strong></p>
+<h2 id="検査する">検査する</h2>
+<p>上のうち、書いた時点で分かるものは機械で見つけられます。</p>
+<pre><code class="language-bash">npx @quintetkit/ccheck
+</code></pre>
+<pre><code>error .mcp.json:3
+      Server &quot;example&quot; has a `url` but no `type`. Add `&quot;type&quot;: &quot;http&quot;` (or &quot;sse&quot; / &quot;ws&quot;).
+      why: https://code.claude.com/docs/en/mcp
+
+warn  .mcp.json:9
+      Server &quot;slow&quot;: `timeout: 500` is in milliseconds; values below 1000 are ignored.
+      why: https://code.claude.com/docs/en/mcp
+</code></pre>
+<p><strong>指摘には必ず出典が付きます。</strong> 根拠を示せないものはルールにしていません。</p>
+<p>「正しく書けているのに何も起きない」場所を、hook・設定キー・権限ルール・
+サブエージェントまで含めて1枚にまとめたものはこちらです。</p>
+<p><a href="https://quintetkit.github.io/reference/claude-code-silent-config.html">https://quintetkit.github.io/reference/claude-code-silent-config.html</a></p>
+<h2 id="出典">出典</h2>
+<p><a href="https://code.claude.com/docs/en/mcp">https://code.claude.com/docs/en/mcp</a></p>
+<p>2026-09-04 に取得したスナップショットを元にしています。</p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

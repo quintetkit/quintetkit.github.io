@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The .mcp.json mistakes you cannot see</title>
+<meta name="description" content="A url with no type is read as a stdio server and skipped. timeout: 500 is not 500ms — values below 1000 are ignored and fall through to MCP_TOOL_TIMEOUT, whose default is about 28 hours. Required fields per transport, why sse is deprecated, and why approvals committed to a repository are ignored in an untrusted folder.">
+<link rel="canonical" href="https://quintetkit.github.io/en/reference/claude-code-mcp-json.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/reference/claude-code-mcp-json.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/reference/claude-code-mcp-json.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/reference/claude-code-mcp-json.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="The .mcp.json mistakes you cannot see">
+<meta property="og:description" content="A url with no type is read as a stdio server and skipped. timeout: 500 is not 500ms — values below 1000 are ignored and fall through to MCP_TOOL_TIMEOUT, whose default is about 28 hours. Required fields per transport, why sse is deprecated, and why approvals committed to a repository are ignored in an untrusted folder.">
+<meta property="og:url" content="https://quintetkit.github.io/en/reference/claude-code-mcp-json.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="en_US">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><a href="../../en/articles/index.html">Articles</a><span>Reference</span></nav>
+</div></div>
+<article><div class="wrap">
+  <h1>The .mcp.json mistakes you cannot see</h1>
+<p><code>.mcp.json</code> is a short file, so there should not be much to get wrong.</p>
+<p><strong>The expensive mistakes are the ones read as a different, valid setting.</strong></p>
+<h2 id="1-a-url-with-no-type-is-read-as-a-stdio-server">1. A <code>url</code> with no <code>type</code> is read as a stdio server</h2>
+<p>Leaving out <code>type</code> does not default to http. <strong>An entry with no <code>type</code> is read as
+a stdio server.</strong></p>
+<p>A stdio server requires <code>command</code>, so that server is <strong>skipped as a
+configuration error.</strong></p>
+<pre><code class="language-json">{
+  &quot;mcpServers&quot;: {
+    &quot;example&quot;: { &quot;url&quot;: &quot;https://mcp.example.com/mcp&quot; }
+  }
+}
+</code></pre>
+<pre><code>MCP server &quot;example&quot; has a &quot;url&quot; but no &quot;type&quot;; add &quot;type&quot;: &quot;http&quot; (or &quot;sse&quot; / &quot;ws&quot;) to this entry
+</code></pre>
+<p><strong>That message exists from v2.1.202.</strong> Before it, the same mistake reported
+<code>command: expected string, received undefined</code> — you wrote a url and were told
+about a command, which is a long way from the cause.</p>
+<p>Under <code>--output-format stream-json</code> it also appears in the <code>system/init</code> event's
+<code>mcp_server_errors</code>, so <strong>a script can detect that the server never loaded.</strong></p>
+<h2 id="2-timeout-500-is-not-500-milliseconds">2. <code>timeout: 500</code> is not 500 milliseconds</h2>
+<p><code>timeout</code> is in milliseconds, and <strong>values below 1000 are ignored.</strong></p>
+<p>Once ignored it falls through to <code>MCP_TOOL_TIMEOUT</code>, and if that is unset, to
+<strong>its default of about 28 hours.</strong></p>
+<pre><code class="language-json">&quot;timeout&quot;: 500      // not 500ms. about 28 hours
+&quot;timeout&quot;: 600000   // ten minutes
+</code></pre>
+<p><strong>An attempt to shorten it becomes effectively unlimited.</strong> Before v2.1.162
+values under 1000 were floored to one second instead, so <strong>the behaviour
+changed.</strong></p>
+<p>Related, worth knowing:</p>
+<ul>
+<li><code>timeout</code> is a hard wall-clock limit <strong>per tool call</strong>, and progress
+notifications from the server do not extend it</li>
+<li><strong>A <code>timeout</code> of at least 1000 also acts as a floor on the idle timeout</strong> —
+calls are never aborted for idleness sooner than that</li>
+<li>stdio and WebSocket servers have <strong>no per-request timer</strong> at all</li>
+</ul>
+<h2 id="3-required-fields-per-transport">3. Required fields per transport</h2>
+<div class="scroll"><table><thead>
+<tr>
+  <th><code>type</code></th>
+  <th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>(absent)</td>
+  <td><code>command</code> — <strong>omitting <code>type</code> means stdio</strong></td>
+</tr>
+<tr>
+  <td><code>stdio</code></td>
+  <td><code>command</code></td>
+</tr>
+<tr>
+  <td><code>http</code></td>
+  <td><code>url</code></td>
+</tr>
+<tr>
+  <td><code>streamable-http</code></td>
+  <td><code>url</code> — <strong>an alias for <code>http</code></strong>, the name the MCP spec uses</td>
+</tr>
+<tr>
+  <td><code>sse</code></td>
+  <td><code>url</code></td>
+</tr>
+<tr>
+  <td><code>ws</code></td>
+  <td><code>url</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>streamable-http</code> is accepted as an alias so <strong>configuration copied from a
+server's own documentation works unmodified.</strong></p>
+<p><code>ws</code> accepts the same <code>url</code>, <code>headers</code>, <code>headersHelper</code>, <code>timeout</code> and
+<code>alwaysLoad</code> as <code>http</code>, but <strong><code>claude mcp add --transport</code> does not accept
+<code>ws</code></strong> — it has to be written as JSON.</p>
+<h2 id="4-sse-is-deprecated">4. <code>sse</code> is deprecated</h2>
+<p><strong>The SSE transport is deprecated.</strong> Some services still expose only an SSE
+endpoint, so it is not always a choice. Where it is, use <code>http</code>.</p>
+<h2 id="5-in-an-untrusted-folder-committed-approvals-are-ignored">5. In an untrusted folder, committed approvals are ignored</h2>
+<p>Servers from <code>.mcp.json</code> need approval, and <strong>a repository cannot grant that
+approval to itself.</strong></p>
+<p><code>enableAllProjectMcpServers</code> and <code>enabledMcpjsonServers</code> committed to the
+project's <code>.claude/settings.json</code> are <strong>ignored in an untrusted folder.</strong> The
+server stays at <code>⏸ Pending approval</code>, never connected and never health-checked.</p>
+<p><strong>A cloned repository cannot approve its own servers.</strong></p>
+<p>Three sources of approval still apply in an untrusted folder:</p>
+<ul>
+<li>your own <code>~/.claude/settings.json</code></li>
+<li>managed settings</li>
+<li>settings passed with <code>--settings</code></li>
+</ul>
+<h2 id="6-alwaysload-makes-startup-wait">6. <code>alwaysLoad</code> makes startup wait</h2>
+<p>With <code>alwaysLoad: true</code>, every tool from that server loads into context at
+session start <strong>regardless of <code>ENABLE_TOOL_SEARCH</code>.</strong></p>
+<p>In exchange, <strong>startup waits for that server's tool list</strong>, since the tools must
+be present when the first prompt is built. The wait is capped at the 5-second
+connect timeout.</p>
+<p><strong>Use it for a small number of tools Claude needs every turn.</strong></p>
+<h2 id="checking-it">Checking it</h2>
+<p>The ones visible at write time are mechanically detectable.</p>
+<pre><code class="language-bash">npx @quintetkit/ccheck
+</code></pre>
+<pre><code>error .mcp.json:3
+      Server &quot;example&quot; has a `url` but no `type`. Add `&quot;type&quot;: &quot;http&quot;` (or &quot;sse&quot; / &quot;ws&quot;).
+      why: https://code.claude.com/docs/en/mcp
+
+warn  .mcp.json:9
+      Server &quot;slow&quot;: `timeout: 500` is in milliseconds; values below 1000 are ignored.
+      why: https://code.claude.com/docs/en/mcp
+</code></pre>
+<p><strong>Every finding cites its source.</strong> A rule that cannot be cited is not written.</p>
+<p>Everything else that is configured correctly and does nothing — hooks, settings
+keys, permission rules, subagent files — is collected here.</p>
+<p><a href="https://quintetkit.github.io/en/reference/claude-code-silent-config.html">https://quintetkit.github.io/en/reference/claude-code-silent-config.html</a></p>
+<h2 id="source">Source</h2>
+<p><a href="https://code.claude.com/docs/en/mcp">https://code.claude.com/docs/en/mcp</a></p>
+<p>Based on a snapshot taken 2026-09-04.</p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

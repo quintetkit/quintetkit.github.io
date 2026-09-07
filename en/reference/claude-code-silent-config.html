@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Everything in Claude Code that is configured correctly and does nothing</title>
-<meta name="description" content="Hook matchers, permission rules, settings keys, subagent files. Each has places where the configuration is syntactically valid, produces no error and no warning, and is ignored. 10 of 33 events, 71 of 223 settings keys, five permission rule forms, five ways a subagent file is skipped. Counted from the official documentation, with the detailed table for each.">
+<meta name="description" content="Hook matchers, settings keys, permission rules, subagent files, .mcp.json. Each has places where the configuration is syntactically valid, produces no error and no warning, and is ignored. 10 of 33 events, 71 of 223 settings keys, five permission rule forms, five ways a subagent file is skipped, and a timeout of 500 that becomes 28 hours. Counted from the official documentation, with the detailed table for each.">
 <link rel="canonical" href="https://quintetkit.github.io/en/reference/claude-code-silent-config.html">
 <link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/reference/claude-code-silent-config.html">
 <link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/reference/claude-code-silent-config.html">
@@ -16,7 +16,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Everything in Claude Code that is configured correctly and does nothing">
-<meta property="og:description" content="Hook matchers, permission rules, settings keys, subagent files. Each has places where the configuration is syntactically valid, produces no error and no warning, and is ignored. 10 of 33 events, 71 of 223 settings keys, five permission rule forms, five ways a subagent file is skipped. Counted from the official documentation, with the detailed table for each.">
+<meta property="og:description" content="Hook matchers, settings keys, permission rules, subagent files, .mcp.json. Each has places where the configuration is syntactically valid, produces no error and no warning, and is ignored. 10 of 33 events, 71 of 223 settings keys, five permission rule forms, five ways a subagent file is skipped, and a timeout of 500 that becomes 28 hours. Counted from the official documentation, with the detailed table for each.">
 <meta property="og:url" content="https://quintetkit.github.io/en/reference/claude-code-silent-config.html">
 <meta property="og:site_name" content="Quartet / Quintet">
 <meta property="og:locale" content="en_US">
@@ -73,6 +73,11 @@ skipped, or as having no effect — counted and collected. Nothing is inferred.<
   <td><strong>Subagent files</strong></td>
   <td><strong>5 conditions</strong></td>
   <td>The file is skipped and <strong>the session says nothing</strong></td>
+</tr>
+<tr>
+  <td><strong><code>.mcp.json</code></strong></td>
+  <td><strong>2 places</strong></td>
+  <td>A <code>url</code> with no <code>type</code> is read as stdio and skipped; <code>timeout: 500</code> becomes <strong>about 28 hours</strong></td>
 </tr>
 </tbody>
 </table></div>
@@ -224,6 +229,17 @@ command opens that far.</p>
 </ul>
 <p>The 18 fields, and where <code>cacheTtl</code> belongs (inside <code>experimental</code>), are here.</p>
 <p><a href="https://quintetkit.github.io/en/reference/claude-code-subagent-frontmatter.html">https://quintetkit.github.io/en/reference/claude-code-subagent-frontmatter.html</a></p>
+<h2 id="mcp-json"><code>.mcp.json</code></h2>
+<p>A <code>url</code> with no <code>type</code> does not default to http — <strong>it is read as a stdio
+server.</strong> stdio requires <code>command</code>, so that server is skipped.</p>
+<p>And <code>timeout</code> <strong>ignores any value below 1000.</strong> Once ignored it falls through to
+<code>MCP_TOOL_TIMEOUT</code>, and if that is unset, to <strong>its default of about 28 hours.</strong></p>
+<pre><code class="language-json">&quot;timeout&quot;: 500      // not 500ms. about 28 hours
+</code></pre>
+<p><strong>An attempt to shorten it becomes effectively unlimited.</strong></p>
+<p>Required fields per transport, why <code>sse</code> is deprecated, and why approvals
+committed to a repository are ignored in an untrusted folder:</p>
+<p><a href="https://quintetkit.github.io/en/reference/claude-code-mcp-json.html">https://quintetkit.github.io/en/reference/claude-code-mcp-json.html</a></p>
 <h2 id="checking-all-of-it">Checking all of it</h2>
 <p>Everything above is mechanically detectable.</p>
 <pre><code class="language-bash">npx @quintetkit/ccheck
@@ -251,6 +267,7 @@ cannot be distinguished is passed in silence, and said to be.</p>
 <li><a href="https://code.claude.com/docs/en/settings-reference">https://code.claude.com/docs/en/settings-reference</a></li>
 <li><a href="https://code.claude.com/docs/en/permissions">https://code.claude.com/docs/en/permissions</a></li>
 <li><a href="https://code.claude.com/docs/en/sub-agents">https://code.claude.com/docs/en/sub-agents</a></li>
+<li><a href="https://code.claude.com/docs/en/mcp">https://code.claude.com/docs/en/mcp</a></li>
 </ul>
 <p>Every count comes from a <strong>snapshot taken 2026-09-04</strong>.</p>
 

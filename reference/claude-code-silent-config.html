@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Claude Code で、正しく書いたのに何も起きない設定の全一覧</title>
-<meta name="description" content="hook の matcher、権限ルール、設定キー、サブエージェントのファイル。どれも構文として正しく、エラーも警告も出ないまま無視される場所があります。イベント33種のうち10種、設定キー223個のうち71個、権限ルールの5通り、サブエージェントの5条件。公式ドキュメントの記述から数えた一覧と、それぞれの詳細表への入口。">
+<meta name="description" content="hook の matcher、設定キー、権限ルール、サブエージェントのファイル、.mcp.json。どれも構文として正しく、エラーも警告も出ないまま無視される場所があります。イベント33種のうち10種、設定キー223個のうち71個、権限ルールの5通り、サブエージェントの5条件、timeout: 500 が約28時間になること。公式ドキュメントの記述から数えた一覧と、それぞれの詳細表への入口。">
 <link rel="canonical" href="https://quintetkit.github.io/reference/claude-code-silent-config.html">
 <link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/reference/claude-code-silent-config.html">
 <link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/reference/claude-code-silent-config.html">
@@ -16,7 +16,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Claude Code で、正しく書いたのに何も起きない設定の全一覧">
-<meta property="og:description" content="hook の matcher、権限ルール、設定キー、サブエージェントのファイル。どれも構文として正しく、エラーも警告も出ないまま無視される場所があります。イベント33種のうち10種、設定キー223個のうち71個、権限ルールの5通り、サブエージェントの5条件。公式ドキュメントの記述から数えた一覧と、それぞれの詳細表への入口。">
+<meta property="og:description" content="hook の matcher、設定キー、権限ルール、サブエージェントのファイル、.mcp.json。どれも構文として正しく、エラーも警告も出ないまま無視される場所があります。イベント33種のうち10種、設定キー223個のうち71個、権限ルールの5通り、サブエージェントの5条件、timeout: 500 が約28時間になること。公式ドキュメントの記述から数えた一覧と、それぞれの詳細表への入口。">
 <meta property="og:url" content="https://quintetkit.github.io/reference/claude-code-silent-config.html">
 <meta property="og:site_name" content="Quartet / Quintet">
 <meta property="og:locale" content="ja_JP">
@@ -71,6 +71,11 @@
   <td><strong>サブエージェントのファイル</strong></td>
   <td><strong>5 条件</strong></td>
   <td>ファイルごと飛ばされ、<strong>セッションには出ない</strong></td>
+</tr>
+<tr>
+  <td><strong><code>.mcp.json</code></strong></td>
+  <td><strong>2 か所</strong></td>
+  <td><code>type</code> の無い <code>url</code> は stdio 扱いで飛ばされ、<code>timeout: 500</code> は<strong>約28時間になる</strong></td>
 </tr>
 </tbody>
 </table></div>
@@ -219,6 +224,18 @@ Bash(* --version)  → あらゆるプログラム
 </ul>
 <p>書ける18項目と、<code>cacheTtl</code> の置き場所（<code>experimental</code> の中）はこちらです。</p>
 <p><a href="https://quintetkit.github.io/reference/claude-code-subagent-frontmatter.html">https://quintetkit.github.io/reference/claude-code-subagent-frontmatter.html</a></p>
+<h2 id="mcp-json"><code>.mcp.json</code></h2>
+<p><code>type</code> を書き忘れた <code>url</code> は、<strong>http の既定になるのではなく stdio サーバとして読まれます。</strong>
+stdio には <code>command</code> が要るので、そのサーバは飛ばされます。</p>
+<p>そして <code>timeout</code> は<strong>1000 未満の値が無視されます。</strong>
+無視されたあとは <code>MCP_TOOL_TIMEOUT</code> に落ち、それも未設定なら
+<strong>その既定である約28時間</strong>になります。</p>
+<pre><code class="language-json">&quot;timeout&quot;: 500      // 500ms ではない。約28時間
+</code></pre>
+<p><strong>短くしたつもりが、事実上の無制限になります。</strong></p>
+<p>トランスポート別の必須項目、<code>sse</code> が非推奨であること、
+untrusted なフォルダでは承認設定が無視されることはこちらです。</p>
+<p><a href="https://quintetkit.github.io/reference/claude-code-mcp-json.html">https://quintetkit.github.io/reference/claude-code-mcp-json.html</a></p>
 <h2 id="まとめて検査する">まとめて検査する</h2>
 <p>上の全部を機械で見つけられます。</p>
 <pre><code class="language-bash">npx @quintetkit/ccheck
@@ -245,6 +262,7 @@ Bash(* --version)  → あらゆるプログラム
 <li><a href="https://code.claude.com/docs/en/settings-reference">https://code.claude.com/docs/en/settings-reference</a></li>
 <li><a href="https://code.claude.com/docs/en/permissions">https://code.claude.com/docs/en/permissions</a></li>
 <li><a href="https://code.claude.com/docs/en/sub-agents">https://code.claude.com/docs/en/sub-agents</a></li>
+<li><a href="https://code.claude.com/docs/en/mcp">https://code.claude.com/docs/en/mcp</a></li>
 </ul>
 <p>数はすべて <strong>2026-09-04 に取得したスナップショット</strong>から数えたものです。</p>
 
