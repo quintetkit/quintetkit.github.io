@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Which settings file wins when two of them set the same key</title>
+<meta name="description" content="Five levels, managed at the top. But lists are merged rather than overridden, so permissions.allow is your team&#x27;s entries plus yours. Environment variables are not a level — it is decided per key. And for seven keys the stricter value from a lower level beats managed settings.">
+<link rel="canonical" href="https://quintetkit.github.io/en/reference/claude-code-settings-precedence.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/reference/claude-code-settings-precedence.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/reference/claude-code-settings-precedence.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/reference/claude-code-settings-precedence.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Which settings file wins when two of them set the same key">
+<meta property="og:description" content="Five levels, managed at the top. But lists are merged rather than overridden, so permissions.allow is your team&#x27;s entries plus yours. Environment variables are not a level — it is decided per key. And for seven keys the stricter value from a lower level beats managed settings.">
+<meta property="og:url" content="https://quintetkit.github.io/en/reference/claude-code-settings-precedence.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="en_US">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><a href="../../en/articles/index.html">Articles</a><span>Reference</span></nav>
+</div></div>
+<article><div class="wrap">
+  <h1>Which settings file wins when two of them set the same key</h1>
+<p>Two files set the same key. Which one applies?</p>
+<p>Two things surprise people who assume plain overriding: <strong>lists are merged</strong>, and
+<strong>some keys let a lower level win.</strong></p>
+<h2 id="five-levels">Five levels</h2>
+<p>Highest first. <strong>A key at a higher level overrides the same key below it.</strong></p>
+<div class="scroll"><table><thead>
+<tr>
+  <th></th>
+  <th>Where</th>
+  <th>What</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>1</td>
+  <td><strong>Managed settings</strong></td>
+  <td><code>managed-settings.json</code>, MDM policy, or server-managed settings</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><strong>Command line</strong></td>
+  <td><code>--settings</code> and other startup flags. <strong>One session only</strong></td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><strong><code>.claude/settings.local.json</code></strong></td>
+  <td>Your personal settings for this project</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><strong><code>.claude/settings.json</code></strong></td>
+  <td>Your team's settings, checked into the repository</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><strong><code>~/.claude/settings.json</code></strong></td>
+  <td>Your personal settings for every project</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>3 sits above 4</strong>, which is the useful part. A value your team set in the shared
+file can be put back for you alone in <code>settings.local.json</code> — <strong>without editing
+the file everyone shares.</strong></p>
+<p>Nothing beats managed. Not <code>--settings</code>, and <code>--model</code> <strong>picks only from the
+models your organisation allows.</strong></p>
+<h2 id="lists-are-merged-not-overridden">Lists are merged, not overridden</h2>
+<p>A list key such as <code>permissions.allow</code>, set in more than one file, is
+<strong>combined</strong> rather than resolved to one winner.</p>
+<pre><code class="language-jsonc">// ~/.claude/settings.json
+&quot;permissions&quot;: { &quot;allow&quot;: [&quot;Bash(npm run *)&quot;] }
+
+// .claude/settings.json  (your team's)
+&quot;permissions&quot;: { &quot;allow&quot;: [&quot;Bash(git commit *)&quot;] }
+
+// → both apply
+</code></pre>
+<p><strong>Which also means entries cannot be removed from below.</strong> A lower-level file
+cannot subtract what a higher one added. Use <code>deny</code>, or edit that file.</p>
+<h3 id="four-keys-that-do-not-merge">Four keys that do not merge</h3>
+<p>The model-related keys have their own rules.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Key</th>
+  <th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>fallbackModel</code></td>
+  <td>Position carries meaning, so <strong>the whole value comes from the highest file that defines it</strong></td>
+</tr>
+<tr>
+  <td><code>modelPicker</code></td>
+  <td>Rows are never merged. Taken from the highest of managed / <code>--settings</code> / user, and <strong>ignored in project and local</strong></td>
+</tr>
+<tr>
+  <td><code>availableModels</code></td>
+  <td>A managed list <strong>applies as-is</strong>; entries added below are ignored. Managed sources do not merge either</td>
+</tr>
+<tr>
+  <td><code>modelSettings</code></td>
+  <td>Resolved <strong>one model at a time</strong>, together with <code>effortLevel</code></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="environment-variables-are-not-a-level">Environment variables are not a level</h2>
+<p><strong>They are not part of the stack.</strong> Which one applies is decided per key.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th></th>
+  <th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>ANTHROPIC_MODEL</code></td>
+  <td><strong>Overrides the <code>model</code> key from any file</strong></td>
+</tr>
+<tr>
+  <td><code>ANTHROPIC_DEFAULT_MODEL</code></td>
+  <td><strong>Applies only when no file sets <code>model</code></strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>Two variables that both choose a model: one wins, one yields. <strong>Check the pair
+for the key you care about.</strong></p>
+<p>An <code>env</code> block inside a settings file is an ordinary key and follows the five
+levels above.</p>
+<h2 id="seven-keys-where-a-lower-level-beats-managed">Seven keys where a lower level beats managed</h2>
+<p>For security-sensitive keys, Claude Code honours the <strong>more restrictive</strong> value.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Key</th>
+  <th>Value honoured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>disableClaudeAiConnectors</code></td>
+  <td><strong><code>true</code> from any scope</strong></td>
+</tr>
+<tr>
+  <td><code>enableArtifact</code></td>
+  <td><strong><code>false</code> from any scope</strong> (and <code>disableArtifact: true</code>)</td>
+</tr>
+<tr>
+  <td><code>isolatePeerMachines</code></td>
+  <td><strong><code>true</code> from any scope</strong></td>
+</tr>
+<tr>
+  <td><code>remoteControlAtStartup</code></td>
+  <td><code>false</code> from <code>.claude/settings.json</code> or <code>settings.local.json</code></td>
+</tr>
+<tr>
+  <td><code>crossSessionInbound</code></td>
+  <td>The <strong>stricter</strong> value on <code>accept</code> &lt; <code>hold</code> &lt; <code>refuse</code>, from project or local</td>
+</tr>
+<tr>
+  <td><code>useAutoModeDuringPlan</code></td>
+  <td><code>false</code> from managed, <code>--settings</code>, user, or <strong>local</strong></td>
+</tr>
+<tr>
+  <td><code>syncClaudeAiSkills</code></td>
+  <td>Same as above</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>This works in one direction only.</strong> A project <code>true</code> for
+<code>remoteControlAtStartup</code> is ignored. <code>useAutoModeDuringPlan</code> and
+<code>syncClaudeAiSkills</code> ignore a <code>false</code> written in the <strong>shared</strong>
+<code>.claude/settings.json</code>, while honouring one from local.</p>
+<p><code>enableArtifact</code> <strong>cannot be turned back on.</strong> Once anything sets it <code>false</code>,
+nothing — managed included — restores the Artifact tool.</p>
+<h2 id="when-a-setting-does-not-apply">When a setting does not apply</h2>
+<pre><code class="language-bash">/status        # which files were loaded
+claude doctor  # the resolved settings, and any skipped rules
+</code></pre>
+<p>Three causes:</p>
+<ul>
+<li><strong>A higher level sets the same key</strong> — see the table above</li>
+<li><strong>That file cannot set that value</strong> — <code>permissions.defaultMode</code> values <code>auto</code>
+and <code>bypassPermissions</code> <strong>do not take effect from project or local settings</strong>
+(before v2.1.257, <code>bypassPermissions</code> took effect from any file)</li>
+<li><strong>The key is out of that file's scope entirely</strong> — 71 of the 223 keys</li>
+</ul>
+<p>The full list for the third one:</p>
+<p><a href="https://quintetkit.github.io/en/reference/claude-code-settings-scope.html">https://quintetkit.github.io/en/reference/claude-code-settings-scope.html</a></p>
+<h2 id="checking-it">Checking it</h2>
+<p>The &quot;cannot set that value&quot; cases are mechanically detectable.</p>
+<pre><code class="language-bash">npx @quintetkit/ccheck
+</code></pre>
+<pre><code>warn  .claude/settings.json:12
+      `defaultMode: bypassPermissions` does not take effect from project or local settings.
+      why: https://code.claude.com/docs/en/settings-reference
+</code></pre>
+<p><strong>Precedence itself is not checked.</strong> Which files load is decided at run time and
+cannot be known from the files in front of you. <strong>What cannot be determined is
+not judged.</strong></p>
+<h2 id="source">Source</h2>
+<p><a href="https://code.claude.com/docs/en/settings">https://code.claude.com/docs/en/settings</a></p>
+<p>Based on a snapshot taken 2026-09-04.</p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

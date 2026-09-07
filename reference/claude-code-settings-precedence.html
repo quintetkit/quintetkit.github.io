@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>同じ設定を2か所に書いたとき、どれが勝つか</title>
+<meta name="description" content="設定ファイルの優先順位は5段で、管理設定が最上位。ただしリストは上書きではなく合成されるので、permissions.allow はチームの設定とあなたの設定が足し算になります。環境変数は段ではなくキーごとの勝負。そして7つのキーは、下の段の厳しい値が管理設定に勝ちます。">
+<link rel="canonical" href="https://quintetkit.github.io/reference/claude-code-settings-precedence.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/reference/claude-code-settings-precedence.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/reference/claude-code-settings-precedence.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/reference/claude-code-settings-precedence.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="同じ設定を2か所に書いたとき、どれが勝つか">
+<meta property="og:description" content="設定ファイルの優先順位は5段で、管理設定が最上位。ただしリストは上書きではなく合成されるので、permissions.allow はチームの設定とあなたの設定が足し算になります。環境変数は段ではなくキーごとの勝負。そして7つのキーは、下の段の厳しい値が管理設定に勝ちます。">
+<meta property="og:url" content="https://quintetkit.github.io/reference/claude-code-settings-precedence.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="ja_JP">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><a href="../articles/index.html">記事</a><span>リファレンス</span></nav>
+</div></div>
+<article><div class="wrap">
+  <h1>同じ設定を2か所に書いたとき、どれが勝つか</h1>
+<p>同じキーを2か所に書いたとき、どちらが効くか。</p>
+<p><strong>上書きされる</strong>と思っていると外すものが2つあります。
+<strong>リストは合成される</strong>ことと、<strong>下の段が勝つキーがある</strong>ことです。</p>
+<h2 id="段は5つ">段は5つ</h2>
+<p>上から順に。<strong>上の段が、同じキーを下の段より優先します。</strong></p>
+<div class="scroll"><table><thead>
+<tr>
+  <th></th>
+  <th>どこ</th>
+  <th>何</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>1</td>
+  <td><strong>管理設定</strong></td>
+  <td>組織が配る <code>managed-settings.json</code> / MDM / サーバ管理設定</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><strong>コマンドライン</strong></td>
+  <td><code>--settings</code> などの起動時のフラグ。<strong>そのセッションだけ</strong></td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><strong><code>.claude/settings.local.json</code></strong></td>
+  <td>そのプロジェクトの、あなた個人の設定</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><strong><code>.claude/settings.json</code></strong></td>
+  <td>そのプロジェクトの、チームで共有する設定</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><strong><code>~/.claude/settings.json</code></strong></td>
+  <td>全プロジェクトに効く、あなた個人の設定</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>3 が 4 より上</strong>なのが要点です。
+チームの共有設定で決められた値は、<code>settings.local.json</code> で自分だけ戻せます。
+<strong>チームの設定を書き換えずに済みます。</strong></p>
+<p>管理設定には勝てません。<code>--settings</code> でも勝てませんし、
+<code>--model</code> も<strong>組織が許したモデルの中からしか選べません。</strong></p>
+<h2 id="リストは上書きされない-合成される">リストは上書きされない。合成される</h2>
+<p><code>permissions.allow</code> のようなリストのキーは、
+<strong>複数のファイルに書くと、どれか1つが選ばれるのではなく足し算になります。</strong></p>
+<pre><code class="language-jsonc">// ~/.claude/settings.json
+&quot;permissions&quot;: { &quot;allow&quot;: [&quot;Bash(npm run *)&quot;] }
+
+// .claude/settings.json（チームの共有設定）
+&quot;permissions&quot;: { &quot;allow&quot;: [&quot;Bash(git commit *)&quot;] }
+
+// → 実際に効くのは両方
+</code></pre>
+<p><strong>これは「消せない」ということでもあります。</strong>
+下の段のファイルから、上の段が足したエントリを取り除くことはできません。
+外したいなら <code>deny</code> を使うか、そのファイルを直します。</p>
+<h3 id="例外が4つ">例外が4つ</h3>
+<p><strong>モデル関係の4キーは合成されません。</strong></p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>キー</th>
+  <th>どうなるか</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>fallbackModel</code></td>
+  <td>順序に意味があるので、<strong>定義した最上位のファイルの値をそのまま採る</strong></td>
+</tr>
+<tr>
+  <td><code>modelPicker</code></td>
+  <td>行を混ぜない。管理設定 / <code>--settings</code> / ユーザ設定の最上位から採り、<strong>プロジェクトとローカルでは無視</strong></td>
+</tr>
+<tr>
+  <td><code>availableModels</code></td>
+  <td>管理設定が定義していれば<strong>そのまま適用</strong>し、下の追加は無視。管理設定どうしでも合成しない</td>
+</tr>
+<tr>
+  <td><code>modelSettings</code></td>
+  <td><strong>モデル1つずつ</strong>解決する（<code>effortLevel</code> と一緒に）</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="環境変数は段ではない">環境変数は段ではない</h2>
+<p><strong>環境変数はこの5段に入りません。</strong> キーごとに、どちらが読まれるかが決まっています。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th></th>
+  <th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>ANTHROPIC_MODEL</code></td>
+  <td><strong>どのファイルの <code>model</code> よりも優先</strong></td>
+</tr>
+<tr>
+  <td><code>ANTHROPIC_DEFAULT_MODEL</code></td>
+  <td><strong>どのファイルも <code>model</code> を設定していないときだけ</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>同じ「モデルを決める変数」でも、片方は勝ち、片方は譲ります。
+<strong>対になっているキーごとに確かめてください。</strong></p>
+<p>設定ファイルの中に書いた <code>env</code> ブロックは、<strong>ふつうのキー</strong>として5段に従います。</p>
+<h2 id="下の段が管理設定に勝つキーが7つある">下の段が管理設定に勝つキーが7つある</h2>
+<p>安全に関わるキーでは、<strong>より厳しい値</strong>を下の段から拾います。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>キー</th>
+  <th>拾われる値</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>disableClaudeAiConnectors</code></td>
+  <td><strong>どの段からでも <code>true</code></strong></td>
+</tr>
+<tr>
+  <td><code>enableArtifact</code></td>
+  <td><strong>どの段からでも <code>false</code></strong>（<code>disableArtifact: true</code> も同様）</td>
+</tr>
+<tr>
+  <td><code>isolatePeerMachines</code></td>
+  <td><strong>どの段からでも <code>true</code></strong></td>
+</tr>
+<tr>
+  <td><code>remoteControlAtStartup</code></td>
+  <td><code>.claude/settings.json</code> か <code>settings.local.json</code> からの <code>false</code></td>
+</tr>
+<tr>
+  <td><code>crossSessionInbound</code></td>
+  <td><code>accept</code> &lt; <code>hold</code> &lt; <code>refuse</code> の<strong>より厳しい側</strong>（プロジェクト / ローカルから）</td>
+</tr>
+<tr>
+  <td><code>useAutoModeDuringPlan</code></td>
+  <td>管理設定 / <code>--settings</code> / ユーザ設定 / <strong>ローカル</strong>からの <code>false</code></td>
+</tr>
+<tr>
+  <td><code>syncClaudeAiSkills</code></td>
+  <td>同上</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>方向が1つではありません。</strong> ゆるめる方向には効かないので、
+<code>remoteControlAtStartup</code> にプロジェクトから <code>true</code> を書いても無視されます。
+<code>useAutoModeDuringPlan</code> と <code>syncClaudeAiSkills</code> は、
+<strong>共有の <code>.claude/settings.json</code> からの <code>false</code> だけ無視されます</strong>（ローカルからは効く）。</p>
+<p><code>enableArtifact</code> は<strong>戻せません。</strong> 一度どこかで <code>false</code> になったら、
+管理設定からでも Artifact は戻りません。</p>
+<h2 id="効かないときに見るところ">効かないときに見るところ</h2>
+<pre><code class="language-bash">/status        # どのファイルが読まれたか
+claude doctor  # 解決後の設定と、スキップされたルール
+</code></pre>
+<p>原因は3つに分かれます。</p>
+<ul>
+<li><strong>上の段が同じキーを設定している</strong> — 上の表のとおり</li>
+<li><strong>そのファイルからは設定できない値</strong> — <code>permissions.defaultMode</code> の
+<code>auto</code> と <code>bypassPermissions</code> は、<strong>プロジェクトとローカルからは効きません</strong>
+（v2.1.257 より前は、どのファイルからでも <code>bypassPermissions</code> が効いていた）</li>
+<li><strong>そのキーが、そのファイルのスコープ外</strong> — 223個中71個がこれに当たります</li>
+</ul>
+<p>3つ目の全一覧はこちらです。</p>
+<p><a href="https://quintetkit.github.io/reference/claude-code-settings-scope.html">https://quintetkit.github.io/reference/claude-code-settings-scope.html</a></p>
+<h2 id="検査する">検査する</h2>
+<p>「そのファイルからは効かないキー」は機械で見つけられます。</p>
+<pre><code class="language-bash">npx @quintetkit/ccheck
+</code></pre>
+<pre><code>warn  .claude/settings.json:12
+      `defaultMode: bypassPermissions` does not take effect from project or local settings.
+      why: https://code.claude.com/docs/en/settings-reference
+</code></pre>
+<p><strong>優先順位そのものは検査していません。</strong> どのファイルが読まれるかは実行時に決まり、
+手元のファイルだけでは分からないからです。<strong>分からないものは判定しません。</strong></p>
+<h2 id="出典">出典</h2>
+<p><a href="https://code.claude.com/docs/en/settings">https://code.claude.com/docs/en/settings</a></p>
+<p>2026-09-04 に取得したスナップショットを元にしています。</p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

@@ -236,6 +236,19 @@ stdio には <code>command</code> が要るので、そのサーバは飛ばさ�
 <p>トランスポート別の必須項目、<code>sse</code> が非推奨であること、
 untrusted なフォルダでは承認設定が無視されることはこちらです。</p>
 <p><a href="https://quintetkit.github.io/reference/claude-code-mcp-json.html">https://quintetkit.github.io/reference/claude-code-mcp-json.html</a></p>
+<h2 id="効いているのに-別の値に負けている">効いているのに、別の値に負けている</h2>
+<p>ここまでは「無視される」話だが、<strong>書いた値が正しく読まれたうえで負けている</strong>場合もある。
+症状は同じ（設定したのに効かない）で、原因が違う。</p>
+<ul>
+<li>設定ファイルの優先順位は<strong>5段</strong>。<code>.claude/settings.local.json</code> は
+<strong>共有の <code>.claude/settings.json</code> より上</strong></li>
+<li><strong>リストは上書きではなく合成される。</strong> <code>permissions.allow</code> は
+チームの設定とあなたの設定の<strong>足し算</strong>で、下の段から取り除けない</li>
+<li><strong>環境変数は段ではない。</strong> <code>ANTHROPIC_MODEL</code> はどのファイルにも勝ち、
+<code>ANTHROPIC_DEFAULT_MODEL</code> はどのファイルも設定していないときだけ効く</li>
+<li><strong>7つのキーは、下の段の厳しい値が管理設定に勝つ</strong>（一方向のみ）</li>
+</ul>
+<p><a href="https://quintetkit.github.io/reference/claude-code-settings-precedence.html">https://quintetkit.github.io/reference/claude-code-settings-precedence.html</a></p>
 <h2 id="まとめて検査する">まとめて検査する</h2>
 <p>上の全部を機械で見つけられます。</p>
 <pre><code class="language-bash">npx @quintetkit/ccheck

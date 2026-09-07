@@ -240,6 +240,21 @@ server.</strong> stdio requires <code>command</code>, so that server is skipped.
 <p>Required fields per transport, why <code>sse</code> is deprecated, and why approvals
 committed to a repository are ignored in an untrusted folder:</p>
 <p><a href="https://quintetkit.github.io/en/reference/claude-code-mcp-json.html">https://quintetkit.github.io/en/reference/claude-code-mcp-json.html</a></p>
+<h2 id="read-correctly-and-beaten-by-another-value">Read correctly, and beaten by another value</h2>
+<p>Everything above is about being ignored. A key can also be <strong>read correctly and
+lose.</strong> The symptom is the same — you set it and it did not apply — and the
+cause is different.</p>
+<ul>
+<li>Five levels, and <code>.claude/settings.local.json</code> sits <strong>above</strong> the shared
+<code>.claude/settings.json</code></li>
+<li><strong>Lists are merged, not overridden.</strong> <code>permissions.allow</code> is your team's
+entries <strong>plus</strong> yours, and a lower level cannot subtract</li>
+<li><strong>Environment variables are not a level.</strong> <code>ANTHROPIC_MODEL</code> beats the <code>model</code>
+key in any file; <code>ANTHROPIC_DEFAULT_MODEL</code> applies only when no file sets it</li>
+<li><strong>Seven keys let a stricter value from a lower level beat managed settings</strong>
+(in that direction only)</li>
+</ul>
+<p><a href="https://quintetkit.github.io/en/reference/claude-code-settings-precedence.html">https://quintetkit.github.io/en/reference/claude-code-settings-precedence.html</a></p>
 <h2 id="checking-all-of-it">Checking all of it</h2>
 <p>Everything above is mechanically detectable.</p>
 <pre><code class="language-bash">npx @quintetkit/ccheck
