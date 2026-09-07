@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Everything in Claude Code that is configured correctly and does nothing</title>
+<meta name="description" content="Hook matchers, permission rules, settings keys, subagent files. Each has places where the configuration is syntactically valid, produces no error and no warning, and is ignored. 10 of 33 events, 71 of 223 settings keys, five permission rule forms, five ways a subagent file is skipped. Counted from the official documentation, with the detailed table for each.">
+<link rel="canonical" href="https://quintetkit.github.io/en/reference/claude-code-silent-config.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/reference/claude-code-silent-config.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/reference/claude-code-silent-config.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/reference/claude-code-silent-config.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Everything in Claude Code that is configured correctly and does nothing">
+<meta property="og:description" content="Hook matchers, permission rules, settings keys, subagent files. Each has places where the configuration is syntactically valid, produces no error and no warning, and is ignored. 10 of 33 events, 71 of 223 settings keys, five permission rule forms, five ways a subagent file is skipped. Counted from the official documentation, with the detailed table for each.">
+<meta property="og:url" content="https://quintetkit.github.io/en/reference/claude-code-silent-config.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="en_US">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><a href="../../en/articles/index.html">Articles</a><span>Reference</span></nav>
+</div></div>
+<article><div class="wrap">
+  <h1>Everything in Claude Code that is configured correctly and does nothing</h1>
+<p>The expensive part of <code>.claude/</code> configuration is that <strong>a mistake does not
+appear on screen.</strong></p>
+<p>The JSON is valid. The keys are spelled right. Startup prints no warning and
+<code>--debug</code> says nothing.</p>
+<p><strong>It just doesn't work.</strong></p>
+<p>Below is everything the official documentation states outright — as ignored, as
+skipped, or as having no effect — counted and collected. Nothing is inferred.</p>
+<h2 id="the-counts">The counts</h2>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Where</th>
+  <th>How many</th>
+  <th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>Hook <code>matcher</code></strong></td>
+  <td><strong>10 of 33</strong> events</td>
+  <td>The <code>matcher</code> is silently ignored, so the hook <strong>runs every time</strong></td>
+</tr>
+<tr>
+  <td><strong>Hook <code>if</code></strong></td>
+  <td>Evaluated on <strong>5</strong> events</td>
+  <td>Written anywhere else, that handler <strong>never runs at all</strong></td>
+</tr>
+<tr>
+  <td><strong>Settings key scope</strong></td>
+  <td><strong>71 of 223</strong> keys</td>
+  <td>Depending on which file, the key <strong>does nothing</strong></td>
+</tr>
+<tr>
+  <td><strong>Deprecated settings keys</strong></td>
+  <td><strong>4</strong></td>
+  <td>One of them <strong>inverts the boolean</strong></td>
+</tr>
+<tr>
+  <td><strong>Permission rules</strong></td>
+  <td><strong>5 forms</strong></td>
+  <td>They load, and then do nothing</td>
+</tr>
+<tr>
+  <td><strong>Subagent files</strong></td>
+  <td><strong>5 conditions</strong></td>
+  <td>The file is skipped and <strong>the session says nothing</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>What they share is that the failure never comes back to you.</strong> With nothing
+returned, no amount of local experimenting reaches the answer.</p>
+<h2 id="hooks">Hooks</h2>
+<p>Ten events <strong>silently discard</strong> a <code>matcher</code>. Not an error. You narrowed it, and
+it runs every time anyway.</p>
+<pre><code>CwdChanged      UserPromptSubmit   PostToolBatch   Stop         TeammateIdle
+TaskCreated     TaskCompleted      WorktreeCreate  WorktreeRemove  MessageDisplay
+</code></pre>
+<p><code>if</code> fails the other way. <strong>It is evaluated on the five tool-related events
+only.</strong></p>
+<pre><code>PreToolUse  PostToolUse  PostToolUseFailure  PermissionRequest  PermissionDenied
+</code></pre>
+<p>On any other event, a handler with an <code>if</code> <strong>never runs.</strong> <code>matcher</code> errs
+toward too wide, <code>if</code> toward not at all. Both quietly.</p>
+<p>The table of all 33 events is here.</p>
+<p><a href="https://quintetkit.github.io/en/reference/claude-code-hooks.html">https://quintetkit.github.io/en/reference/claude-code-hooks.html</a></p>
+<h2 id="settings-keys">Settings keys</h2>
+<p>A settings key applies only from certain files.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Scope</th>
+  <th>Count</th>
+  <th>Applies from</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>Managed</code></td>
+  <td>39</td>
+  <td>Managed settings an organisation deploys</td>
+</tr>
+<tr>
+  <td><code>User or managed</code></td>
+  <td>23</td>
+  <td><code>~/.claude/settings.json</code>, or managed</td>
+</tr>
+<tr>
+  <td><code>User, local, or managed</code></td>
+  <td>3</td>
+  <td><strong>Applies from <code>settings.local.json</code>, not from <code>settings.json</code></strong></td>
+</tr>
+<tr>
+  <td><code>Global config</code></td>
+  <td>6</td>
+  <td><code>~/.claude.json</code> only</td>
+</tr>
+<tr>
+  <td><strong>Total</strong></td>
+  <td><strong>71</strong></td>
+  <td></td>
+</tr>
+<tr>
+  <td><code>Any file</code></td>
+  <td>152</td>
+  <td>Anywhere</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>The third row is the awkward one.</strong> It works for whoever wrote it in
+<code>settings.local.json</code> and stops working when it moves into the shared
+<code>settings.json</code>. That is a good way to produce &quot;works on my machine&quot; with no
+visible cause.</p>
+<p><strong>Nested keys are scoped by their full dotted name.</strong> What is restricted is
+<code>sandbox.network.strictAllowlist</code>, not <code>sandbox</code>. Inspect only the top level and
+you miss all 20 dotted keys, 12 of them <code>sandbox.*</code>.</p>
+<p>The full list of 71 is here.</p>
+<p><a href="https://quintetkit.github.io/en/reference/claude-code-settings-scope.html">https://quintetkit.github.io/en/reference/claude-code-settings-scope.html</a></p>
+<h3 id="four-deprecated-keys">Four deprecated keys</h3>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Written</th>
+  <th>Replacement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>ignorePatterns</code></td>
+  <td><code>permissions.deny</code></td>
+</tr>
+<tr>
+  <td><code>includeCoAuthoredBy</code></td>
+  <td><code>attribution</code></td>
+</tr>
+<tr>
+  <td><code>disableArtifact</code></td>
+  <td><code>enableArtifact</code></td>
+</tr>
+<tr>
+  <td><code>voiceEnabled</code></td>
+  <td><code>voice.enabled</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong><code>disableArtifact</code> inverts.</strong> <code>disableArtifact: false</code> and
+<code>enableArtifact: false</code> mean opposite things, so swapping the name alone flips
+the setting.</p>
+<h2 id="permission-rules">Permission rules</h2>
+<p>Five ways to write a <code>permissions</code> rule that is not an error and does nothing.</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>What you write</th>
+  <th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>&quot;*&quot;</code> / <code>&quot;B*&quot;</code> / <code>&quot;mcp__*&quot;</code> in <strong>allow</strong></td>
+  <td>Skipped; <strong>auto-approves nothing</strong></td>
+</tr>
+<tr>
+  <td>A path rule on <code>Write</code> / <code>NotebookEdit</code> / <code>Glob</code> / <code>MultiEdit</code></td>
+  <td>Accepted but <strong>never consulted</strong></td>
+</tr>
+<tr>
+  <td>A parameter rule on a tool's <strong>own content field</strong>, e.g. <code>Bash(command:...)</code></td>
+  <td><strong>Ignored</strong> (nine tools have one)</td>
+</tr>
+<tr>
+  <td>An <code>mcp__</code> rule with parentheses</td>
+  <td><strong>Skipped</strong> when the file loads</td>
+</tr>
+<tr>
+  <td>An allow rule with a <code>*</code> before the rest of the command</td>
+  <td>Applies, but <strong>allows more than it looks like</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>The last one is the dangerous one.</p>
+<pre><code>Bash(git log *)    → commands starting with git log
+Bash(git * main)   → every git subcommand. git push origin main, and git -c
+Bash(* --version)  → every program
+</code></pre>
+<p><code>git -c</code> <strong>makes git run a program you name.</strong> One line meant to allow a single
+command opens that far.</p>
+<p>Details here.</p>
+<p><a href="https://quintetkit.github.io/en/reference/claude-code-permission-rules.html">https://quintetkit.github.io/en/reference/claude-code-permission-rules.html</a></p>
+<h2 id="subagent-files">Subagent files</h2>
+<p>A file in <code>.claude/agents/</code> with a frontmatter problem is <strong>skipped</strong>, and
+<strong>nothing appears in the session.</strong> The reason goes to the debug log only.</p>
+<ul>
+<li>No <code>name</code></li>
+<li>The opening <code>---</code> is <strong>not the first line</strong></li>
+<li>A <code>name</code> starting with <code>-</code>, or containing <code>:</code></li>
+<li>A <code>name</code> but no <code>description</code></li>
+<li>YAML that does not parse</li>
+</ul>
+<p>The 18 fields, and where <code>cacheTtl</code> belongs (inside <code>experimental</code>), are here.</p>
+<p><a href="https://quintetkit.github.io/en/reference/claude-code-subagent-frontmatter.html">https://quintetkit.github.io/en/reference/claude-code-subagent-frontmatter.html</a></p>
+<h2 id="checking-all-of-it">Checking all of it</h2>
+<p>Everything above is mechanically detectable.</p>
+<pre><code class="language-bash">npx @quintetkit/ccheck
+</code></pre>
+<pre><code>warn  .claude/settings.json:63
+      `autoMode` applies from user or managed settings only. It has no effect from this file.
+      why: https://code.claude.com/docs/en/settings-reference
+</code></pre>
+<p><strong>Every finding cites its source.</strong> A rule that cannot be cited is not written.</p>
+<p>Some things are <strong>deliberately not checked</strong>.</p>
+<ul>
+<li><strong>Unknown keys</strong> — the documentation says the published schema lags the CLI,
+so this would flag every new feature</li>
+<li><strong>The valid values for <code>model</code>, <code>color</code>, and similar</strong> — either no exhaustive
+list is documented, or a new value would produce a false finding</li>
+<li><strong>Whether a <code>deny</code> / <code>ask</code> rule names a real tool</strong> — deciding that needs the
+current tool list, and a checker holding a snapshot would <strong>warn on every tool
+released after it</strong></li>
+</ul>
+<p><strong>One false finding is enough to make the whole output stop being read.</strong> What
+cannot be distinguished is passed in silence, and said to be.</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li><a href="https://code.claude.com/docs/en/hooks">https://code.claude.com/docs/en/hooks</a></li>
+<li><a href="https://code.claude.com/docs/en/settings-reference">https://code.claude.com/docs/en/settings-reference</a></li>
+<li><a href="https://code.claude.com/docs/en/permissions">https://code.claude.com/docs/en/permissions</a></li>
+<li><a href="https://code.claude.com/docs/en/sub-agents">https://code.claude.com/docs/en/sub-agents</a></li>
+</ul>
+<p>Every count comes from a <strong>snapshot taken 2026-09-04</strong>.</p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 10-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

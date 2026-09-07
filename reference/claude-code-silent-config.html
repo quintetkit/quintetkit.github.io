@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code で、正しく書いたのに何も起きない設定の全一覧</title>
+<meta name="description" content="hook の matcher、権限ルール、設定キー、サブエージェントのファイル。どれも構文として正しく、エラーも警告も出ないまま無視される場所があります。イベント33種のうち10種、設定キー223個のうち71個、権限ルールの5通り、サブエージェントの5条件。公式ドキュメントの記述から数えた一覧と、それぞれの詳細表への入口。">
+<link rel="canonical" href="https://quintetkit.github.io/reference/claude-code-silent-config.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/reference/claude-code-silent-config.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/reference/claude-code-silent-config.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/reference/claude-code-silent-config.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Claude Code で、正しく書いたのに何も起きない設定の全一覧">
+<meta property="og:description" content="hook の matcher、権限ルール、設定キー、サブエージェントのファイル。どれも構文として正しく、エラーも警告も出ないまま無視される場所があります。イベント33種のうち10種、設定キー223個のうち71個、権限ルールの5通り、サブエージェントの5条件。公式ドキュメントの記述から数えた一覧と、それぞれの詳細表への入口。">
+<meta property="og:url" content="https://quintetkit.github.io/reference/claude-code-silent-config.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="ja_JP">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><a href="../articles/index.html">記事</a><span>リファレンス</span></nav>
+</div></div>
+<article><div class="wrap">
+  <h1>Claude Code で、正しく書いたのに何も起きない設定の全一覧</h1>
+<p><code>.claude/</code> の設定でいちばん時間を取られるのは、<strong>間違いが画面に出ないこと</strong>です。</p>
+<p>JSON は正しい。キー名も合っている。起動しても警告が出ず、<code>--debug</code> にも出ません。</p>
+<p><strong>ただ動きません。</strong></p>
+<p>公式ドキュメントが「無視される」「スキップされる」「効かない」と<strong>明記している</strong>
+場所を、数えて並べました。推測は入れていません。</p>
+<h2 id="数">数</h2>
+<div class="scroll"><table><thead>
+<tr>
+  <th>どこ</th>
+  <th>何件</th>
+  <th>何が起きるか</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>hook の <code>matcher</code></strong></td>
+  <td>イベント <strong>33 種のうち 10 種</strong></td>
+  <td><code>matcher</code> が黙って無視され、<strong>毎回走る</strong></td>
+</tr>
+<tr>
+  <td><strong>hook の <code>if</code></strong></td>
+  <td>評価されるのは <strong>5 種だけ</strong></td>
+  <td>それ以外に書くと、そのハンドラは<strong>一度も走らない</strong></td>
+</tr>
+<tr>
+  <td><strong>設定キーのスコープ</strong></td>
+  <td><strong>223 個のうち 71 個</strong></td>
+  <td>書いた場所によっては<strong>何もしない</strong></td>
+</tr>
+<tr>
+  <td><strong>非推奨の設定キー</strong></td>
+  <td><strong>4 個</strong></td>
+  <td>うち1つは<strong>真偽が反転している</strong></td>
+</tr>
+<tr>
+  <td><strong>権限ルール</strong></td>
+  <td><strong>5 通り</strong></td>
+  <td>読み込まれて、そのまま何もしない</td>
+</tr>
+<tr>
+  <td><strong>サブエージェントのファイル</strong></td>
+  <td><strong>5 条件</strong></td>
+  <td>ファイルごと飛ばされ、<strong>セッションには出ない</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>共通しているのは、失敗がこちら側に返ってこないこと</strong>です。
+返ってくるものが無いので、手元でいくら実験しても届きません。</p>
+<h2 id="hook">hook</h2>
+<p><code>matcher</code> を書いても<strong>黙って無視される</strong>イベントが10種あります。
+エラーになりません。絞ったつもりで、毎回走ります。</p>
+<pre><code>CwdChanged      UserPromptSubmit   PostToolBatch   Stop         TeammateIdle
+TaskCreated     TaskCompleted      WorktreeCreate  WorktreeRemove  MessageDisplay
+</code></pre>
+<p><code>if</code> は逆の失敗をします。<strong>評価されるのはツール系の5種だけ</strong>です。</p>
+<pre><code>PreToolUse  PostToolUse  PostToolUseFailure  PermissionRequest  PermissionDenied
+</code></pre>
+<p>それ以外のイベントに <code>if</code> を書くと、<strong>そのハンドラは一度も走りません。</strong>
+<code>matcher</code> は広すぎる方へ、<code>if</code> は動かない方へ。どちらも静かに。</p>
+<p>イベント33種ごとの対照表はこちらです。</p>
+<p><a href="https://quintetkit.github.io/reference/claude-code-hooks.html">https://quintetkit.github.io/reference/claude-code-hooks.html</a></p>
+<h2 id="設定キー">設定キー</h2>
+<p>設定キーには<strong>どのファイルから書けば効くか</strong>が決まっています。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>スコープ</th>
+  <th>件数</th>
+  <th>効く場所</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>Managed</code></td>
+  <td>39</td>
+  <td>組織が配る管理設定からのみ</td>
+</tr>
+<tr>
+  <td><code>User or managed</code></td>
+  <td>23</td>
+  <td><code>~/.claude/settings.json</code> か管理設定からのみ</td>
+</tr>
+<tr>
+  <td><code>User, local, or managed</code></td>
+  <td>3</td>
+  <td><strong><code>settings.local.json</code> からは効くが、<code>settings.json</code> からは効かない</strong></td>
+</tr>
+<tr>
+  <td><code>Global config</code></td>
+  <td>6</td>
+  <td><code>~/.claude.json</code> からのみ</td>
+</tr>
+<tr>
+  <td><strong>計</strong></td>
+  <td><strong>71</strong></td>
+  <td></td>
+</tr>
+<tr>
+  <td><code>Any file</code></td>
+  <td>152</td>
+  <td>どこに書いても効く</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>3行目が厄介です。</strong> <code>settings.local.json</code> に書いた本人には効いて、
+共有した <code>settings.json</code> に移すと効かなくなります。
+「自分の環境では動く」の正体がこれになりえます。</p>
+<p><strong>入れ子のキーは、点つなぎの完全な名前でスコープが決まります。</strong>
+制限されているのは <code>sandbox.network.strictAllowlist</code> で、<code>sandbox</code> ではありません。
+上の階層だけ見ていると、点つなぎの20個（うち <code>sandbox.*</code> が12個）を丸ごと見落とします。</p>
+<p>71個の全一覧はこちらです。</p>
+<p><a href="https://quintetkit.github.io/reference/claude-code-settings-scope.html">https://quintetkit.github.io/reference/claude-code-settings-scope.html</a></p>
+<h3 id="非推奨のキーは4つ">非推奨のキーは4つ</h3>
+<div class="scroll"><table><thead>
+<tr>
+  <th>書いてあるもの</th>
+  <th>置き換え先</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>ignorePatterns</code></td>
+  <td><code>permissions.deny</code></td>
+</tr>
+<tr>
+  <td><code>includeCoAuthoredBy</code></td>
+  <td><code>attribution</code></td>
+</tr>
+<tr>
+  <td><code>disableArtifact</code></td>
+  <td><code>enableArtifact</code></td>
+</tr>
+<tr>
+  <td><code>voiceEnabled</code></td>
+  <td><code>voice.enabled</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong><code>disableArtifact</code> は真偽が反転します。</strong> <code>disableArtifact: false</code> と
+<code>enableArtifact: false</code> は逆の意味です。名前を置き換えるだけだと、設定が反転します。</p>
+<h2 id="権限ルール">権限ルール</h2>
+<p><code>permissions</code> に書いても、<strong>エラーにならず何もしない</strong>書き方が5通りあります。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>書き方</th>
+  <th>何が起きるか</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>&quot;*&quot;</code> / <code>&quot;B*&quot;</code> / <code>&quot;mcp__*&quot;</code> を <strong>allow</strong> に</td>
+  <td>スキップされ、<strong>何も自動承認しない</strong></td>
+</tr>
+<tr>
+  <td><code>Write(...)</code> <code>NotebookEdit(...)</code> <code>Glob(...)</code> <code>MultiEdit(...)</code> のパス指定</td>
+  <td>受け付けられるが<strong>参照されない</strong></td>
+</tr>
+<tr>
+  <td><code>Bash(command:...)</code> のように<strong>本体の入力</strong>をパラメータ指定</td>
+  <td><strong>無視される</strong>（9ツールが該当）</td>
+</tr>
+<tr>
+  <td>括弧つきの <code>mcp__</code> ルール</td>
+  <td>読み込み時に<strong>スキップ</strong></td>
+</tr>
+<tr>
+  <td>allow で <code>*</code> のうしろに字が続く</td>
+  <td>効くが、<strong>見た目より広く許可する</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>最後のものが一番危ないです。</p>
+<pre><code>Bash(git log *)    → git log から始まるコマンド
+Bash(git * main)   → git の全サブコマンド。git push origin main も、git -c も
+Bash(* --version)  → あらゆるプログラム
+</code></pre>
+<p><code>git -c</code> は <strong>git に別のプログラムを起動させます。</strong>
+「1つのコマンドを許した」つもりの1行が、そこまで開きます。</p>
+<p>詳細はこちらです。</p>
+<p><a href="https://quintetkit.github.io/reference/claude-code-permission-rules.html">https://quintetkit.github.io/reference/claude-code-permission-rules.html</a></p>
+<h2 id="サブエージェントのファイル">サブエージェントのファイル</h2>
+<p><code>.claude/agents/*.md</code> は、frontmatter に問題があると<strong>飛ばされます。</strong>
+そして<strong>セッションには何も出ません。</strong> 理由はデバッグログにだけ出ます。</p>
+<ul>
+<li><code>name</code> が無い</li>
+<li>開きの <code>---</code> が<strong>1行目でない</strong></li>
+<li><code>name</code> が <code>-</code> で始まる、または <code>:</code> を含む</li>
+<li><code>name</code> はあるが <code>description</code> が無い</li>
+<li>YAML として壊れている</li>
+</ul>
+<p>書ける18項目と、<code>cacheTtl</code> の置き場所（<code>experimental</code> の中）はこちらです。</p>
+<p><a href="https://quintetkit.github.io/reference/claude-code-subagent-frontmatter.html">https://quintetkit.github.io/reference/claude-code-subagent-frontmatter.html</a></p>
+<h2 id="まとめて検査する">まとめて検査する</h2>
+<p>上の全部を機械で見つけられます。</p>
+<pre><code class="language-bash">npx @quintetkit/ccheck
+</code></pre>
+<pre><code>warn  .claude/settings.json:63
+      `autoMode` applies from user or managed settings only. It has no effect from this file.
+      why: https://code.claude.com/docs/en/settings-reference
+</code></pre>
+<p><strong>指摘には必ず出典が付きます。</strong> 根拠を示せないものはルールにしていません。</p>
+<p>逆に、<strong>あえて検査していないもの</strong>もあります。</p>
+<ul>
+<li><strong>未知のキー</strong> — 公式が「スキーマは最新 CLI に遅れる」と明記しているので、
+新機能を使うたびに誤検出します</li>
+<li><strong><code>model</code> や <code>color</code> の値の一覧</strong> — 網羅リストが文書化されていない、
+あるいは値が増えるたびに誤検出します</li>
+<li><strong><code>deny</code> / <code>ask</code> のツール名が実在するか</strong> — 判定には最新のツール一覧が要ります。
+スナップショットしか持てないので、<strong>新しいツールが出るたびに誤検出します</strong></li>
+</ul>
+<p><strong>誤検出を1件出した時点で、出力ごと読まれなくなります。</strong>
+区別できないものは、区別できないと言って通します。</p>
+<h2 id="出典">出典</h2>
+<ul>
+<li><a href="https://code.claude.com/docs/en/hooks">https://code.claude.com/docs/en/hooks</a></li>
+<li><a href="https://code.claude.com/docs/en/settings-reference">https://code.claude.com/docs/en/settings-reference</a></li>
+<li><a href="https://code.claude.com/docs/en/permissions">https://code.claude.com/docs/en/permissions</a></li>
+<li><a href="https://code.claude.com/docs/en/sub-agents">https://code.claude.com/docs/en/sub-agents</a></li>
+</ul>
+<p>数はすべて <strong>2026-09-04 に取得したスナップショット</strong>から数えたものです。</p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>
