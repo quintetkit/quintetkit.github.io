@@ -7,6 +7,13 @@
   <description>Claude Code に複数の人格を分担させて並列開発を回すための、実際に使っている設定と、そこで踏んだ失敗の記録です。</description>
   <language>ja</language>
   <item>
+    <title>動いているのに一度も走らない定期実行 — 同じ仕組みを3回作り直した記録</title>
+    <link>https://quintetkit.github.io/articles/scheduled-job-four-environments.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/scheduled-job-four-environments.html</guid>
+    <description>記事を1日1本公開する仕組みがあります。 4日のあいだに、その定期実行の部分だけを3回作り直しました。</description>
+    <pubDate>Tue, 08 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>Zenn の「投稿数の上限に達したためデプロイされませんでした」で実際に起きていること</title>
     <link>https://quintetkit.github.io/articles/zenn-deploy-rate-limit.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/articles/zenn-deploy-rate-limit.html</guid>

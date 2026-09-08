@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>動いているのに一度も走らない定期実行 — 同じ仕組みを3回作り直した記録 | Quartet / Quintet</title>
+<meta name="description" content="記事を1日1本公開する仕組みがあります。 4日のあいだに、その定期実行の部分だけを3回作り直しました。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/scheduled-job-four-environments.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/articles/scheduled-job-four-environments.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/articles/scheduled-job-four-environments.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/articles/scheduled-job-four-environments.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="動いているのに一度も走らない定期実行 — 同じ仕組みを3回作り直した記録 | Quartet / Quintet">
+<meta property="og:description" content="記事を1日1本公開する仕組みがあります。 4日のあいだに、その定期実行の部分だけを3回作り直しました。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/scheduled-job-four-environments.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="ja_JP">
+<meta property="article:published_time" content="2026-09-08">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span><a href="../reference/">リファレンス</a></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-08 &nbsp;·&nbsp; macos · launchd · shellscript · 個人開発 · devops</p>
+  <h1>動いているのに一度も走らない定期実行 — 同じ仕組みを3回作り直した記録</h1>
+<p>記事を1日1本公開する仕組みがあります。
+4日のあいだに、その<strong>定期実行の部分だけを3回作り直しました。</strong></p>
+<p>3回とも、前の版では見えなかった本物の失敗を直しています。</p>
+<p>そしてどの版も、<strong>私が与えたテストには通っていました。</strong>
+テストがいつも「<strong>いま動くか</strong>」で、「<strong>置かれる場所で動くか</strong>」ではなかったからです。</p>
+<h2 id="第1版-tmp-に置いたループ">第1版: <code>/tmp</code> に置いたループ</h2>
+<pre><code class="language-bash">nohup bash /tmp/daily-loop.sh &amp;
+</code></pre>
+<p>動きました。公開もできました。予約が4件、これに乗っていました。</p>
+<p>そしてマシンを再起動したら、<strong>4件とも消えました。</strong></p>
+<p><code>/tmp</code> はプログラムの置き場ではありませんし、<code>nohup</code> は再起動を越えません。
+<strong>どちらも知っていて、それでもこうしました。</strong>
+私が確かめたかったのは公開のロジックで、公開のロジックには問題が無かったからです。</p>
+<p><strong>消えたことは、どこにも出ませんでした。</strong>
+翌朝、新しい記事が無いだけ。エラーもありません。
+エラーを記録するはずのプロセスが、そもそも存在しないので。</p>
+<h2 id="第2版-launchd-に-keepalive-で常駐させる">第2版: launchd に <code>KeepAlive</code> で常駐させる</h2>
+<p>スクリプトをリポジトリに移し、launch agent を書き、
+落ちても戻るように <code>KeepAlive: true</code> にしました。</p>
+<p>翌朝これが出ていました。</p>
+<pre><code>scripts/daily-publish.sh: line 59: node: command not found
+</code></pre>
+<p><strong>launchd から起動されたジョブには、PATH がほとんどありません。</strong>
+私の場合は <code>/usr/bin:/bin:/usr/sbin:/sbin</code> だけ。
+node は <code>/opt/homebrew/bin</code> にあります。
+自分のシェルから同じスクリプトを叩けば通ります。<strong>シェルには PATH があるので。</strong></p>
+<p>高くついたのはここです。同じループは Python で書いた回収処理も回していて、
+<code>python3</code> は <code>/usr/bin</code> に<strong>あります。</strong> だからそちらは動き続けました。
+ログは15分おきに正常な記録で埋まっていました。</p>
+<p><strong>部分的に動いている自動化は、止まっている自動化より気づきにくい。</strong>
+止まっているものにはログがありません。これには、健康そうに見えるログがありました。</p>
+<p>直し方は地味です。</p>
+<pre><code class="language-bash">export PATH=&quot;/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin&quot;
+</code></pre>
+<p><strong>壊れた1本だけでなく、定期実行が触る全部のスクリプトに入れました。</strong>
+入口が1つだとは限らないからです。別のスクリプトが、別の親から同じものを呼びます。</p>
+<h2 id="第3版-ループは走っておらず-凍っていた">第3版: ループは走っておらず、凍っていた</h2>
+<p>PATH を直して公開も通り、そのあとログが3時間止まりました。
+プロセスは生きています。</p>
+<pre><code>$ ps -o pid,etime,command -p 72127
+  PID     ELAPSED COMMAND
+72127    02:55:52 sleep 900
+</code></pre>
+<p><strong><code>sleep 900</code> が2時間55分生きていました。</strong></p>
+<p>これはノートパソコンです。<strong>スリープします。</strong>
+15分で終わるはずの <code>sleep</code> は、システムが停止している間は進みません。
+<code>while true; do 仕事; sleep N; done</code> の形は、
+<strong>スリープするたびに上限のない穴が開きます。</strong></p>
+<p>ループは壊れていませんでした。通信で詰まってもいませんでした。
+<strong>書いたとおりに動いていて、書いた私が「実時間は流れ続ける」と仮定していた</strong>だけです。</p>
+<h2 id="第4版-定期実行は-定期実行の仕組みに任せる">第4版: 定期実行は、定期実行の仕組みに任せる</h2>
+<pre><code class="language-xml">&lt;key&gt;StartInterval&lt;/key&gt;
+&lt;integer&gt;900&lt;/integer&gt;
+&lt;key&gt;RunAtLoad&lt;/key&gt;
+&lt;true/&gt;
+</code></pre>
+<p>スクリプトは<strong>1回分やって終わる</strong>形にしました。ループも <code>sleep</code> もありません。</p>
+<p><code>StartInterval</code> はこのために用意されています。
+<strong>スリープ中に間隔が過ぎていれば、復帰時に起こしてくれます。</strong>
+同じラベルのジョブを二重に起動しないので、<strong>要るはずだったロックも消えました。</strong></p>
+<p>古いループのスクリプトは、隣に残さず<strong>削除しました。</strong>
+同じ仕事に入口が2つあると、どちらが動いているのか分からなくなります。</p>
+<h3 id="最後にもう1つ罠がありました">最後にもう1つ罠がありました</h3>
+<p>間隔が登録できているか確かめました。</p>
+<pre><code>$ launchctl list com.example.daily
+{
+    &quot;Label&quot; = &quot;com.example.daily&quot;;
+    &quot;LastExitStatus&quot; = 0;
+    ...
+};
+</code></pre>
+<p><strong><code>StartInterval</code> がありません。</strong>
+「登録に失敗している」と結論して、また作り直すところでした。</p>
+<pre><code>$ launchctl print gui/$(id -u)/com.example.daily
+    state = not running
+    runs = 4
+    last exit code = 0
+    run interval = 900 seconds
+</code></pre>
+<p><strong><code>launchctl list</code> は、持っているキーを全部は出しません。</strong> <code>print</code> は出します。</p>
+<p><strong>片方の道具の出力に無いことは、ジョブについての証拠ではありません。</strong></p>
+<h2 id="4つの版に共通していたこと">4つの版に共通していたこと</h2>
+<p>どの修正も正しかった。どれも確認した。
+<strong>そして確認は毎回、そのジョブが実際には走らない環境で行われていました。</strong></p>
+<ul>
+<li>公開のロジックは自分のシェルで確かめた → <strong>再起動が話題にならない</strong></li>
+<li>launch agent は1回起こして確かめた →
+そのとき私の頭の中では、まだシェルの PATH が「PATH」だった</li>
+<li>ループは1周だけ見て確かめた →
+<strong>進まない <code>sleep</code> と進む <code>sleep</code> が、まったく同じに見える場合そのもの</strong></li>
+</ul>
+<p>残った規則は狭いですが、まだ反論できていません。</p>
+<blockquote>
+<p><strong>走る場所を変えたら、その場所で1回走らせるまで、それについて知っていたことを信じない。</strong></p>
+</blockquote>
+<p>ロジックを再テストするのではありません。<strong>同じロジックを、新しい環境で、
+その環境固有の失敗を探しながら</strong>動かします。
+PATH は何か、再起動を越えるか、スリープを越えるか、
+そして<strong>確認に使う道具が何を教えてくれないか。</strong></p>
+<p>第4版はいま、何度かのスリープと1回の再起動を越えています。
+証明ではありませんが、<strong>証拠が「置かれている場所」から出てきた最初の版</strong>です。</p>
+<hr />
+<!-- product-links -->
+
+<p>Claude Code に設計・実装・レビューを別々の人格として分担させ、GitHub Issue と
+ブランチを軸に並列開発を回すための設定一式を MIT で公開しています。
+コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>このワークフローだけで実際にツールを 1 つ作りました。Issue の分割から PR、
+レビュー、マージまで記録が全部残っています。<strong>うまくいかなかった箇所も消していません。</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>UI 設計人格・レビュー基準・Issue 単位の並列実行スクリプト・実践ガイド 10 章を
+足したものは<a href="https://quintetkit.github.io">製品ページ</a>にあります。</p>
+<p>実践ガイド全10章は Zenn Book で読めます（¥1,500・2章まで無料）。</p>
+<p><a href="https://zenn.dev/quintetkit/books/claude-code-parallel-workflow">https://zenn.dev/quintetkit/books/claude-code-parallel-workflow</a></p>
+<p>設定一式（5人格・スクリプト・ガイド全文）の配布はこちらです。</p>
+<p><a href="https://quartet-dev.booth.pm/items/8807156">https://quartet-dev.booth.pm/items/8807156</a></p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>
