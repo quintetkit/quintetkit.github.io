@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>誤検出を避けるために書いた規則が、そのまま死角になっていた | Quartet / Quintet</title>
+<meta name="description" content="設定ファイルの検査ツールを作っています。README の1画面目にこう書いてあります。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/blind-spot-from-refusing-to-check.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/articles/blind-spot-from-refusing-to-check.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/articles/blind-spot-from-refusing-to-check.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/articles/blind-spot-from-refusing-to-check.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="誤検出を避けるために書いた規則が、そのまま死角になっていた | Quartet / Quintet">
+<meta property="og:description" content="設定ファイルの検査ツールを作っています。README の1画面目にこう書いてあります。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/blind-spot-from-refusing-to-check.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="ja_JP">
+<meta property="article:published_time" content="2026-09-08">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span><a href="../reference/">リファレンス</a></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-08 &nbsp;·&nbsp; claudecode · 設計 · テスト · 個人開発 · oss</p>
+  <h1>誤検出を避けるために書いた規則が、そのまま死角になっていた</h1>
+<p>設定ファイルの検査ツールを作っています。README の1画面目にこう書いてあります。</p>
+<blockquote>
+<p>指摘は、公式ドキュメントが「エラーになる」「スキップされる」「無視される」と
+明記しているものだけ。</p>
+</blockquote>
+<p>この方針の帰結として、<strong>あえて検査しないもの</strong>の一覧があります。いちばん分かりやすいのはこれ。</p>
+<blockquote>
+<p><strong>未知のキー。</strong> 公式が「スキーマは最新 CLI に遅れる」と明記しているので、
+検査すると新機能を使うたびに誤検出する。</p>
+</blockquote>
+<p><strong>良い規則だと思っています。いまも思っています。</strong></p>
+<p>そしてこれが、<strong>自分の製品が4箇所で壊れた行を数日間配っていた</strong>理由です。</p>
+<h2 id="検査は通っていた">検査は通っていた</h2>
+<p>有料ガイドに章を足そうとして、先に<strong>自分の製品が配っている設定</strong>を全部検査しました。</p>
+<pre><code>product/kit           No problems (5 files checked)
+product/oss           No problems (4 files checked)
+publish/quartet       No problems (4 files checked)
+publish/mdlinkcheck   No problems (4 files checked)
+</code></pre>
+<p><strong>全部緑。</strong> それでファイルを開いて読みました。この記事があるのはそのためです。</p>
+<pre><code class="language-yaml"># .claude/agents/coder.md
+---
+name: coder
+description: ...
+tools: *
+model: inherit
+---
+</code></pre>
+<p><code>tools: *</code>。<strong>「こいつには全部使わせる」という意味で、何ヶ月か前に書いたもの</strong>です。</p>
+<p>ドキュメントを読みました。この欄が受け付けるのは
+<strong>正確なツール名</strong>か、サーバ単位の <code>mcp__&lt;server&gt;</code> / <code>mcp__&lt;server&gt;__*</code> です。
+<strong>裸の <code>*</code> はそこに含まれていません。</strong></p>
+<p>そして「解決できない項目があると、サブエージェントは<strong>起動を拒否される</strong>」
+（解決できなかった項目名を挙げたエラーが返る）とも書いてあります。</p>
+<p><strong>「全部」の文書化された書き方は、欄ごと省くこと。</strong></p>
+<p><code>tools: *</code> が実際に起動を拒否されるかは、ここでは確かめられません。<strong>断定しません。</strong>
+言えるのは「文書化された書き方ではない」ことと、
+<strong>省けば同じ意図が曖昧さなしに通る</strong>ことです。だから行を消しました。</p>
+<p>4箇所ありました。<strong>うち2つは公開済み。</strong></p>
+<h2 id="なぜ検査ツールに見えなかったか">なぜ検査ツールに見えなかったか</h2>
+<p><strong>ここが残す価値のある部分です。</strong></p>
+<p>「ツール名が実在するかは検査しない」は正しい規則です。
+ツールは増えます。検査ツールが持てるのはスナップショットだけです。
+スナップショットは、<strong>それ以降に出た全部のツールを「未知」と報告します。</strong>
+誤検出を1件出したら、その出力は二度と読まれません。</p>
+<p><strong>ただ、その規則を私は「<code>tools</code> の欄を見ない」として書いていました。</strong>
+そして捕まえるべきだったものは、<strong>名前ではありませんでした。</strong></p>
+<ul>
+<li><code>Bash</code> が実在するツールか → <strong>最新の一覧が要る</strong> → 古びる</li>
+<li><code>*</code> が有効な<strong>項目</strong>か → <strong>一覧が要らない</strong> → <strong>古びない</strong></li>
+</ul>
+<p><code>*</code> はどの版でもツール名ではありません。これからもなりません。
+問いは欄の<strong>構文</strong>についてのもので、私はそれを値の<strong>同一性</strong>の話に分類し、
+<strong>自分の規則が「そこを見るな」と言っている場所に置いていました。</strong></p>
+<p>修正は9行で、出典は同じページです。</p>
+<pre><code>warn  .claude/agents/coder.md:4
+      `tools: *` is not a documented pattern. Omit `tools` to inherit every
+      tool available to subagents.
+      why: https://code.claude.com/docs/en/sub-agents
+</code></pre>
+<p>「誤検出を出さない」という約束を守るために、clean 側の fixture に
+<strong>出てはいけないもの</strong>を2つ置きました。<code>tools</code> を省いたファイルと、
+<code>disallowedTools: mcp__github</code>（<strong>文書化されたパターン</strong>）です。
+そのディレクトリで<strong>0件であることを要求</strong>しています。テストは 71 → 73件。</p>
+<h2 id="この間違いの形">この間違いの形</h2>
+<p><strong>「誤検出するから X を検査しない」は、いつのまにか「X を見ない」になります。</strong></p>
+<p><strong>この2つは同じ規則ではありません。</strong> そしてその差のところに、
+検査できるはずの場合が、検査されないまま座ります。</p>
+<p>自分が書いた除外規則の全部に、1つ問いを立てるようにしました。</p>
+<blockquote>
+<p><strong>ここに、外部の知識を要らない部分問題は無いか。</strong></p>
+</blockquote>
+<p>未知の設定キーについては、答えは<strong>本当にありません。</strong>
+最新のスキーマなしに、typo と新機能は区別できません。
+<code>tools</code> については<strong>ありました。</strong> そして私は問いを立てていませんでした。</p>
+<p>もう1つ変えたこと。<strong>自分のコードに対する緑は、自分のコードについての証拠ではありません。</strong>
+それは**「自分のコード」と「たまたま自分が書いた規則」の交わり**についての証拠です。</p>
+<p>ファイルを読むのに4分かかりました。<strong>緑4回では見つからなかったものが出ました。</strong></p>
+<hr />
+<!-- product-links -->
+
+<p>Claude Code に設計・実装・レビューを別々の人格として分担させ、GitHub Issue と
+ブランチを軸に並列開発を回すための設定一式を MIT で公開しています。
+コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>このワークフローだけで実際にツールを 1 つ作りました。Issue の分割から PR、
+レビュー、マージまで記録が全部残っています。<strong>うまくいかなかった箇所も消していません。</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>UI 設計人格・レビュー基準・Issue 単位の並列実行スクリプト・実践ガイド 10 章を
+足したものは<a href="https://quintetkit.github.io">製品ページ</a>にあります。</p>
+<p>実践ガイド全10章は Zenn Book で読めます（¥1,500・2章まで無料）。</p>
+<p><a href="https://zenn.dev/quintetkit/books/claude-code-parallel-workflow">https://zenn.dev/quintetkit/books/claude-code-parallel-workflow</a></p>
+<p>設定一式（5人格・スクリプト・ガイド全文）の配布はこちらです。</p>
+<p><a href="https://quartet-dev.booth.pm/items/8807156">https://quartet-dev.booth.pm/items/8807156</a></p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 10 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

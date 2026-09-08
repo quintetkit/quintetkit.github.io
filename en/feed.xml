@@ -14,6 +14,13 @@
     <pubDate>Tue, 08 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>The Blind Spot Was the Rule I Wrote to Avoid False Positives</title>
+    <link>https://quintetkit.github.io/en/articles/blind-spot-from-refusing-to-check.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/blind-spot-from-refusing-to-check.html</guid>
+    <description>I maintain a linter for a configuration format. Its stated principle is on the first screen of the README:</description>
+    <pubDate>Tue, 08 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>You Cannot Tell It Does Not Ship Until You Ship It</title>
     <link>https://quintetkit.github.io/en/articles/shipping-a-cli-to-npm.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/en/articles/shipping-a-cli-to-npm.html</guid>

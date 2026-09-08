@@ -14,6 +14,13 @@
     <pubDate>Tue, 08 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>誤検出を避けるために書いた規則が、そのまま死角になっていた</title>
+    <link>https://quintetkit.github.io/articles/blind-spot-from-refusing-to-check.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/blind-spot-from-refusing-to-check.html</guid>
+    <description>設定ファイルの検査ツールを作っています。README の1画面目にこう書いてあります。</description>
+    <pubDate>Tue, 08 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>Zenn の「投稿数の上限に達したためデプロイされませんでした」で実際に起きていること</title>
     <link>https://quintetkit.github.io/articles/zenn-deploy-rate-limit.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/articles/zenn-deploy-rate-limit.html</guid>
