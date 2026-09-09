@@ -195,7 +195,7 @@
     <p>説明より、動いた記録のほうが確かめやすいはずです。この 4 人格構成だけで
       小さな CLI を 1 本作り、その過程をすべて公開しています。</p>
     <p><a href="https://github.com/quintetkit/mdlinkcheck"><strong>mdlinkcheck</strong></a>
-      — Markdown の相対リンク切れを検出する CLI。テスト 87 件、CI 2 本が通っています。</p>
+      — Markdown の相対リンク切れを検出する CLI。テスト 139 件、CI 2 本が通っています。</p>
     <ul class="symptoms">
       <li><strong>Issue</strong> — 各 Issue に担当範囲・依存・受け入れ条件が、コードより先に書かれている</li>
       <li><strong>Pull request</strong> — 各 PR が 1 つの Issue に対応し、宣言した範囲に収まっている</li>
@@ -205,13 +205,32 @@
       担当範囲の記述が実態と違っていた件、土台の不足で実装者が止まって報告した件、
       そして作ったツール自身が README のリンク切れ 17 件を検出した件。
       差し戻しが 1 件も無い履歴は、レビューが機能していない証拠にしかなりません。</p>
-    <h3>ccheck — <code>.claude/</code> の設定を検査する</h3>
-    <p>同じ構成で作った 2 本目です。壊れている設定と非推奨の書き方を、
-      <strong>その根拠になっている公式ドキュメントの行へのリンク付きで</strong>指摘します。
-      公式が「エラーになる」と明記していないものはルールにしていません。
-      正しい設定を「壊れている」と言う検査は、無いほうがマシだからです。</p>
+    <h3>そのあと、同じ構成で 4 本</h3>
+    <p>1 本目で終わりにすると「たまたま」と区別が付きません。同じ人格構成のまま、
+      用途の違う CLI をあと 4 本作って MIT で公開しています。どれも依存ゼロです。</p>
+    <table>
+      <thead><tr><th>ツール</th><th>何を見るか</th><th>テスト</th></tr></thead>
+      <tbody>
+        <tr><td><a href="https://github.com/quintetkit/ccheck"><code>ccheck</code></a></td>
+            <td><code>.claude/</code> の設定。<strong>書けているのに効いていない</strong>ものを、
+                公式ドキュメントの出典つきで指摘</td><td>74</td></tr>
+        <tr><td><a href="https://github.com/quintetkit/scopecheck"><code>scopecheck</code></a></td>
+            <td>開いている Issue のうち、<strong>同時に走らせられない組</strong></td><td>全通過</td></tr>
+        <tr><td><a href="https://github.com/quintetkit/sharedfiles"><code>sharedfiles</code></a></td>
+            <td>git の履歴から、<strong>並列作業がぶつかる場所</strong>。宣言も設定も要らない</td><td>全通過</td></tr>
+        <tr><td><code>transdrift</code></td>
+            <td>翻訳が<strong>原文から取り残されていないか</strong>。公開準備中</td><td>43</td></tr>
+      </tbody>
+    </table>
+    <p><code>ccheck</code> は、公式が「エラーになる」「スキップされる」「無視される」と
+      <strong>明記しているものだけ</strong>をルールにしています。
+      正しい設定を「壊れている」と言う検査は、無いほうがマシだからです。
+      <strong>何を検査しないと決めたかも公開しています。</strong></p>
+    <p>指摘の根拠にしている表そのものも読めます
+      — <a href="reference/claude-code-silent-config.html">正しく書いたのに何も起きない設定の全一覧</a>
+      （hook イベント 33 種、設定キー 223 個のうち 71 個、権限ルール 5 通りなど）。</p>
     <a class="btn" href="https://github.com/quintetkit/mdlinkcheck">mdlinkcheck の履歴</a>
-    <a class="btn" href="https://github.com/quintetkit/ccheck">ccheck</a>
+    <a class="btn" href="reference/">リファレンス</a>
   </div>
 </section>
 
