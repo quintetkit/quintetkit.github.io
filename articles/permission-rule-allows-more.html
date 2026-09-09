@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>書いた deny ルールが、一度も参照されていなかった | Quartet / Quintet</title>
+<meta name="description" content="エージェントを1つのディレクトリの中に留めるつもりで、これを書いていました。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/permission-rule-allows-more.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/articles/permission-rule-allows-more.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/articles/permission-rule-allows-more.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/articles/permission-rule-allows-more.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="書いた deny ルールが、一度も参照されていなかった | Quartet / Quintet">
+<meta property="og:description" content="エージェントを1つのディレクトリの中に留めるつもりで、これを書いていました。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/permission-rule-allows-more.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="ja_JP">
+<meta property="article:published_time" content="2026-09-10">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span><a href="../reference/">リファレンス</a></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-10 &nbsp;·&nbsp; claudecode · security · 設定 · 個人開発 · devops</p>
+  <h1>書いた deny ルールが、一度も参照されていなかった</h1>
+<p>エージェントを1つのディレクトリの中に留めるつもりで、これを書いていました。</p>
+<pre><code class="language-json">{ &quot;permissions&quot;: { &quot;deny&quot;: [&quot;Write(src/generated/**)&quot;] } }
+</code></pre>
+<p>構文は正しい。読み込まれる。<strong>そして一度も参照されません。</strong></p>
+<p>ファイルパスのルールが効くのは <code>Read(...)</code> と <code>Edit(...)</code> だけです。
+<code>Write</code> / <code>NotebookEdit</code> / <code>Glob</code> / 旧 <code>MultiEdit</code> に書いても、
+<strong>受け付けられたうえで一度も見られません。</strong></p>
+<p>起動時に警告は出ます。<strong>私は起動時の出力を読んでいませんでした。</strong>
+それまで一度も、そこに何か問題が出たことがなかったので。</p>
+<p>これは安いほうです。高いほうを書きます。</p>
+<h2 id="bash-git-main-は-git-の全サブコマンドを許す"><code>Bash(git * main)</code> は git の全サブコマンドを許す</h2>
+<p>Bash ルールの <code>*</code> は、<strong>その位置の文字列すべて</strong>に当たります。
+だから <code>*</code> を前に置くほど、ルールは広くなります。</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>書き方</th>
+  <th>実際に許可されるもの</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>Bash(git log *)</code></td>
+  <td><code>git log</code> から始まるコマンド</td>
+</tr>
+<tr>
+  <td><code>Bash(git * main)</code></td>
+  <td><strong>git の全サブコマンド。</strong> <code>git push origin main</code> も含む</td>
+</tr>
+<tr>
+  <td><code>Bash(* --version)</code></td>
+  <td><strong>そのマシンのあらゆるプログラム</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>Bash(git * main)</code> は「main に対する git コマンド1つ」に読めます。
+<code>git push origin main</code> が通ります。
+<code>git -c core.pager=… diff main</code> も通り、<strong><code>-c</code> は git に別のプログラムを起動させます。</strong></p>
+<p>私は <code>Bash(git * main)</code> を、diff を許したつもりで書いていました。</p>
+<p><code>*</code> がコマンドの途中にある allow ルールには、起動時に警告が出ます。
+上と同じで、<strong>警告が流れていく間もルールは効いています。</strong></p>
+<h2 id="空白1つで-lsof-が許可されるかどうかが変わる">空白1つで、<code>lsof</code> が許可されるかどうかが変わる</h2>
+<pre><code>Bash(ls *)   当たる: ls -la, ls        当たらない: lsof
+Bash(ls*)    当たる: ls -la, lsof
+</code></pre>
+<p><strong>末尾の <code>*</code> の前の空白は、ルールの一部です。</strong></p>
+<p>そして <code>Bash(ls *)</code> が引数なしの <code>ls</code> にも当たるのは、
+<strong>その末尾の <code>*</code> がそのルール唯一のワイルドカードのとき</strong>だけです。
+<code>Bash(* --help *)</code> は <code>npm --help x</code> に当たり、<code>npm --help</code> には当たりません。</p>
+<h2 id="読み込まれて何もしないものが-あと3つ">読み込まれて何もしないものが、あと3つ</h2>
+<p><strong>アンカーの無い allow グロブはスキップされます。</strong>
+<code>allow</code> に書いた <code>&quot;*&quot;</code> / <code>&quot;B*&quot;</code> / <code>&quot;mcp__*&quot;</code> は、<strong>何も自動承認しません。</strong>
+allow でグロブが使えるのは <code>mcp__&lt;サーバ名&gt;__</code> まで書いたあとだけです。
+<strong>どのサーバかを名指ししている必要がある</strong>ためです。</p>
+<p><strong>本体の入力へのパラメータ指定は無視されます。</strong>
+<code>Bash(command:rm *)</code> は複合コマンドで抜けられるので、効きません。</p>
+<pre><code>Bash, PowerShell  → command        Grep, Glob   → path
+Read, Edit, Write → file_path      WebFetch     → url
+NotebookEdit      → notebook_path
+</code></pre>
+<p><code>Bash(rm *)</code> / <code>Read(./.env)</code> / <code>WebFetch(domain:host)</code> と書きます。</p>
+<p><strong>括弧つきの <code>mcp__</code> ルールは読み込み時にスキップされます。</strong>
+<code>mcp__memory(read)</code> は効きません。
+起動時のダイアログと <code>claude doctor</code> に出ますが、<strong>CI ではどちらも見えません。</strong></p>
+<p>もう1つは構文の罠です。<code>Bash(ls:*)</code> は <code>Bash(ls *)</code> と同じですが、
+<strong>末尾に置いたときだけ。</strong> <code>Bash(git:* push)</code> の <code>:</code> はただの文字で、
+<strong>何にも当たりません。</strong></p>
+<h2 id="見た目より重い理由">見た目より重い理由</h2>
+<p>エージェントを並列で走らせているなら、<strong>権限を落とすことが安全側の設計そのもの</strong>です。
+私の場合もそうでした。実装するエージェントは、Issue が宣言したファイルだけ触れる。</p>
+<p>それを <code>Write(...)</code> のパス指定で表現していました。
+<strong>頼っていた仕組みが、一度も参照されないほうでした。</strong></p>
+<p>実際に scope を守らせていたのは、<code>Read</code> / <code>Edit</code> のパス指定と、
+Issue 本文に書いた宣言と、依頼文の書き方です。
+<strong>どれも、荷重がかかっている部分として扱っていませんでした。</strong></p>
+<p>引いた教訓は「ドキュメントを読め」より狭いです。</p>
+<blockquote>
+<p><strong>何もしていない権限ルールは、効いているルールとまったく同じに見える。</strong>
+どちらも黙っている。</p>
+</blockquote>
+<h2 id="設定を見る">設定を見る</h2>
+<pre><code class="language-bash">npx @quintetkit/ccheck
+</code></pre>
+<pre><code>warn  .claude/settings.json:14
+      `Write(src/generated/**)` is accepted but never consulted. File path rules
+      apply only to `Read(...)` and `Edit(...)`.
+      why: https://code.claude.com/docs/en/permissions
+</code></pre>
+<p>この検査を作るとき、面白かったのはテストのほうでした。</p>
+<p><strong>ドキュメントに載っている文字列そのもの</strong>を流します。
+指摘が出るべき6件と、<strong>出てはいけない11件。</strong>
+<code>Read(./src/**/*.ts)</code> や <code>Bash(ls*)</code> を含みます。</p>
+<p>11対6は意図的です。権限ルールは正しい書き方が多いので、
+<strong>正しいものを「壊れている」と言うほうが起こりやすい失敗</strong>で、
+<strong>誤検出を1件出したら出力全体が読まれなくなります。</strong></p>
+<p>5通りの全一覧（見た目と、実際に何をするか）はこちらです。</p>
+<p><a href="https://quintetkit.github.io/reference/claude-code-permission-rules.html">https://quintetkit.github.io/reference/claude-code-permission-rules.html</a></p>
+<hr />
+<!-- product-links -->
+
+<p>Claude Code に設計・実装・レビューを別々の人格として分担させ、GitHub Issue と
+ブランチを軸に並列開発を回すための設定一式を MIT で公開しています。
+コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>このワークフローだけで実際にツールを 1 つ作りました。Issue の分割から PR、
+レビュー、マージまで記録が全部残っています。<strong>うまくいかなかった箇所も消していません。</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>UI 設計人格・レビュー基準・Issue 単位の並列実行スクリプト・実践ガイド 11 章を
+足したものは<a href="https://quintetkit.github.io">製品ページ</a>にあります。</p>
+<p>実践ガイド全 11 章は Zenn Book で読めます（¥1,500・2章まで無料）。</p>
+<p><a href="https://zenn.dev/quintetkit/books/claude-code-parallel-workflow">https://zenn.dev/quintetkit/books/claude-code-parallel-workflow</a></p>
+<p>設定一式（5人格・スクリプト・ガイド全文）の配布はこちらです。</p>
+<p><a href="https://quartet-dev.booth.pm/items/8807156">https://quartet-dev.booth.pm/items/8807156</a></p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 11 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

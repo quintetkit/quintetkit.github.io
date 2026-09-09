@@ -14,6 +14,13 @@
     <pubDate>Thu, 10 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>書いた deny ルールが、一度も参照されていなかった</title>
+    <link>https://quintetkit.github.io/articles/permission-rule-allows-more.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/permission-rule-allows-more.html</guid>
+    <description>エージェントを1つのディレクトリの中に留めるつもりで、これを書いていました。</description>
+    <pubDate>Thu, 10 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>動いているのに一度も走らない定期実行 — 同じ仕組みを3回作り直した記録</title>
     <link>https://quintetkit.github.io/articles/scheduled-job-four-environments.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/articles/scheduled-job-four-environments.html</guid>

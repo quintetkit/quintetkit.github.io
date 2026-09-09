@@ -14,6 +14,13 @@
     <pubDate>Thu, 10 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>The Deny Rule I Wrote Was Never Consulted</title>
+    <link>https://quintetkit.github.io/en/articles/permission-rule-allows-more.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/permission-rule-allows-more.html</guid>
+    <description>I had a rule meant to keep an agent inside one directory:</description>
+    <pubDate>Thu, 10 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>A Scheduled Job That Works and Never Runs</title>
     <link>https://quintetkit.github.io/en/articles/scheduled-job-four-environments.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/en/articles/scheduled-job-four-environments.html</guid>
