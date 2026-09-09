@@ -7,6 +7,13 @@
   <description>Notes on running parallel development with Claude Code by splitting it into separate personas — the configuration actually in use, and the failures behind it.</description>
   <language>en</language>
   <item>
+    <title>I Put a Setting in My Project Config and It Did Nothing</title>
+    <link>https://quintetkit.github.io/en/articles/setting-that-does-nothing.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/setting-that-does-nothing.html</guid>
+    <description>I put autoMode in .claude/settings.json, committed it, and it had no effect.</description>
+    <pubDate>Thu, 10 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>A Scheduled Job That Works and Never Runs</title>
     <link>https://quintetkit.github.io/en/articles/scheduled-job-four-environments.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/en/articles/scheduled-job-four-environments.html</guid>

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>I Put a Setting in My Project Config and It Did Nothing | Quartet / Quintet</title>
+<meta name="description" content="I put autoMode in .claude/settings.json, committed it, and it had no effect.">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/setting-that-does-nothing.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/articles/setting-that-does-nothing.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/articles/setting-that-does-nothing.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/articles/setting-that-does-nothing.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="I Put a Setting in My Project Config and It Did Nothing | Quartet / Quintet">
+<meta property="og:description" content="I put autoMode in .claude/settings.json, committed it, and it had no effect.">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/setting-that-does-nothing.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-09-10">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span><a href="../../en/reference/">Reference</a></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-10 &nbsp;·&nbsp; configuration · devops · ai · claudecode</p>
+  <h1>I Put a Setting in My Project Config and It Did Nothing</h1>
+<p>I put <code>autoMode</code> in <code>.claude/settings.json</code>, committed it, and it had no effect.</p>
+<p>The JSON was valid. Startup printed no warning. <code>--debug</code> said nothing. I spent
+a while assuming I had the semantics wrong before I found the actual reason:</p>
+<p><strong>that key does not apply from that file.</strong></p>
+<h2 id="settings-have-a-scope-and-the-scope-is-not-in-the-file">Settings have a scope, and the scope is not in the file</h2>
+<p>Claude Code's settings reference has a column I had never read carefully. Every
+key names the scopes it applies from. Counting it:</p>
+<pre><code>Any file                  152 keys
+Managed                    39 keys   only from managed settings
+User or managed            23 keys   ~/.claude/settings.json, or managed
+User, local, or managed     3 keys   settings.local.json but not settings.json
+Global config               6 keys   ~/.claude.json only
+------------------------------------
+                          223 keys, of which 71 are scoped
+</code></pre>
+<p><strong>71 of 223.</strong> Put one of those in a project's <code>.claude/settings.json</code> and it is
+not an error, produces no warning, and does nothing.</p>
+<p>The ones I would expect people to hit:</p>
+<pre><code>autoMode                          user or managed
+autoMode.classifyAllShell         user or managed
+skipAutoPermissionPrompt          user or managed
+useAutoModeDuringPlan             user, local, or managed
+spellcheck                        user or managed
+sandbox.network.strictAllowlist   user or managed
+sandbox.filesystem.disabled       user or managed
+diffTool                          ~/.claude.json only
+autoConnectIde                    ~/.claude.json only
+</code></pre>
+<p>If you run several agents at once you get more approval prompts, so loosening
+<code>autoMode</code> is the obvious move — and the obvious place to put it is the project
+config you already have open. That is the one place it does not work.</p>
+<h2 id="the-row-that-will-cost-you-a-debugging-session">The row that will cost you a debugging session</h2>
+<pre><code>User, local, or managed     3 keys
+</code></pre>
+<p><code>settings.local.json</code> is a <strong>different scope</strong> from <code>settings.json</code>. Three keys
+apply from the local one and not from the shared one:</p>
+<ul>
+<li><code>useAutoModeDuringPlan</code></li>
+<li><code>syncClaudeAiSkills</code></li>
+<li><code>skipDangerousModePermissionPrompt</code></li>
+</ul>
+<p>So: you put one in <code>settings.local.json</code>, it works. Later you move it into the
+shared file so the team gets it, and it silently stops. <strong>Nothing changed except
+which file it lives in.</strong></p>
+<p>This is a manufactured &quot;works on my machine&quot; — with the unusual property that
+the person who wrote it is the one for whom it works.</p>
+<h2 id="nested-keys-are-scoped-by-their-full-dotted-name">Nested keys are scoped by their full dotted name</h2>
+<p>The documentation names them the way you would write a path, not the way you
+would write JSON:</p>
+<pre><code>sandbox.network.strictAllowlist        ← this is what is scoped
+sandbox                                ← this is not
+</code></pre>
+<p>Which matters if you go looking. I wrote a checker for this and inspected only
+the top level of the settings object, so this:</p>
+<pre><code class="language-json">{ &quot;sandbox&quot;: { &quot;network&quot;: { &quot;strictAllowlist&quot;: true } } }
+</code></pre>
+<p>produced nothing at all. <strong>20 dotted keys were invisible to it, 12 of them
+<code>sandbox.*</code>.</strong></p>
+<h2 id="how-i-found-out-how-wrong-i-was">How I found out how wrong I was</h2>
+<p>I had been maintaining this list by hand, copied out of the documentation, with
+a comment I wrote myself:</p>
+<pre><code class="language-ts">/** そのファイルからは効かないスコープのキー（一部。確実なものだけ） */
+</code></pre>
+<p>&quot;Some. Only the certain ones.&quot; I knew it was partial. I did not know how partial.</p>
+<pre><code>             actual   I had
+Managed          39      14
+User or managed  23       0     ← the whole row
+Global config     6       6
+</code></pre>
+<p><strong>The <code>user or managed</code> row was missing entirely — 23 keys, including
+<code>autoMode</code>, the one that started this.</strong></p>
+<p>I had read the table by grouping it: <code>Managed</code> is for organisations deploying
+policy, which is not my situation, so I skipped past it — and past the row
+sitting next to it, which turned out to mean <em>&quot;applies from your own
+<code>~/.claude/settings.json</code>&quot;</em> and was the row I most needed.</p>
+<p><strong>Reading it row by row would have worked. Reading it by category is what
+failed.</strong></p>
+<p>So it is generated now, straight from the scope column, and the count comes out
+of the same place the checker reads.</p>
+<h2 id="checking-yours">Checking yours</h2>
+<pre><code class="language-bash">npx @quintetkit/ccheck
+</code></pre>
+<pre><code>warn  .claude/settings.json:63
+      `autoMode` applies from user or managed settings only. It has no effect from this file.
+      why: https://code.claude.com/docs/en/settings-reference
+</code></pre>
+<p>One thing that took a second pass to get right: <code>~/.claude/settings.json</code>
+<strong>is</strong> the user scope. Deciding &quot;this key doesn't apply here&quot; from the path alone
+would report a correctly placed <code>autoMode</code> on the machine of anyone who runs it
+against their home directory — including mine, which has <code>autoMode</code> in it. So
+the scope is decided by whether the directory being scanned is your home, not by
+what the path looks like.</p>
+<p>The full list of 71, and the same list as JSON if you would rather check the
+claim than trust it:</p>
+<p><a href="https://quintetkit.github.io/en/reference/claude-code-settings-scope.html">https://quintetkit.github.io/en/reference/claude-code-settings-scope.html</a></p>
+<hr />
+<!-- product-links -->
+
+<p>I publish the configuration for splitting Claude Code into separate personas —
+Architect, Coder, Reviewer, Conflict Resolver — under MIT. Copy it, run
+<code>./setup.sh</code>, and it works. It does not depend on your tech stack.</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>I built one real tool using nothing but this workflow. Every Issue, PR, review
+and merge is still there. <strong>The parts that went wrong were not deleted.</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>The version that adds a UI Designer persona, review criteria, a per-Issue
+parallel execution script and a 11-chapter guide is on the
+<a href="https://quintetkit.github.io/index.en.html">product page</a>.</p>
+<p>The full kit — five personas, the scripts and the complete guide — is available here.</p>
+<p><a href="https://quintetkit.gumroad.com/l/quintet">https://quintetkit.gumroad.com/l/quintet</a></p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 11-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

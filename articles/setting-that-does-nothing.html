@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>プロジェクトの設定に書いたのに、何も起きなかった | Quartet / Quintet</title>
+<meta name="description" content=".claude/settings.json に autoMode を書いて、commit して、何も起きませんでした。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/setting-that-does-nothing.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/articles/setting-that-does-nothing.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/articles/setting-that-does-nothing.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/articles/setting-that-does-nothing.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="プロジェクトの設定に書いたのに、何も起きなかった | Quartet / Quintet">
+<meta property="og:description" content=".claude/settings.json に autoMode を書いて、commit して、何も起きませんでした。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/setting-that-does-nothing.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="ja_JP">
+<meta property="article:published_time" content="2026-09-10">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span><a href="../reference/">リファレンス</a></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-10 &nbsp;·&nbsp; claudecode · 設定 · json · 個人開発 · devops</p>
+  <h1>プロジェクトの設定に書いたのに、何も起きなかった</h1>
+<p><code>.claude/settings.json</code> に <code>autoMode</code> を書いて、commit して、<strong>何も起きませんでした。</strong></p>
+<p>JSON は正しい。起動しても警告は出ない。<code>--debug</code> にも何も出ません。
+しばらく「意味を取り違えているのだろう」と考えてから、本当の理由に行き当たりました。</p>
+<p><strong>そのキーは、そのファイルからは効きません。</strong></p>
+<h2 id="設定キーにはスコープがあり-それはファイルに書かれていない">設定キーにはスコープがあり、それはファイルに書かれていない</h2>
+<p>公式の設定リファレンスに、ちゃんと読んでいなかった列があります。
+キーごとに「どのファイルから書けば効くか」が書いてあります。数えました。</p>
+<pre><code>Any file                  152 個
+Managed                    39 個   管理設定からのみ
+User or managed            23 個   ~/.claude/settings.json か管理設定
+User, local, or managed     3 個   settings.local.json は効くが settings.json は効かない
+Global config               6 個   ~/.claude.json からのみ
+------------------------------------
+                          223 個のうち 71 個がスコープ付き
+</code></pre>
+<p><strong>223個のうち71個。</strong> プロジェクトの <code>.claude/settings.json</code> に書いても、
+エラーにならず、警告も出ず、<strong>何も起きません。</strong></p>
+<p>踏みやすいものを並べます。</p>
+<pre><code>autoMode                          user or managed
+autoMode.classifyAllShell         user or managed
+skipAutoPermissionPrompt          user or managed
+useAutoModeDuringPlan             user, local, or managed
+spellcheck                        user or managed
+sandbox.network.strictAllowlist   user or managed
+sandbox.filesystem.disabled       user or managed
+diffTool                          ~/.claude.json のみ
+autoConnectIde                    ~/.claude.json のみ
+</code></pre>
+<p><strong>並列で走らせると承認の回数が増えます。</strong> だから <code>autoMode</code> を緩めたくなる。
+そして緩める場所として自然なのは、いま開いているプロジェクトの設定です。
+<strong>そこが唯一、効かない場所です。</strong></p>
+<h2 id="1行だけ-切り分けに時間を使わせる行がある">1行だけ、切り分けに時間を使わせる行がある</h2>
+<pre><code>User, local, or managed     3 個
+</code></pre>
+<p><code>settings.local.json</code> は <code>settings.json</code> と<strong>別のスコープ</strong>です。
+この3つは、ローカルからは効いて、共有ファイルからは効きません。</p>
+<ul>
+<li><code>useAutoModeDuringPlan</code></li>
+<li><code>syncClaudeAiSkills</code></li>
+<li><code>skipDangerousModePermissionPrompt</code></li>
+</ul>
+<p>つまり。<code>settings.local.json</code> に書いて、効く。
+あとでチームに配るために共有ファイルへ移すと、<strong>静かに止まります。</strong></p>
+<p><strong>変わったのは、どのファイルに置いたかだけです。</strong></p>
+<p>これは人工的に作られた「自分の環境では動く」で、しかも
+<strong>書いた本人にだけ効く</strong>という珍しい形をしています。</p>
+<h2 id="入れ子のキーは-点つなぎの完全な名前でスコープが決まる">入れ子のキーは、点つなぎの完全な名前でスコープが決まる</h2>
+<p>ドキュメントは、JSON の書き方ではなく<strong>パスの書き方</strong>でキーを呼びます。</p>
+<pre><code>sandbox.network.strictAllowlist        ← スコープが付いているのはこちら
+sandbox                                ← こちらではない
+</code></pre>
+<p>探しに行くときに効きます。私はこれを検査する道具を書いて、
+<strong>設定オブジェクトの最上位しか見ていませんでした。</strong> だからこれが、</p>
+<pre><code class="language-json">{ &quot;sandbox&quot;: { &quot;network&quot;: { &quot;strictAllowlist&quot;: true } } }
+</code></pre>
+<p><strong>1件も出ませんでした。</strong> 点つなぎのキー20件（うち <code>sandbox.*</code> が12件）が
+見えていませんでした。</p>
+<h2 id="どのくらい間違っていたか">どのくらい間違っていたか</h2>
+<p>この一覧を、ドキュメントから手で写して持っていました。
+自分で書いたコメントが付いています。</p>
+<pre><code class="language-ts">/** そのファイルからは効かないスコープのキー（一部。確実なものだけ） */
+</code></pre>
+<p><strong>「一部」と書いた時点で、全部でないことは知っていました。</strong>
+どのくらい一部なのかを知りませんでした。</p>
+<pre><code>                 実際   持っていた分
+Managed            39         14
+User or managed    23          0     ← 行ごと
+Global config       6          6
+</code></pre>
+<p><strong><code>User or managed</code> の23件が、行ごと落ちていました。</strong>
+<code>autoMode</code> を含めて。この記事の発端になったキーです。</p>
+<p>表を<strong>分類して読んでいた</strong>のが原因でした。
+<code>Managed</code> は組織がポリシーを配る話で、自分には関係ない。だから読み飛ばした。
+<strong>その隣にあった行を、同じ枠で見ていました。</strong></p>
+<p>実際は「<strong>あなた自身の <code>~/.claude/settings.json</code> からは効く</strong>」という意味で、
+いちばん必要な行でした。</p>
+<p><strong>1行ずつ見ていれば分かりました。分類して読んだのが失敗でした。</strong></p>
+<p>いまは生成しています。スコープ列から機械的に抜いて、
+検査ツールが読むのと同じ場所から件数が出ます。</p>
+<h2 id="自分の設定を見る">自分の設定を見る</h2>
+<pre><code class="language-bash">npx @quintetkit/ccheck
+</code></pre>
+<pre><code>warn  .claude/settings.json:63
+      `autoMode` applies from user or managed settings only. It has no effect from this file.
+      why: https://code.claude.com/docs/en/settings-reference
+</code></pre>
+<p>1つ、2回目で気づいたことがあります。
+<strong><code>~/.claude/settings.json</code> はユーザ設定そのものです。</strong></p>
+<p>パスの見た目だけで「このキーはここでは効かない」と判定すると、
+<strong>正しく置かれた <code>autoMode</code> を誤検出します。</strong>
+このマシンの <code>~/.claude/settings.json</code> には実際に <code>autoMode</code> が入っているので、
+<code>ccheck ~</code> を走らせた人に嘘をつくことになります。</p>
+<p>だからスコープは、<strong>走査しているディレクトリがホームかどうか</strong>で分けています。
+パスの形では分けていません。</p>
+<p>71個の全一覧と、<strong>この文章を信用せずに検算するための JSON</strong> はこちらです。</p>
+<p><a href="https://quintetkit.github.io/reference/claude-code-settings-scope.html">https://quintetkit.github.io/reference/claude-code-settings-scope.html</a></p>
+<hr />
+<!-- product-links -->
+
+<p>Claude Code に設計・実装・レビューを別々の人格として分担させ、GitHub Issue と
+ブランチを軸に並列開発を回すための設定一式を MIT で公開しています。
+コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>このワークフローだけで実際にツールを 1 つ作りました。Issue の分割から PR、
+レビュー、マージまで記録が全部残っています。<strong>うまくいかなかった箇所も消していません。</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>UI 設計人格・レビュー基準・Issue 単位の並列実行スクリプト・実践ガイド 11 章を
+足したものは<a href="https://quintetkit.github.io">製品ページ</a>にあります。</p>
+<p>実践ガイド全 11 章は Zenn Book で読めます（¥1,500・2章まで無料）。</p>
+<p><a href="https://zenn.dev/quintetkit/books/claude-code-parallel-workflow">https://zenn.dev/quintetkit/books/claude-code-parallel-workflow</a></p>
+<p>設定一式（5人格・スクリプト・ガイド全文）の配布はこちらです。</p>
+<p><a href="https://quartet-dev.booth.pm/items/8807156">https://quartet-dev.booth.pm/items/8807156</a></p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 11 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

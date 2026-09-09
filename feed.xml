@@ -7,6 +7,13 @@
   <description>Claude Code に複数の人格を分担させて並列開発を回すための、実際に使っている設定と、そこで踏んだ失敗の記録です。</description>
   <language>ja</language>
   <item>
+    <title>プロジェクトの設定に書いたのに、何も起きなかった</title>
+    <link>https://quintetkit.github.io/articles/setting-that-does-nothing.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/setting-that-does-nothing.html</guid>
+    <description>.claude/settings.json に autoMode を書いて、commit して、何も起きませんでした。</description>
+    <pubDate>Thu, 10 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>動いているのに一度も走らない定期実行 — 同じ仕組みを3回作り直した記録</title>
     <link>https://quintetkit.github.io/articles/scheduled-job-four-environments.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/articles/scheduled-job-four-environments.html</guid>

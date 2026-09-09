@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://quintetkit.github.io/</loc><lastmod>2026-09-08</lastmod></url>
-  <url><loc>https://quintetkit.github.io/index.en.html</loc><lastmod>2026-09-08</lastmod></url>
-  <url><loc>https://quintetkit.github.io/articles/</loc><lastmod>2026-09-08</lastmod></url>
-  <url><loc>https://quintetkit.github.io/en/articles/</loc><lastmod>2026-09-08</lastmod></url>
-  <url><loc>https://quintetkit.github.io/reference/</loc><lastmod>2026-09-08</lastmod></url>
-  <url><loc>https://quintetkit.github.io/en/reference/</loc><lastmod>2026-09-08</lastmod></url>
+  <url><loc>https://quintetkit.github.io/</loc><lastmod>2026-09-10</lastmod></url>
+  <url><loc>https://quintetkit.github.io/index.en.html</loc><lastmod>2026-09-10</lastmod></url>
+  <url><loc>https://quintetkit.github.io/articles/</loc><lastmod>2026-09-10</lastmod></url>
+  <url><loc>https://quintetkit.github.io/en/articles/</loc><lastmod>2026-09-10</lastmod></url>
+  <url><loc>https://quintetkit.github.io/reference/</loc><lastmod>2026-09-10</lastmod></url>
+  <url><loc>https://quintetkit.github.io/en/reference/</loc><lastmod>2026-09-10</lastmod></url>
   <url><loc>https://quintetkit.github.io/reference/claude-code-hooks.html</loc><lastmod>2026-09-09</lastmod></url>
   <url><loc>https://quintetkit.github.io/en/reference/claude-code-hooks.html</loc><lastmod>2026-09-09</lastmod></url>
   <url><loc>https://quintetkit.github.io/reference/claude-code-silent-config.html</loc><lastmod>2026-09-08</lastmod></url>
@@ -22,6 +22,8 @@
   <url><loc>https://quintetkit.github.io/en/reference/claude-code-mcp-json.html</loc><lastmod>2026-09-07</lastmod></url>
   <url><loc>https://quintetkit.github.io/reference/devto-api.html</loc><lastmod>2026-09-06</lastmod></url>
   <url><loc>https://quintetkit.github.io/en/reference/devto-api.html</loc><lastmod>2026-09-06</lastmod></url>
+  <url><loc>https://quintetkit.github.io/articles/setting-that-does-nothing.html</loc><lastmod>2026-09-10</lastmod></url>
+  <url><loc>https://quintetkit.github.io/en/articles/setting-that-does-nothing.html</loc><lastmod>2026-09-10</lastmod></url>
   <url><loc>https://quintetkit.github.io/articles/scheduled-job-four-environments.html</loc><lastmod>2026-09-08</lastmod></url>
   <url><loc>https://quintetkit.github.io/en/articles/scheduled-job-four-environments.html</loc><lastmod>2026-09-08</lastmod></url>
   <url><loc>https://quintetkit.github.io/articles/blind-spot-from-refusing-to-check.html</loc><lastmod>2026-09-08</lastmod></url>
