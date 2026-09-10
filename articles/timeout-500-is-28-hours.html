@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>timeout に 500 と書いたら、28時間になった | Quartet / Quintet</title>
+<meta name="description" content="たまに固まる MCP サーバがあったので、短い綱を付けました。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/timeout-500-is-28-hours.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/articles/timeout-500-is-28-hours.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/articles/timeout-500-is-28-hours.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/articles/timeout-500-is-28-hours.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="timeout に 500 と書いたら、28時間になった | Quartet / Quintet">
+<meta property="og:description" content="たまに固まる MCP サーバがあったので、短い綱を付けました。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/timeout-500-is-28-hours.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="ja_JP">
+<meta property="article:published_time" content="2026-09-10">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span><a href="../reference/">リファレンス</a></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-10 &nbsp;·&nbsp; mcp · claudecode · 設定 · 個人開発 · devops</p>
+  <h1>timeout に 500 と書いたら、28時間になった</h1>
+<p>たまに固まる MCP サーバがあったので、短い綱を付けました。</p>
+<pre><code class="language-json">{ &quot;mcpServers&quot;: { &quot;flaky&quot;: { &quot;type&quot;: &quot;http&quot;, &quot;url&quot;: &quot;...&quot;, &quot;timeout&quot;: 500 } } }
+</code></pre>
+<p><code>timeout</code> はミリ秒なので、これで0.5秒のつもりです。</p>
+<p><strong>1000 未満の値は無視されます。</strong>
+呼び出しは <code>MCP_TOOL_TIMEOUT</code> に落ち、それも設定されていなければ、
+その既定である<strong>約28時間</strong>になります。</p>
+<p><strong>いちばんきつい制限を書いて、いちばん緩いものを作っていました。</strong></p>
+<p><code>v2.1.162</code> より前は、1000 未満は1秒に丸められていました。
+<strong>私の頭にあったのはその挙動です。</strong>
+仕様が変わり、<strong>私の設定は変わらなかった。</strong></p>
+<p>節を通しで読んで、関連することが3つ分かりました。</p>
+<ul>
+<li><code>timeout</code> は<strong>1回のツール呼び出しに対する実時間の上限</strong>で、
+サーバからの進捗通知では延びない</li>
+<li><strong>1000 以上の <code>timeout</code> は、アイドル打ち切りの下限にもなる。</strong>
+その時間より早くアイドルで打ち切られることはない</li>
+<li>stdio と WebSocket のサーバには、<strong>リクエスト単位のタイマーが無い</strong></li>
+</ul>
+<h2 id="type-の無い-url-は-stdio-サーバとして読まれる"><code>type</code> の無い <code>url</code> は、stdio サーバとして読まれる</h2>
+<pre><code class="language-json">{ &quot;mcpServers&quot;: { &quot;example&quot;: { &quot;url&quot;: &quot;https://mcp.example.com/mcp&quot; } } }
+</code></pre>
+<p><strong>http が既定になるわけではありません。</strong>
+<code>type</code> の無いエントリは <strong>stdio サーバ</strong>で、stdio には <code>command</code> が要るので、
+そのサーバは設定エラーとして飛ばされます。</p>
+<pre><code>MCP server &quot;example&quot; has a &quot;url&quot; but no &quot;type&quot;; add &quot;type&quot;: &quot;http&quot; (or &quot;sse&quot; / &quot;ws&quot;) to this entry
+</code></pre>
+<p>この文言は <code>v2.1.202</code> 以降です。それより前は、同じ間違いに対して
+<code>command: expected string, received undefined</code> と出ていました。
+<strong>url を書いたのに command の話をされる</strong>ので、原因からかなり遠い。</p>
+<p><code>--output-format stream-json</code> で走らせている場合は、
+<code>system/init</code> イベントの <code>mcp_server_errors</code> にも出ます。
+<strong>機械で検知できる経路は、いまのところこれだけ</strong>でした。</p>
+<h2 id="クローンしたリポジトリは-自分のサーバを自分で承認できない">クローンしたリポジトリは、自分のサーバを自分で承認できない</h2>
+<p>これがいちばん時間を使いました。<strong>権限まわりのバグに見える</strong>からです。</p>
+<p><code>.mcp.json</code> のサーバは承認が要ります。
+<code>enableAllProjectMcpServers</code> や <code>enabledMcpjsonServers</code> を
+プロジェクトの <code>.claude/settings.json</code> に commit することはできて、
+<strong>untrusted なフォルダでは無視されます。</strong>
+サーバは <code>⏸ Pending approval</code> のまま、接続もヘルスチェックもされません。</p>
+<p><strong>言われてみれば正しい。</strong> リポジトリが自分の MCP サーバを自分で承認できるなら、
+<strong>クローンした人の環境でコードを走らせる経路</strong>になります。</p>
+<p>untrusted なフォルダでも効く承認元は3つです。
+自分の <code>~/.claude/settings.json</code>、管理設定、<code>--settings</code> で渡した設定。</p>
+<h2 id="全部に共通していること">全部に共通していること</h2>
+<p>どれも、<strong>読み込まれる</strong>設定です。
+エラーも出ず、気づく形の警告も出ず、
+<strong>ファイルに書いてあるのと違うことをしている系が動き続けます。</strong></p>
+<p><code>timeout: 500</code> がいちばん鋭い例です。
+ファイルは0.5秒と言い、システムは丸一日と言い、
+<strong>どちらも設計どおりに動いています。</strong></p>
+<p>これらを踏んだあとで設定の検査ツールに求めるのは、規則の数ではありません。
+<strong>持っている規則が、正しいものに対して絶対に鳴らないこと</strong>です。</p>
+<p>そもそも私が起動時の出力を読まなくなったのは、
+<strong>そこに一度も重要なものが出たことがなかったから</strong>で、
+実際に出たときには、もう読まない癖がついていました。</p>
+<pre><code class="language-bash">npx @quintetkit/ccheck
+</code></pre>
+<pre><code>error .mcp.json:3
+      Server &quot;example&quot; has a `url` but no `type`. Add `&quot;type&quot;: &quot;http&quot;` (or &quot;sse&quot; / &quot;ws&quot;).
+warn  .mcp.json:9
+      Server &quot;flaky&quot;: `timeout: 500` is in milliseconds; values below 1000 are ignored.
+</code></pre>
+<p>トランスポート別の必須項目を含めた全一覧はこちらです。</p>
+<p><a href="https://quintetkit.github.io/reference/claude-code-mcp-json.html">https://quintetkit.github.io/reference/claude-code-mcp-json.html</a></p>
+<hr />
+<!-- product-links -->
+
+<p>Claude Code に設計・実装・レビューを別々の人格として分担させ、GitHub Issue と
+ブランチを軸に並列開発を回すための設定一式を MIT で公開しています。
+コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>このワークフローだけで実際にツールを 1 つ作りました。Issue の分割から PR、
+レビュー、マージまで記録が全部残っています。<strong>うまくいかなかった箇所も消していません。</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>UI 設計人格・レビュー基準・Issue 単位の並列実行スクリプト・実践ガイド 11 章を
+足したものは<a href="https://quintetkit.github.io">製品ページ</a>にあります。</p>
+<p>実践ガイド全 11 章は Zenn Book で読めます（¥1,500・2章まで無料）。</p>
+<p><a href="https://zenn.dev/quintetkit/books/claude-code-parallel-workflow">https://zenn.dev/quintetkit/books/claude-code-parallel-workflow</a></p>
+<p>設定一式（5人格・スクリプト・ガイド全文）の配布はこちらです。</p>
+<p><a href="https://quartet-dev.booth.pm/items/8807156">https://quartet-dev.booth.pm/items/8807156</a></p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 11 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

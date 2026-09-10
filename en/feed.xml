@@ -7,6 +7,13 @@
   <description>Notes on running parallel development with Claude Code by splitting it into separate personas — the configuration actually in use, and the failures behind it.</description>
   <language>en</language>
   <item>
+    <title>I Set a 500ms Timeout and Got 28 Hours</title>
+    <link>https://quintetkit.github.io/en/articles/timeout-500-is-28-hours.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/timeout-500-is-28-hours.html</guid>
+    <description>I had an MCP server that occasionally hung, so I gave it a short leash:</description>
+    <pubDate>Thu, 10 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>I Put a Setting in My Project Config and It Did Nothing</title>
     <link>https://quintetkit.github.io/en/articles/setting-that-does-nothing.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/en/articles/setting-that-does-nothing.html</guid>

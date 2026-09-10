@@ -7,6 +7,13 @@
   <description>Claude Code に複数の人格を分担させて並列開発を回すための、実際に使っている設定と、そこで踏んだ失敗の記録です。</description>
   <language>ja</language>
   <item>
+    <title>timeout に 500 と書いたら、28時間になった</title>
+    <link>https://quintetkit.github.io/articles/timeout-500-is-28-hours.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/timeout-500-is-28-hours.html</guid>
+    <description>たまに固まる MCP サーバがあったので、短い綱を付けました。</description>
+    <pubDate>Thu, 10 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>プロジェクトの設定に書いたのに、何も起きなかった</title>
     <link>https://quintetkit.github.io/articles/setting-that-does-nothing.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/articles/setting-that-does-nothing.html</guid>
