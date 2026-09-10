@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Workflow Ran With Four Personas Instead of Five and Looked Fine | Quartet / Quintet</title>
+<meta name="description" content="I run Claude Code as five separate subagents with different permissions — architect, coder, reviewer, conflict resolver, UI designer. One of them sto…">
+<link rel="canonical" href="https://quintetkit.github.io/en/articles/four-personas-not-five.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/articles/four-personas-not-five.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/articles/four-personas-not-five.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/articles/four-personas-not-five.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="The Workflow Ran With Four Personas Instead of Five and Looked Fine | Quartet / Quintet">
+<meta property="og:description" content="I run Claude Code as five separate subagents with different permissions — architect, coder, reviewer, conflict resolver, UI designer. One of them sto…">
+<meta property="og:url" content="https://quintetkit.github.io/en/articles/four-personas-not-five.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-09-10">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../../index.en.html">Product</a><span>Articles</span><a href="../../en/reference/">Reference</a></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-10 &nbsp;·&nbsp; ai · claudecode · devops · productivity</p>
+  <h1>The Workflow Ran With Four Personas Instead of Five and Looked Fine</h1>
+<p>I run Claude Code as five separate subagents with different permissions —
+architect, coder, reviewer, conflict resolver, UI designer. One of them stopped
+loading.</p>
+<p><strong>Nothing said so.</strong> The work still got done, by whoever was left. It got
+slower, review got softer, declared scopes stopped being respected. Every one of
+those looks like &quot;the model is having a bad day&quot;.</p>
+<p>The symptom has the shape of <em>not working well</em>. The cause was <em>not being
+there</em>.</p>
+<h2 id="a-file-in-claude-agents-is-skipped-silently">A file in <code>.claude/agents/</code> is skipped silently</h2>
+<p>Five conditions in the frontmatter, any one of which means the file is not
+treated as a subagent:</p>
+<div class="scroll"><table><thead>
+<tr>
+  <th>Condition</th>
+  <th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>No <code>name</code></td>
+  <td>Treated as documentation — a note kept beside your agents</td>
+</tr>
+<tr>
+  <td>The opening <code>---</code> is <strong>not line 1</strong></td>
+  <td>Read as having no frontmatter, so documentation again</td>
+</tr>
+<tr>
+  <td>A <code>name</code> starting with <code>-</code>, or containing <code>:</code></td>
+  <td>The whole file is skipped</td>
+</tr>
+<tr>
+  <td>A <code>name</code> but no <code>description</code></td>
+  <td>Skipped</td>
+</tr>
+<tr>
+  <td>YAML that does not parse</td>
+  <td>Nothing is read, file skipped</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>None of these appear in the session.</strong> The reason goes to the debug log, which
+you see with <code>--debug</code>, which you are not running when things seem fine.</p>
+<p>The second row is the one I hit. I had pasted content into a persona file and
+an editor put something above the opening <code>---</code>. From then on the file was
+prose sitting next to four agents, and Claude distributed its work to them.</p>
+<p><code>:</code> is unavailable because it is reserved for plugin-scoped names like
+<code>my-plugin:reviewer</code>. A leading <code>-</code> is out for the same class of reason.</p>
+<h2 id="copying-a-persona-is-where-this-gets-interesting">Copying a persona is where this gets interesting</h2>
+<p>Adding a persona by duplicating an existing one is the obvious move, and
+forgetting to change <code>name</code> is the obvious mistake.</p>
+<p><strong>Which of two files with the same name loads is not documented.</strong> It is decided
+by filesystem read order.</p>
+<p>So the same repository can run a <strong>different persona on a different machine</strong>,
+and both machines are &quot;working&quot;. I do not have a story about being burned by
+this one, and I am fairly sure that is luck rather than care.</p>
+<h2 id="claude-plugin-validate-gets-you-part-of-the-way"><code>claude plugin validate</code> gets you part of the way</h2>
+<pre><code class="language-bash">claude plugin validate .claude/agents
+claude plugin validate ~/.claude/agents
+</code></pre>
+<p>It finds frontmatter that <strong>fails to parse.</strong> Two limits worth knowing:</p>
+<ul>
+<li>it looks <strong>only at the directory you name</strong> — user scope is a separate run</li>
+<li>it does <strong>not</strong> flag a file that parses but has no <code>name</code></li>
+</ul>
+<p>Which is most of the list above. It is worth running and it is not sufficient.</p>
+<h2 id="the-one-that-was-my-own-fault">The one that was my own fault</h2>
+<p>My coder persona had this:</p>
+<pre><code class="language-yaml">tools: *
+</code></pre>
+<p>meaning &quot;this one gets everything&quot;. <code>tools</code> accepts exact tool names or the
+server patterns <code>mcp__&lt;server&gt;</code> / <code>mcp__&lt;server&gt;__*</code>. <strong>A bare <code>*</code> is not among
+them</strong>, and an entry resolving to nothing makes Claude Code refuse to launch the
+subagent.</p>
+<p>The documented way to say &quot;everything&quot; is to <strong>omit the field.</strong></p>
+<p><strong>Why my own linter could not see that</strong> is written up separately.</p>
+<p><a href="https://quintetkit.github.io/en/articles/blind-spot-from-refusing-to-check.html">https://quintetkit.github.io/en/articles/blind-spot-from-refusing-to-check.html</a></p>
+<p>The short version is that the rule I wrote to avoid false positives was phrased
+as &quot;don't look at the <code>tools</code> field&quot;.</p>
+<p>That one is worse than a missing persona, because <code>coder</code> is the one that writes
+the code. The other four keep working, so it presents as <strong>the coder being
+unreliable today.</strong></p>
+<h2 id="what-i-do-now">What I do now</h2>
+<p>Two checks, and I only run them twice: after setup, and after adding or copying
+a persona.</p>
+<pre><code class="language-bash">npx @quintetkit/ccheck        # the five conditions, duplicate names, tools: *
+claude --debug                # once, to see what was skipped and why
+</code></pre>
+<p>And a habit that is cheaper than either: <strong>count them.</strong> If the configuration
+says five personas, the thing you want to confirm is that five loaded — not that
+the work is getting done. The work getting done was never the question.</p>
+<p>The five conditions and every frontmatter field, in one table:</p>
+<p><a href="https://quintetkit.github.io/en/reference/claude-code-subagent-frontmatter.html">https://quintetkit.github.io/en/reference/claude-code-subagent-frontmatter.html</a></p>
+<hr />
+<!-- product-links -->
+
+<p>I publish the configuration for splitting Claude Code into separate personas —
+Architect, Coder, Reviewer, Conflict Resolver — under MIT. Copy it, run
+<code>./setup.sh</code>, and it works. It does not depend on your tech stack.</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>I built one real tool using nothing but this workflow. Every Issue, PR, review
+and merge is still there. <strong>The parts that went wrong were not deleted.</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>The version that adds a UI Designer persona, review criteria, a per-Issue
+parallel execution script and a 11-chapter guide is on the
+<a href="https://quintetkit.github.io/index.en.html">product page</a>.</p>
+<p>The full kit — five personas, the scripts and the complete guide — is available here.</p>
+<p><a href="https://quintetkit.gumroad.com/l/quintet">https://quintetkit.gumroad.com/l/quintet</a></p>
+
+<div class="after">
+  <h2>The workflow itself is available</h2>
+  <p><strong>Quartet</strong>, the four-persona version, is published free under MIT.
+     <strong>Quintet</strong> adds a UI Designer persona, review criteria, a per-Issue parallel
+     execution script, and a 11-chapter guide.</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">See the free version</a>
+  <a class="btn" href="../../index.en.html">Product page</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

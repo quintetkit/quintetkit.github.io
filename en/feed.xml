@@ -28,6 +28,13 @@
     <pubDate>Thu, 10 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>The Workflow Ran With Four Personas Instead of Five and Looked Fine</title>
+    <link>https://quintetkit.github.io/en/articles/four-personas-not-five.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/four-personas-not-five.html</guid>
+    <description>I run Claude Code as five separate subagents with different permissions — architect, coder, reviewer, conflict resolver, UI designer. One of them sto…</description>
+    <pubDate>Thu, 10 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>A Scheduled Job That Works and Never Runs</title>
     <link>https://quintetkit.github.io/en/articles/scheduled-job-four-environments.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/en/articles/scheduled-job-four-environments.html</guid>

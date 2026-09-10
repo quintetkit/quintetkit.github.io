@@ -28,6 +28,13 @@
     <pubDate>Thu, 10 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>5人格のうち4つで回っていて、ふつうに動いているように見えた</title>
+    <link>https://quintetkit.github.io/articles/four-personas-not-five.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/four-personas-not-five.html</guid>
+    <description>Claude Code を、権限の違う5つのサブエージェントとして使っています。 設計者・実装者・レビュアー・コンフリクト解消担当・UIデザイナー。</description>
+    <pubDate>Thu, 10 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>動いているのに一度も走らない定期実行 — 同じ仕組みを3回作り直した記録</title>
     <link>https://quintetkit.github.io/articles/scheduled-job-four-environments.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/articles/scheduled-job-four-environments.html</guid>
