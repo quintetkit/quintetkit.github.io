@@ -21,6 +21,13 @@
     <pubDate>Thu, 10 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>allow から消したのに、権限が残っていた</title>
+    <link>https://quintetkit.github.io/articles/removed-a-permission-still-there.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/articles/removed-a-permission-still-there.html</guid>
+    <description>あるコマンドの自動承認をやめたくて、~/.claude/settings.json の permissions.allow から、その行を消しました。</description>
+    <pubDate>Thu, 10 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>書いた deny ルールが、一度も参照されていなかった</title>
     <link>https://quintetkit.github.io/articles/permission-rule-allows-more.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/articles/permission-rule-allows-more.html</guid>

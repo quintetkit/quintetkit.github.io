@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>allow から消したのに、権限が残っていた | Quartet / Quintet</title>
+<meta name="description" content="あるコマンドの自動承認をやめたくて、~/.claude/settings.json の permissions.allow から、その行を消しました。">
+<link rel="canonical" href="https://quintetkit.github.io/articles/removed-a-permission-still-there.html">
+<link rel="alternate" hreflang="ja" href="https://quintetkit.github.io/articles/removed-a-permission-still-there.html">
+<link rel="alternate" hreflang="en" href="https://quintetkit.github.io/en/articles/removed-a-permission-still-there.html">
+<link rel="alternate" hreflang="x-default" href="https://quintetkit.github.io/articles/removed-a-permission-still-there.html">
+<link rel="alternate" type="application/rss+xml" title="Quartet / Quintet" href="../feed.xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<meta property="og:image" content="https://quintetkit.github.io/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article">
+<meta property="og:title" content="allow から消したのに、権限が残っていた | Quartet / Quintet">
+<meta property="og:description" content="あるコマンドの自動承認をやめたくて、~/.claude/settings.json の permissions.allow から、その行を消しました。">
+<meta property="og:url" content="https://quintetkit.github.io/articles/removed-a-permission-still-there.html">
+<meta property="og:site_name" content="Quartet / Quintet">
+<meta property="og:locale" content="ja_JP">
+<meta property="article:published_time" content="2026-09-10">
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <span class="brand">Quartet / Quintet</span>
+  <nav><a href="../index.html">製品</a><span>記事</span><a href="../reference/">リファレンス</a></nav>
+</div></div>
+<article><div class="wrap">
+  <p class="eyebrow">2026-09-10 &nbsp;·&nbsp; claudecode · 設定 · security · 個人開発 · devops</p>
+  <h1>allow から消したのに、権限が残っていた</h1>
+<p>あるコマンドの自動承認をやめたくて、<code>~/.claude/settings.json</code> の
+<code>permissions.allow</code> から、その行を消しました。</p>
+<p><strong>まだ自動承認されました。</strong></p>
+<p>キャッシュでも古い状態でもありません。同じ行がプロジェクトの
+<code>.claude/settings.json</code> にもあって、<strong>リストのキーは上書きではなく合成される</strong>からです。</p>
+<h2 id="リストは合成される-他のファイルの項目は誰も消せない">リストは合成される。他のファイルの項目は誰も消せない</h2>
+<p>同じリストのキーが複数の設定ファイルにあるとき、Claude Code は<strong>両方を合わせます。</strong></p>
+<pre><code class="language-jsonc">// ~/.claude/settings.json
+&quot;permissions&quot;: { &quot;allow&quot;: [&quot;Bash(npm run *)&quot;] }
+
+// .claude/settings.json（リポジトリに commit されているもの）
+&quot;permissions&quot;: { &quot;allow&quot;: [&quot;Bash(git commit *)&quot;] }
+
+// → 両方効く
+</code></pre>
+<p>文書化されている意図は「<strong>各ファイルが、他のファイルのものを消さずに追加できる</strong>」こと。
+妥当な設計で、そして<strong>はっきり書いておく価値のある帰結</strong>があります。</p>
+<p><strong>どの設定ファイルも、他のファイルから引き算できません。</strong> 下の段でも、上の段でも。
+自分の行を消すと、消えるのは自分の行だけです。</p>
+<p>本当に止めたいなら <code>deny</code> を使うか、<strong>追加している側のファイルを直します。</strong></p>
+<p>私はしばらく、キャッシュのバグを探していました。</p>
+<h2 id="段の順と-実際に役に立つ1行">段の順と、実際に役に立つ1行</h2>
+<p>上から。</p>
+<pre><code>1  管理設定                      （組織のポリシー）
+2  コマンドライン                （--settings、そのセッションだけ）
+3  .claude/settings.local.json
+4  .claude/settings.json        （commit されている共有設定）
+5  ~/.claude/settings.json
+</code></pre>
+<p><strong>3 が 4 より上</strong>です。これは予想していませんでしたが、いまは頼っています。</p>
+<p>チームが共有ファイルで決めた値を、<code>settings.local.json</code> で<strong>自分だけ戻せます。</strong>
+<strong>全員が使うファイルを書き換えずに。</strong></p>
+<p>管理設定には勝てません。<code>--settings</code> でも勝てず、
+<code>--model</code> も<strong>組織が許したモデルの中からしか選べません。</strong></p>
+<h2 id="環境変数は段ではない">環境変数は段ではない</h2>
+<p>そもそも段に入っていません。そして<strong>どちらが勝つかはキーごと</strong>に決まります。</p>
+<pre><code>ANTHROPIC_MODEL           どのファイルの model にも勝つ
+ANTHROPIC_DEFAULT_MODEL   どのファイルも model を設定していないときだけ
+</code></pre>
+<p>同じ「モデルを決める変数」で、片方は勝ち、片方は譲ります。
+<strong>一般則として覚えられるものはありません。</strong> 対になっているキーごとに確かめます。</p>
+<p>設定ファイルの<strong>中</strong>に書いた <code>env</code> ブロックは、ふつうのキーとして5段に従います。</p>
+<h2 id="下の段が管理設定に勝つキーが7つ">下の段が管理設定に勝つキーが7つ</h2>
+<p>安全に関わる7つのキーでは、<strong>より厳しい値</strong>を、
+本来なら管理設定に勝てないスコープから拾います。
+プロジェクトのファイルから <code>remoteControlAtStartup</code> や <code>crossSessionInbound</code> を、
+<strong>組織のポリシーに対してでも締められます。</strong></p>
+<p><strong>一方向にだけ効きます。</strong> <code>remoteControlAtStartup</code> にプロジェクトから
+<code>true</code> を書いても無視されます。<strong>下から締められて、緩められない。</strong>
+そして <code>enableArtifact</code> は<strong>戻せません</strong> — 一度どこかで <code>false</code> になったら、
+管理設定からでも復活しません。</p>
+<p>モデル関係の4キーも合成の規則から外れ、1つのファイルから値をまるごと採ります。
+どちらの一覧も参照ページにあります。頭に入れておく価値があるのは、
+<strong>例外の向きが対称ではない</strong>ということです。</p>
+<h2 id="これを書き留めている理由">これを書き留めている理由</h2>
+<p>どれも、同じ経験を作ります。<strong>ファイルを変えた。挙動は変わらない。理由はどこにも出ない。</strong></p>
+<p>原因は違います。スコープ、合成、優先順位、環境変数。<strong>症状だけが同じ。</strong></p>
+<p>そして、これに限っては<strong>検査ツールが助けになりません。</strong>
+<strong>どのファイルが読まれるかは実行時に決まる</strong>ので、
+手元のファイルだけでは優先順位が分かりません。</p>
+<p><code>/status</code> は実際に読まれたものを見せます。<strong>これに使う道具はそちら。</strong></p>
+<pre><code class="language-bash">/status         # どのファイルが読まれたか
+claude doctor   # 解決後の設定と、スキップされたルール
+</code></pre>
+<p>5段・合成の例外・7つのキーを1枚にしたものはこちらです。</p>
+<p><a href="https://quintetkit.github.io/reference/claude-code-settings-precedence.html">https://quintetkit.github.io/reference/claude-code-settings-precedence.html</a></p>
+<hr />
+<!-- product-links -->
+
+<p>Claude Code に設計・実装・レビューを別々の人格として分担させ、GitHub Issue と
+ブランチを軸に並列開発を回すための設定一式を MIT で公開しています。
+コピーして <code>./setup.sh</code> を叩けば動きます。技術スタックには依存しません。</p>
+<p><a href="https://github.com/quintetkit/quartet">https://github.com/quintetkit/quartet</a></p>
+<p>このワークフローだけで実際にツールを 1 つ作りました。Issue の分割から PR、
+レビュー、マージまで記録が全部残っています。<strong>うまくいかなかった箇所も消していません。</strong></p>
+<p><a href="https://github.com/quintetkit/mdlinkcheck">https://github.com/quintetkit/mdlinkcheck</a></p>
+<p>UI 設計人格・レビュー基準・Issue 単位の並列実行スクリプト・実践ガイド 11 章を
+足したものは<a href="https://quintetkit.github.io">製品ページ</a>にあります。</p>
+<p>実践ガイド全 11 章は Zenn Book で読めます（¥1,500・2章まで無料）。</p>
+<p><a href="https://zenn.dev/quintetkit/books/claude-code-parallel-workflow">https://zenn.dev/quintetkit/books/claude-code-parallel-workflow</a></p>
+<p>設定一式（5人格・スクリプト・ガイド全文）の配布はこちらです。</p>
+<p><a href="https://quartet-dev.booth.pm/items/8807156">https://quartet-dev.booth.pm/items/8807156</a></p>
+
+<div class="after">
+  <h2>この運用そのものを配っています</h2>
+  <p>4 人格版 <strong>Quartet</strong> は MIT で無料公開しています。UI 設計人格・レビュー基準・
+     Issue 単位の並列実行スクリプト・実践ガイド 11 章を足した <strong>Quintet</strong> は有料版です。</p>
+  <a class="btn" href="https://github.com/quintetkit/quartet">無料版を見る</a>
+  <a class="btn" href="../index.html">製品ページ</a>
+</div>
+</div></article>
+<footer><div class="wrap">Quartet / Quintet &nbsp;·&nbsp; <a href="https://github.com/quintetkit">GitHub</a> &nbsp;·&nbsp; <a href="../feed.xml">RSS</a></div></footer>
+</body>
+</html>

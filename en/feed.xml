@@ -21,6 +21,13 @@
     <pubDate>Thu, 10 Sep 2026 00:00:00 +0000</pubDate>
   </item>
   <item>
+    <title>I Removed an allow Rule and the Permission Was Still There</title>
+    <link>https://quintetkit.github.io/en/articles/removed-a-permission-still-there.html</link>
+    <guid isPermaLink="true">https://quintetkit.github.io/en/articles/removed-a-permission-still-there.html</guid>
+    <description>I wanted to stop auto-approving a command, so I deleted its entry from permissions.allow in my ~/.claude/settings.json.</description>
+    <pubDate>Thu, 10 Sep 2026 00:00:00 +0000</pubDate>
+  </item>
+  <item>
     <title>The Deny Rule I Wrote Was Never Consulted</title>
     <link>https://quintetkit.github.io/en/articles/permission-rule-allows-more.html</link>
     <guid isPermaLink="true">https://quintetkit.github.io/en/articles/permission-rule-allows-more.html</guid>
